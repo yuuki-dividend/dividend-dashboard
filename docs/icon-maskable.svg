@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Maskable icon: content in safe zone (inner 80%) -->
+  <rect width="512" height="512" fill="#1e293b"/>
+  <text x="256" y="240" text-anchor="middle" dominant-baseline="central" font-family="system-ui, sans-serif" font-size="180" font-weight="800" fill="#f472b6">&yen;</text>
+  <rect x="120" y="340" width="40" height="60" rx="5" fill="#06b6d4" opacity="0.8"/>
+  <rect x="172" y="320" width="40" height="80" rx="5" fill="#34d399" opacity="0.8"/>
+  <rect x="224" y="300" width="40" height="100" rx="5" fill="#fbbf24" opacity="0.8"/>
+  <rect x="276" y="310" width="40" height="90" rx="5" fill="#06b6d4" opacity="0.8"/>
+  <rect x="328" y="290" width="40" height="110" rx="5" fill="#34d399" opacity="0.8"/>
+</svg>

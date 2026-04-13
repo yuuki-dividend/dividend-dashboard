@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="64" fill="#1e293b"/>
+  <text x="256" y="270" text-anchor="middle" dominant-baseline="central" font-family="system-ui, sans-serif" font-size="240" font-weight="800" fill="#f472b6">&yen;</text>
+  <rect x="80" y="370" width="50" height="75" rx="6" fill="#06b6d4" opacity="0.8"/>
+  <rect x="145" y="345" width="50" height="100" rx="6" fill="#34d399" opacity="0.8"/>
+  <rect x="210" y="320" width="50" height="125" rx="6" fill="#fbbf24" opacity="0.8"/>
+  <rect x="275" y="335" width="50" height="110" rx="6" fill="#06b6d4" opacity="0.8"/>
+  <rect x="340" y="305" width="50" height="140" rx="6" fill="#34d399" opacity="0.8"/>
+</svg>

@@ -1,0 +1,2666 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>高配当株ポートフォリオ</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#1e293b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="./icon-192.svg">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-primary:#101010;--bg-secondary:#191919;--bg-card:#222222;
+  --text-primary:#f0ece8;--text-secondary:#b8a99a;--text-muted:#706860;
+  --accent:#f472b6;--accent-hover:#fb7ebd;--accent-light:rgba(244,114,182,.1);
+  --accent2:#06b6d4;--accent3:#34d399;--accent4:#fbbf24;
+  --border:rgba(255,255,255,.06);--green:#34d399;--red:#fb7185;
+  --green-bg:rgba(52,211,153,.08);--red-bg:rgba(251,113,133,.08);
+  --radius:18px;--shadow:0 8px 32px rgba(0,0,0,.4);
+  --font:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+  --glow:0 0 24px rgba(244,114,182,.08);
+}
+[data-theme="light"]{
+  --bg-primary:#f7f5f2;--bg-secondary:#fff;--bg-card:#fff;
+  --text-primary:#1a1715;--text-secondary:#8b6914;--text-muted:#9a9590;
+  --border:rgba(0,0,0,.06);--shadow:0 8px 32px rgba(0,0,0,.04);
+  --green-bg:rgba(52,211,153,.08);--red-bg:rgba(251,113,133,.08);
+  --accent-light:rgba(244,114,182,.05);--glow:0 0 20px rgba(0,0,0,.03);
+}
+html{font-size:15px}
+body{font-family:var(--font);background:var(--bg-primary);color:var(--text-primary);min-height:100vh;display:flex;transition:background .3s,color .3s}
+
+/* Sidebar */
+.sidebar{width:220px;background:var(--bg-secondary);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .3s;backdrop-filter:blur(12px)}
+.sidebar-header{padding:20px;border-bottom:1px solid var(--border)}
+.sidebar-header h1{font-size:1.15rem;background:linear-gradient(135deg,#f472b6,#06b6d4,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;letter-spacing:-.5px}
+.sidebar-header p{font-size:.72rem;color:var(--text-muted);margin-top:4px;letter-spacing:.5px}
+.sidebar-nav{flex:1;padding:12px 8px}
+.nav-btn{width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;border:none;background:none;color:var(--text-secondary);font-size:.88rem;border-radius:12px;cursor:pointer;transition:all .25s;text-align:left;font-family:var(--font);font-weight:500}
+.nav-btn:hover{background:var(--accent-light);color:var(--text-primary);transform:translateX(4px)}
+.nav-btn.active{background:linear-gradient(135deg,#f472b6,#06b6d4);color:#fff;box-shadow:0 4px 16px rgba(244,114,182,.3)}
+.nav-btn svg{width:18px;height:18px;flex-shrink:0}
+
+/* Main */
+.main{flex:1;margin-left:220px;padding:24px;min-height:100vh;transition:margin .3s}
+.tab-content{display:none;animation:fadeIn .3s ease}
+.tab-content.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Cards */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);transition:all .3s}
+.card:hover{box-shadow:var(--shadow),var(--glow)}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px}
+.summary-card{text-align:center;padding:16px 12px;position:relative;overflow:hidden}
+.summary-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:3px 3px 0 0}
+.summary-card:nth-child(1)::before{background:linear-gradient(90deg,#f472b6,#fb7ebd)}
+.summary-card:nth-child(2)::before{background:linear-gradient(90deg,#06b6d4,#22d3ee)}
+.summary-card:nth-child(3)::before{background:linear-gradient(90deg,#34d399,#6ee7b7)}
+.summary-card:nth-child(4)::before{background:linear-gradient(90deg,#fbbf24,#fcd34d)}
+.summary-card:nth-child(5)::before{background:linear-gradient(90deg,#fb923c,#fdba74)}
+.summary-card:nth-child(6)::before{background:linear-gradient(90deg,#f472b6,#06b6d4)}
+.summary-card:nth-child(7)::before{background:linear-gradient(90deg,#a78bfa,#c4b5fd)}
+.summary-card:nth-child(8)::before{background:linear-gradient(90deg,#06b6d4,#34d399)}
+.summary-card:nth-child(9)::before{background:linear-gradient(90deg,#f472b6,#fbbf24)}
+.summary-card .label{font-size:.72rem;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.summary-card .value{font-size:1.3rem;font-weight:800;letter-spacing:-.5px}
+.summary-card .sub{font-size:.75rem;color:var(--text-muted);margin-top:2px}
+
+/* Charts */
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.chart-card{padding:12px}
+.chart-card h3{font-size:.85rem;margin-bottom:6px;color:var(--text-secondary)}
+.chart-card canvas{max-height:180px}
+.chart-full{margin-top:12px;padding:14px}
+.chart-full h3{font-size:.85rem;margin-bottom:6px;color:var(--text-secondary)}
+.chart-full canvas{max-height:160px}
+
+/* Table */
+.table-wrap{overflow-x:auto;overflow-y:auto;max-height:75vh;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:.88rem;white-space:nowrap}
+th{position:sticky;top:0;z-index:10;background:var(--bg-secondary);color:var(--text-muted);font-weight:600;text-transform:none;padding:10px 12px;border-bottom:2px solid var(--border);cursor:pointer;user-select:none;text-align:right}
+th:first-child,th:nth-child(2){text-align:left}
+th:hover{color:var(--accent)}
+th .sort-arrow{margin-left:4px;font-size:.65rem}
+td{padding:8px 12px;border-bottom:1px solid var(--border);text-align:right}
+td:first-child,td:nth-child(2){text-align:left}
+tr.row-positive{background:var(--green-bg)}
+tr.row-negative{background:var(--red-bg)}
+tr:hover{background:var(--accent-light)}
+tr.totals-row{font-weight:700;background:var(--bg-secondary) !important;border-top:2px solid var(--accent)}
+.text-green{color:var(--green)}
+.text-red{color:var(--red)}
+
+/* Detail card overlay */
+.detail-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;justify-content:center;align-items:center}
+.detail-overlay.show{display:flex}
+.detail-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:28px;max-width:480px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:var(--shadow)}
+.detail-card h2{font-size:1.1rem;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.detail-card .close-btn{background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer}
+.detail-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:.88rem}
+.detail-row .dl{color:var(--text-muted)}
+
+/* Calendar */
+.cal-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:auto repeat(3,1fr);gap:10px;height:calc(100vh - 60px)}
+.cal-card{padding:14px;position:relative;cursor:default;display:flex;flex-direction:column;justify-content:center;transition:all .25s}
+.cal-card:hover{transform:scale(1.02);box-shadow:var(--shadow),var(--glow)}
+.cal-card .month-name{font-size:.95rem;font-weight:800;margin-bottom:2px;letter-spacing:-.3px}
+.cal-card .month-total{font-size:1.2rem;font-weight:800;color:#06b6d4;margin-bottom:1px}
+.cal-card .month-after{font-size:.7rem;color:var(--text-muted)}
+.cal-card .month-count{font-size:.7rem;color:var(--text-secondary);margin-top:2px}
+.cal-tooltip{display:none;position:fixed;z-index:9999;background:var(--bg-secondary);border:2px solid #06b6d4;border-radius:14px;padding:0;box-shadow:0 12px 48px rgba(0,0,0,.4),0 0 20px rgba(6,182,212,.15);font-size:.85rem;line-height:1.7;overflow:hidden;flex-direction:column}
+.cal-tooltip .tt-header{padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.cal-tooltip .tt-body{padding:6px 16px 14px;overflow-y:auto;flex:1;min-height:0}
+/* tooltip display controlled by JS mouseenter/mouseleave */
+.cal-tooltip .stock-item{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)}
+.cal-tooltip .stock-item:last-child{border-bottom:none}
+.cal-tooltip .stock-item span:first-child{color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%}
+.cal-tooltip .stock-item span:last-child{font-weight:600;white-space:nowrap}
+/* tt-footer removed - totals now in fixed tt-header */
+
+/* Simulator */
+.sim-form{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;align-items:end}
+.sim-field label{display:block;font-size:.8rem;color:var(--text-muted);margin-bottom:6px}
+.sim-field select,.sim-field input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-primary);color:var(--text-primary);font-size:.9rem;font-family:var(--font)}
+.sim-field select:focus,.sim-field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+.sim-results{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.sim-box{padding:20px}
+.sim-box h4{font-size:.85rem;color:var(--text-muted);margin-bottom:12px}
+.sim-row{display:flex;justify-content:space-between;padding:6px 0;font-size:.88rem;border-bottom:1px solid var(--border)}
+.sim-arrow{color:var(--accent);margin:0 8px}
+
+/* Settings */
+.settings-section{margin-bottom:24px}
+.settings-section h3{font-size:.95rem;margin-bottom:12px;color:var(--text-secondary)}
+.settings-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.btn{padding:10px 20px;border:none;border-radius:12px;cursor:pointer;font-size:.88rem;font-family:var(--font);transition:all .25s;font-weight:600}
+.btn-primary{background:linear-gradient(135deg,#f472b6,#06b6d4);color:#fff;box-shadow:0 4px 12px rgba(244,114,182,.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(244,114,182,.4)}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text-primary)}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.toggle{position:relative;width:48px;height:26px;background:var(--border);border-radius:13px;cursor:pointer;transition:background .3s}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .3s}
+.toggle.on::after{transform:translateX(22px)}
+.threshold-input{width:80px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--bg-primary);color:var(--text-primary);font-size:.9rem;text-align:center}
+.about-text{font-size:.95rem;color:var(--text-secondary);line-height:1.8}
+
+/* Mobile bottom bar */
+.bottom-bar{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg-secondary);border-top:1px solid var(--border);z-index:100;padding:4px 0 env(safe-area-inset-bottom,4px)}
+.bottom-bar-inner{display:flex;justify-content:space-around}
+.bottom-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;background:none;border:none;color:var(--text-muted);font-size:.6rem;cursor:pointer;font-family:var(--font);flex:1}
+.bottom-btn svg{width:20px;height:20px}
+.bottom-btn.active{color:#f472b6;font-weight:600}
+
+/* Loading */
+.loading{display:flex;justify-content:center;align-items:center;height:200px;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-right:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Responsive */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .main{margin-left:0;padding:16px;padding-bottom:80px}
+  .bottom-bar{display:block}
+  .summary-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .chart-row{grid-template-columns:1fr}
+  .cal-grid{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(6,1fr);gap:8px;height:auto}
+  .sim-form{grid-template-columns:1fr}
+  .sim-results{grid-template-columns:1fr}
+  .summary-card .value{font-size:1rem}
+}
+@media(max-width:480px){
+  .cal-grid{grid-template-columns:1fr}
+}
+
+/* Nisa badge */
+.nisa-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:.65rem;font-weight:600;background:rgba(34,197,94,.15);color:var(--green);margin-left:4px}
+
+/* Zoom bar */
+.zoom-bar{position:fixed;top:8px;right:12px;z-index:99;display:flex;gap:4px;align-items:center;padding:4px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:20px;opacity:.5;transition:opacity .3s}
+.zoom-bar:hover{opacity:1}
+.zoom-bar span{font-size:.65em}
+.zoom-btn{padding:2px 8px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);border-radius:12px;cursor:pointer;font-size:0.7em}
+.zoom-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<!-- Offline indicator -->
+<div id="offlineBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:linear-gradient(90deg,#f59e0b,#d97706);color:#1a1715;text-align:center;padding:6px 12px;font-size:.78rem;font-weight:600;font-family:system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3)">
+  <span id="offlineText"></span>
+</div>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <h1>高配当株トラッカー</h1>
+    <p>ポートフォリオ管理</p>
+  </div>
+  <nav class="sidebar-nav" id="sidebarNav"></nav>
+</aside>
+
+<!-- Zoom (floating) -->
+<div class="zoom-bar">
+  <button class="zoom-btn active" onclick="setZoom(1)">100%</button>
+  <button class="zoom-btn" onclick="setZoom(0.9)">90%</button>
+  <button class="zoom-btn" onclick="setZoom(0.75)">75%</button>
+</div>
+
+<!-- Main Content -->
+<main class="main" id="mainContent">
+  <div id="loadingScreen" class="loading"><div class="spinner"></div>データを読み込み中...</div>
+
+  <!-- Tab 1: Dashboard -->
+  <div class="tab-content" id="tab-dashboard">
+    <div class="summary-grid" id="summaryCards"></div>
+    <div id="dataTimestamps"></div>
+    <div class="chart-full card" id="barChartWrap"><h3>月別配当金</h3><canvas id="monthlyBarChart"></canvas></div>
+    <div class="chart-row">
+      <div class="card chart-card"><h3>セクター別時価評価額</h3><canvas id="sectorValueChart"></canvas></div>
+      <div class="card chart-card"><h3>セクター別配当総額</h3><canvas id="sectorDivChart"></canvas></div>
+    </div>
+    <div class="chart-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div class="card chart-card"><h3>時価評価額（守/攻）</h3><canvas id="defCycValChart"></canvas></div>
+      <div class="card chart-card"><h3>配当総額（守/攻）</h3><canvas id="defCycDivChart"></canvas></div>
+    </div>
+    <div class="chart-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div class="card chart-card"><h3>利回り分布</h3><canvas id="yieldDistChart"></canvas></div>
+      <div class="card chart-card"><h3>配当成長シミュレーション</h3><canvas id="divGrowthChart"></canvas></div>
+    </div>
+    <div class="card" style="margin-top:12px" id="yieldAlertWrap"></div>
+    <div class="card" style="margin-top:12px" id="nisaPanel"></div>
+    <div class="card" style="margin-top:12px"><h3>配当再投資シミュレーション (DRIP)</h3><canvas id="dripChart" style="max-height:220px"></canvas></div>
+    <div class="card" style="margin-top:12px" id="heatmapWrap"><h3>損益ヒートマップ</h3><div id="heatmapArea" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:10px"></div></div>
+    <div class="card" style="margin-top:12px" id="scorecardWrap"><h3>配当スコアカード</h3><div id="scorecardArea"></div></div>
+    <div class="card" style="margin-top:12px">
+      <h3>セクター配分チェック</h3>
+      <div id="sectorBalanceBars"></div>
+    </div>
+  </div>
+
+  <!-- Tab: Sector Recommendations -->
+  <div class="tab-content" id="tab-sectors">
+    <div id="sectorRecommend"></div>
+  </div>
+
+  <!-- Tab 2: Portfolio -->
+  <div class="tab-content" id="tab-portfolio">
+    <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+      <input type="text" id="portfolioSearch" placeholder="コード or 銘柄名で検索..." style="flex:1;min-width:200px;padding:8px 14px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:10px;font-size:.88em">
+      <select id="portfolioSectorFilter" style="padding:8px 12px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:10px;font-size:.88em"><option value="">全セクター</option></select>
+    </div>
+    <div class="card table-wrap" id="portfolioTableWrap"></div>
+  </div>
+
+  <!-- Tab 3: Calendar -->
+  <div class="tab-content" id="tab-calendar">
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="card" style="margin-top:14px" id="calTimeline"></div>
+  </div>
+
+  <!-- Tab 4: Buy Timing Tool -->
+  <div class="tab-content" id="tab-simulator">
+    <div class="card" style="margin-bottom:20px">
+      <h3 style="margin-bottom:16px;color:var(--text-secondary)">買い時判断ツール</h3>
+      <div class="sim-form" id="simForm">
+        <div class="sim-field"><label>銘柄選択</label><input type="text" id="simStockInput" list="stockDatalist" placeholder="証券コード or 銘柄名を入力..." style="width:100%;padding:12px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;font-size:1em"><datalist id="stockDatalist"></datalist></div>
+        <div class="sim-field"><label>目標利回り (%)</label><input type="number" id="simTargetYield" min="0.1" step="0.1" value="3.8" placeholder="3.8"></div>
+      </div>
+    </div>
+    <div class="sim-results" id="simResults"></div>
+  </div>
+
+  <!-- Tab 5: Settings -->
+  <div class="tab-content" id="tab-settings">
+    <!-- MFデータ貼り付け -->
+    <div class="card settings-section">
+      <h3>📋 MFデータ貼り付け</h3>
+      <p style="font-size:.78em;color:var(--text-muted);margin-bottom:10px">マネーフォワードの保有資産一覧をコピーして貼り付けてください（ヘッダー行含む）</p>
+      <textarea id="mfPasteArea" rows="6" placeholder="銘柄コード&#9;銘柄名&#9;保有数&#9;平均取得単価&#9;現在値&#10;1343&#9;NFJ-REIT&#9;25&#9;1,908&#9;2,065&#10;..." style="width:100%;padding:10px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;font-size:.8em;font-family:monospace;resize:vertical"></textarea>
+      <div style="display:flex;gap:10px;margin-top:10px;align-items:center">
+        <button class="btn btn-primary" id="btnImportPaste" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">🔄 取り込み</button>
+        <span id="pasteImportStatus" style="font-size:.8em;color:var(--text-muted)"></span>
+      </div>
+    </div>
+    <!-- データ更新 -->
+    <div class="card settings-section">
+      <h3>🌐 銘柄データ更新</h3>
+      <p style="font-size:.78em;color:var(--text-muted);margin-bottom:10px">IR BANK・バフェットコード等から配当・PER・PBR・セクター情報を一括取得します</p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-primary" id="btnEnrichAll" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)">📊 全銘柄データ更新</button>
+        <button class="btn btn-outline" id="btnEnrichMissing">⚡ 不足データのみ更新</button>
+        <span id="enrichStatus" style="font-size:.8em;color:var(--text-muted)"></span>
+      </div>
+      <div id="enrichProgress" style="display:none;margin-top:10px">
+        <div style="background:var(--border);border-radius:8px;height:8px;overflow:hidden">
+          <div id="enrichBar" style="background:linear-gradient(90deg,#8b5cf6,#6366f1);height:100%;width:0%;transition:width .3s"></div>
+        </div>
+        <p id="enrichDetail" style="font-size:.75em;color:var(--text-muted);margin-top:4px"></p>
+      </div>
+    </div>
+    <!-- スクリーニング -->
+    <div class="card settings-section">
+      <h3>🔍 リベ大流スクリーニング</h3>
+      <p style="font-size:.85em;color:var(--text-muted);margin-bottom:10px">minkabu高配当ランキングからリベ大基準（利回り3.75%以上・配当性向70%以下・連続増配/非減配・ミックス係数で割安判定）でスクリーニングし、注目銘柄を更新します</p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-primary" id="btnRunScreening" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">🔍 スクリーニング実行</button>
+        <span id="screeningStatus" style="font-size:.85em;color:var(--text-muted)"></span>
+      </div>
+      <div id="screeningProgress" style="display:none;margin-top:10px">
+        <div id="screeningLog" style="background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:.8em;font-family:monospace;max-height:200px;overflow-y:auto;line-height:1.6;color:var(--text-secondary)"></div>
+      </div>
+    </div>
+    <!-- データ管理 -->
+    <div class="card settings-section">
+      <h3>データ管理</h3>
+      <div class="settings-row"><button class="btn btn-primary" id="btnDownload">stocks.json をダウンロード</button></div>
+      <div class="settings-row"><label class="btn btn-outline">stocks.json をアップロード<input type="file" id="fileUpload" accept=".json" hidden></label></div>
+      <div class="settings-row"><label class="btn btn-outline">MF CSV をアップロード<input type="file" id="csvUpload" accept=".csv" hidden></label></div>
+      <div class="settings-row">
+        <button class="btn btn-primary" id="btnUpdatePrices" style="background:linear-gradient(135deg,#06b6d4,#34d399)">株価を更新</button>
+        <span id="priceUpdateStatus" style="font-size:.8em;color:var(--text-muted)"></span>
+      </div>
+    </div>
+    <div class="card settings-section">
+      <h3>表示設定</h3>
+      <div class="settings-row">
+        <span>ダークモード</span>
+        <div class="toggle on" id="themeToggle"></div>
+      </div>
+      <div class="settings-row">
+        <span>利回り閾値 (%)</span>
+        <input type="number" class="threshold-input" id="thresholdInput" value="3.5" step="0.1" min="0">
+      </div>
+    </div>
+    <div class="card settings-section">
+      <h3>エクスポート</h3>
+      <div class="settings-row"><button class="btn btn-outline" id="btnExportCSV">ポートフォリオCSVダウンロード</button></div>
+      <div class="settings-row"><button class="btn btn-outline" id="btnExportTax">確定申告用データ (CSV)</button></div>
+    </div>
+    <div class="card settings-section">
+      <h3>このアプリについて</h3>
+      <p class="about-text">高配当株ポートフォリオトラッカーは、日本の高配当株の管理・分析を行うシングルページアプリケーションです。配当金の月別推移、セクター構成、買い増しシミュレーションなど、投資判断に役立つ機能を提供します。</p>
+    </div>
+  </div>
+
+  <!-- Tab: Favorites -->
+  <div class="tab-content" id="tab-favorites">
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="font-size:1.05em;color:var(--text-secondary)">お気に入り銘柄一覧</h3>
+        <span id="favCount" style="font-size:.85em;color:var(--text-muted)"></span>
+      </div>
+      <p style="font-size:.85em;color:var(--text-muted);margin-bottom:4px">チェックリストで★をつけた銘柄のデータを一覧で比較できます</p>
+    </div>
+    <div class="card table-wrap" id="favoritesTableWrap">
+      <div style="text-align:center;padding:40px;color:var(--text-muted)">お気に入り銘柄がありません。チェックリストの★ボタンで追加しましょう。</div>
+    </div>
+  </div>
+
+  <!-- Tab 6: Checklist -->
+  <div class="tab-content" id="tab-checklist">
+    <div style="display:flex;gap:16px;align-items:flex-start">
+      <div class="card" style="width:240px;min-width:240px;position:sticky;top:10px">
+        <h3 style="margin-bottom:10px;font-size:0.95em">銘柄チェック</h3>
+        <p style="font-size:0.72em;color:var(--text-muted);margin-bottom:10px">コード or 銘柄名を入力</p>
+        <input type="text" id="checklistInput" list="checklistDatalist" placeholder="例: 8411 / 銘柄名 / セクター名" style="width:100%;padding:8px 10px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;font-size:0.9em;margin-bottom:8px">
+        <datalist id="checklistDatalist"></datalist>
+        <button id="btnAddChecklist" style="width:100%;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-size:0.9em">追加</button>
+      </div>
+      <div id="checklistResults" style="flex:1;min-width:0"></div>
+    </div>
+  </div>
+</main>
+
+<!-- Detail Overlay -->
+<div class="detail-overlay" id="detailOverlay">
+  <div class="detail-card" id="detailCard"></div>
+</div>
+
+<!-- Mobile Bottom Bar -->
+<nav class="bottom-bar"><div class="bottom-bar-inner" id="bottomNav"></div></nav>
+
+<script>
+/* ===== Static/Server Mode Detection ===== */
+const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.port === '8080';
+const IS_STATIC = !IS_LOCAL;
+
+/* ===== State ===== */
+let stocks = [];
+let screeningData = [];
+let allListedStocks = [];  // 上場全銘柄（JPXデータ）
+let charts = {};
+const TAX_RATE = 0.20315;
+
+/* ===== localStorage Portfolio Management (Static Mode) ===== */
+function savePortfolioToLocal() {
+  localStorage.setItem('portfolio_stocks', JSON.stringify(stocks));
+}
+function loadPortfolioFromLocal() {
+  const saved = localStorage.getItem('portfolio_stocks');
+  if (saved) {
+    try { return JSON.parse(saved); } catch(e) { return null; }
+  }
+  return null;
+}
+function exportPortfolioJSON() {
+  const blob = new Blob([JSON.stringify(stocks, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'my_portfolio_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importPortfolioJSON(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (Array.isArray(data)) {
+        stocks = data;
+        savePortfolioToLocal();
+        switchTab('dashboard');
+        alert('ポートフォリオを読み込みました (' + stocks.length + '銘柄)');
+      } else { alert('不正なJSONフォーマットです'); }
+    } catch(err) { alert('JSONの解析に失敗しました: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+const TABS = [
+  {id:'dashboard',label:'ダッシュボード',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>'},
+  {id:'portfolio',label:'ポートフォリオ',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>'},
+  {id:'calendar',label:'配当カレンダー',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'},
+  {id:'simulator',label:'買い時判断',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/><circle cx="12" cy="12" r="4"/></svg>'},
+  {id:'sectors',label:'注目銘柄',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h20"/><rect x="4" y="10" width="4" height="10" rx="1"/><rect x="10" y="6" width="4" height="14" rx="1"/><rect x="16" y="2" width="4" height="18" rx="1"/></svg>'},
+  {id:'checklist',label:'チェック',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>'},
+  {id:'favorites',label:'お気に入り',icon:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>'},
+  {id:'settings',label:'設定',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>'}
+];
+
+/* ===== Helpers ===== */
+const fmt = n => n == null ? '-' : n.toLocaleString('ja-JP');
+const fmtYen = n => n == null ? '-' : n.toLocaleString('ja-JP') + '円';
+const fmtPct = n => n == null ? '-' : n.toFixed(2) + '%';
+const safeDiv = (a,b) => b === 0 ? 0 : a / b;
+
+function getPrice(s) { return (s.cur_price && s.cur_price > 0) ? s.cur_price : s.buy_price; }
+function getCost(s) { return (s.shares || 0) * (s.buy_price || 0); }
+function getMarketVal(s) { return (s.shares || 0) * getPrice(s); }
+function getAnnualDiv(s) { return (s.annual_div || 0) * (s.shares || 0); }
+function getAnnualDivAfterTax(s) { return getAnnualDiv(s) * (1 - TAX_RATE); }
+function getPL(s) { return getMarketVal(s) - getCost(s); }
+function getPLRate(s) { const c = getCost(s); return c === 0 ? 0 : (getPL(s) / c) * 100; }
+function getBookYield(s) { return s.buy_price ? safeDiv(s.annual_div || 0, s.buy_price) * 100 : 0; }
+function getCurYield(s) { const p = getPrice(s); return p ? safeDiv(s.annual_div || 0, p) * 100 : 0; }
+function getSector(s) { return s.sector || '未分類'; }
+function getValuationLabel(mix) {
+  if (!mix || mix <= 0) return '-';
+  if (mix <= 11.25) return '①超割安';
+  if (mix <= 22.5) return '②割安';
+  if (mix <= 40) return '③まずまず';
+  return '④割高';
+}
+function getValuationColor(mix) {
+  if (!mix || mix <= 0) return '';
+  if (mix <= 11.25) return 'background:#d1fae5;color:#065f46';
+  if (mix <= 22.5) return 'background:#dcfce7;color:#166534';
+  if (mix <= 40) return 'background:#fef9c3;color:#854d0e';
+  return 'background:#fee2e2;color:#991b1b';
+}
+
+/* Monthly dividend: mid_div in mid_month, remainder in end_month */
+function getMonthlyDividends(stockList) {
+  const months = Array.from({length:12}, () => ({preTax:0, afterTax:0, items:[]}));
+  for (const s of stockList) {
+    const shares = s.shares || 0;
+    const midDiv = s.mid_div || 0;
+    const endDiv = (s.annual_div || 0) - midDiv;
+    const midM = s.mid_month || 0;
+    const endM = s.end_month || 0;
+    if (midM >= 1 && midM <= 12 && midDiv > 0) {
+      const amt = midDiv * shares;
+      months[midM - 1].preTax += amt;
+      months[midM - 1].afterTax += amt * (1 - TAX_RATE);
+      months[midM - 1].items.push({name: s.name, code: s.code, amount: amt});
+    }
+    if (endM >= 1 && endM <= 12 && endDiv > 0) {
+      const amt = endDiv * shares;
+      months[endM - 1].preTax += amt;
+      months[endM - 1].afterTax += amt * (1 - TAX_RATE);
+      months[endM - 1].items.push({name: s.name, code: s.code, amount: amt});
+    }
+  }
+  return months;
+}
+
+/* ===== Navigation ===== */
+function buildNav() {
+  const sidebar = document.getElementById('sidebarNav');
+  const bottom = document.getElementById('bottomNav');
+  sidebar.innerHTML = '';
+  bottom.innerHTML = '';
+  TABS.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'nav-btn';
+    btn.dataset.tab = t.id;
+    btn.innerHTML = t.icon + '<span>' + t.label + '</span>';
+    btn.onclick = () => switchTab(t.id);
+    sidebar.appendChild(btn);
+
+    const bbtn = document.createElement('button');
+    bbtn.className = 'bottom-btn';
+    bbtn.dataset.tab = t.id;
+    bbtn.innerHTML = t.icon + '<span>' + t.label + '</span>';
+    bbtn.onclick = () => switchTab(t.id);
+    bottom.appendChild(bbtn);
+  });
+}
+
+/* 注目銘柄からチェックリストへ遷移 */
+function goToChecklist(code) {
+  // チェックリストに未登録なら自動追加
+  if (!checklistItems.find(c => c.code == code)) {
+    // スクリーニングデータ or ポートフォリオから情報取得
+    let info = null;
+    if (screeningData) {
+      if (screeningData.high_dividend_ranking) info = screeningData.high_dividend_ranking.find(s => s.code == code);
+      if (!info && screeningData.sector_recommendations) {
+        Object.values(screeningData.sector_recommendations).forEach(list => { if (!info) info = list.find(s => s.code == code); });
+      }
+      if (!info && screeningData.buy_timing_ranking) info = screeningData.buy_timing_ranking.find(s => s.code == code);
+      if (!info && screeningData.growth_potential_ranking) info = screeningData.growth_potential_ranking.find(s => s.code == code);
+    }
+    const ps = stocks.find(s => s.code == code);
+    const name = (info && info.name) || (ps && ps.name) || ('銘柄' + code);
+    const price = (info && info.price) || (ps && getPrice(ps)) || 0;
+    const yld = (info && info.yield) || (ps && getCurYield(ps)) || (info && info.current_yield) || 0;
+    const mix = ((info && info.mix_coef) || (ps && ps.mix_coef) || 0) || (((info && info.per) || (ps && ps.per) || 0) * ((info && info.pbr) || (ps && ps.pbr) || 0));
+    const prVal = parseFloat((info && info.payout_ratio) || (ps && ps.payout_ratio) || 0);
+    const divTrend = (info && info.div_trend) || (ps && ps.div_trend) || '-';
+
+    /* Score the stock (same logic as addToChecklist) */
+    let score = 0; let notes = []; let advice = [];
+    if (yld >= 3.75) { score++; notes.push('✓ 利回り3.75%以上'); } else { notes.push('× 利回り3.75%未満'); }
+    if (!isNaN(prVal) && prVal > 0 && prVal <= 70) { score++; notes.push('✓ 配当性向70%以下'); } else if (!isNaN(prVal) && prVal > 70) { notes.push('× 配当性向70%超'); } else { notes.push('- 配当性向データなし'); }
+    if (divTrend.includes('連続増配') || divTrend.includes('非減配')) { score++; notes.push('✓ ' + divTrend); } else if (divTrend.includes('減配')) { notes.push('⚠ ' + divTrend); } else { notes.push('- 増配データなし'); }
+    if (yld > 7) { score--; notes.push('⚠ 超高利回り（罠リスク）'); }
+    if (mix > 0 && mix <= 22.5 && !isNaN(prVal) && prVal > 70) advice.push('割安度は良好ですが、配当性向が高く利益の余力が少ないです。');
+    if (mix > 0 && mix <= 22.5 && yld < 3.75) advice.push('割安ですが利回りが低め。株価下落時に利回りが上がるタイミングを待つ手も。');
+    if (mix > 40 && yld >= 3.75) advice.push('利回りは魅力的ですが、ミックス係数が割高です。IR BANKで業績推移を確認してください。');
+
+    const verdict = score >= 3 ? '◎ 優良' : score >= 2 ? '○ 候補' : score >= 1 ? '△ 要確認' : '× 非推奨';
+
+    const item = {
+      code: code, name: name,
+      price: price,
+      yield: yld,
+      payout_ratio: (info && info.payout_ratio) || (ps && ps.payout_ratio) || '-',
+      div_trend: divTrend,
+      per: (info && info.per) || (ps && ps.per) || 0,
+      pbr: (info && info.pbr) || (ps && ps.pbr) || 0,
+      mix_coef: Math.round(mix * 100) / 100,
+      sector: (info && info.sector) || (ps && (ps.sector || '')) || '',
+      owned: !!ps,
+      shares: ps ? (ps.shares || 0) : 0,
+      buy_price: ps ? (ps.buy_price || 0) : 0,
+      added: new Date().toISOString().split('T')[0],
+      score: score,
+      verdict: verdict,
+      notes: notes,
+      advice: advice,
+    };
+    checklistItems.push(item);
+    localStorage.setItem('checklistItems', JSON.stringify(checklistItems));
+    // データ不足なら自動取得
+    if (!item.price || item.price === 0 || !item.per) {
+      setTimeout(() => fetchAndUpdateChecklistItem(code), 300);
+    }
+  }
+  // チェックリストタブに切り替え
+  switchTab('checklist');
+  // 該当銘柄をハイライト
+  setTimeout(() => {
+    const card = document.querySelector(`[data-checklist-code="${code}"]`);
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.style.outline = '2px solid var(--accent)';
+      setTimeout(() => card.style.outline = '', 2000);
+    }
+  }, 200);
+}
+
+function switchTab(id) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn,.bottom-btn').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === id);
+  });
+  const tab = document.getElementById('tab-' + id);
+  if (tab) tab.classList.add('active');
+
+  window.scrollTo(0, 0);
+  destroyCharts();
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'portfolio') renderPortfolio();
+  if (id === 'calendar') renderCalendar();
+  if (id === 'simulator') renderSimulator();
+  if (id === 'sectors') renderSectors();
+  if (id === 'checklist') renderChecklist();
+  if (id === 'favorites') renderFavorites();
+}
+
+/* ===== Chart management ===== */
+function destroyCharts() {
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e) {} });
+  charts = {};
+}
+
+function createChart(canvasId, config) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return null;
+  charts[canvasId] = new Chart(ctx, config);
+  return charts[canvasId];
+}
+
+/* ===== Tab 1: Dashboard ===== */
+function renderDashboard() {
+  if (!stocks.length) { document.getElementById('summaryCards').innerHTML = '<div class="card summary-card" style="grid-column:1/-1"><div class="label">データがありません</div></div>'; return; }
+
+  const totalCost = stocks.reduce((a,s) => a + getCost(s), 0);
+  const totalMarket = stocks.reduce((a,s) => a + getMarketVal(s), 0);
+  const totalPL = totalMarket - totalCost;
+  const plRate = safeDiv(totalPL, totalCost) * 100;
+  const totalDivPre = stocks.reduce((a,s) => a + getAnnualDiv(s), 0);
+  const totalDivPost = totalDivPre * (1 - TAX_RATE);
+  const avgBookYield = safeDiv(totalDivPre, totalCost) * 100;
+  const avgCurYield = safeDiv(totalDivPre, totalMarket) * 100;
+
+  /* Monthly data (used by cards + chart) */
+  const monthly = getMonthlyDividends(stocks);
+
+  /* Find next dividend month */
+  const now = new Date();
+  const curMonth = now.getMonth(); // 0-indexed
+  let nextDivMonth = -1, nextDivAmt = 0;
+  for (let offset = 0; offset < 12; offset++) {
+    const mi = (curMonth + offset) % 12;
+    if (monthly[mi].preTax > 0) { nextDivMonth = mi; nextDivAmt = monthly[mi].preTax; break; }
+  }
+
+  const cards = [
+    {label:'取得額合計', value:fmtYen(Math.round(totalCost))},
+    {label:'時価評価額', value:fmtYen(Math.round(totalMarket))},
+    {label:'損益', value:fmtYen(Math.round(totalPL)), sub:fmtPct(plRate), cls: totalPL >= 0 ? 'text-green' : 'text-red'},
+    {label:'年間配当(税引前)', value:fmtYen(Math.round(totalDivPre))},
+    {label:'年間配当(税引後)', value:fmtYen(Math.round(totalDivPost))},
+    {label:'平均簿価利回り', value:fmtPct(avgBookYield)},
+    {label:'平均現在利回り', value:fmtPct(avgCurYield)},
+    {label:'銘柄数', value:stocks.length + '銘柄'},
+    nextDivMonth >= 0
+      ? {label:'次の配当', value:(nextDivMonth+1)+'月 ' + fmtYen(Math.round(nextDivAmt)), sub:'税引後 ' + fmtYen(Math.round(nextDivAmt*(1-TAX_RATE)))}
+      : {label:'次の配当', value:'-'}
+  ];
+
+  document.getElementById('summaryCards').innerHTML = cards.map(c =>
+    `<div class="card summary-card"><div class="label">${c.label}</div><div class="value ${c.cls||''}">${c.value}</div>${c.sub ? `<div class="sub ${c.cls||''}">${c.sub}</div>` : ''}</div>`
+  ).join('');
+
+  /* データ更新日時バー */
+  const scrDate = (screeningData && screeningData.screening_date) || '';
+  const priceDate = localStorage.getItem('lastPriceUpdate') || '';
+  let tsHtml = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin:8px 0 4px;font-size:0.7em;color:var(--text-muted)">';
+  if (scrDate) tsHtml += `<span>📊 スクリーニング: <b style="color:var(--text-secondary)">${scrDate}</b></span>`;
+  if (priceDate) tsHtml += `<span>💹 株価更新: <b style="color:var(--text-secondary)">${priceDate}</b></span>`;
+  if (!scrDate && !priceDate) tsHtml += `<span>⚠ データ未取得</span>`;
+  tsHtml += '</div>';
+  const tsEl = document.getElementById('dataTimestamps');
+  if (tsEl) tsEl.innerHTML = tsHtml;
+
+  /* Monthly bar chart */
+  const monthLabels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  /* Goal line plugin */
+  const goalAmount = Math.round(totalDivPre / 12); /* average monthly as reference */
+  const goalLinePlugin = {
+    id: 'goalLine',
+    afterDraw(chart) {
+      const yScale = chart.scales.y;
+      const goal = goalAmount;
+      if (!yScale || goal <= 0) return;
+      const y = yScale.getPixelForValue(goal);
+      const {ctx, chartArea:{left, right}} = chart;
+      ctx.save();
+      ctx.strokeStyle = '#f472b6';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(left, y);
+      ctx.lineTo(right, y);
+      ctx.stroke();
+      const labelText = '月平均 ' + fmt(goal) + '円';
+      ctx.font = 'bold 12px system-ui';
+      ctx.textAlign = 'right';
+      const tw = ctx.measureText(labelText).width;
+      ctx.fillStyle = 'rgba(0,0,0,.6)';
+      ctx.beginPath();
+      ctx.roundRect(right - tw - 14, y - 18, tw + 12, 20, 4);
+      ctx.fill();
+      ctx.fillStyle = '#f472b6';
+      ctx.fillText(labelText, right - 8, y - 3);
+      ctx.restore();
+    }
+  };
+  createChart('monthlyBarChart', {
+    type: 'bar',
+    data: {
+      labels: monthLabels,
+      datasets: [
+        {label:'税引前', data: monthly.map(m => Math.round(m.preTax)), backgroundColor:'rgba(6,182,212,.7)', borderRadius:6, minBarLength:6},
+        {label:'税引後', data: monthly.map(m => Math.round(m.afterTax)), backgroundColor:'rgba(244,114,182,.45)', borderRadius:6, minBarLength:6}
+      ]
+    },
+    options: {responsive:true, interaction:{mode:'index',intersect:false}, plugins:{tooltip:{position:'nearest'},legend:{labels:{color:getComputedStyle(document.body).getPropertyValue('--text-secondary').trim()}}}, scales:{x:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim()},grid:{display:false}},y:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim(),callback:v=>fmt(v)+'円'},grid:{color:'rgba(100,116,139,.15)'}}}} ,
+    plugins: [goalLinePlugin]
+  });
+
+  /* Sector doughnut charts */
+  const sectorMap = {};
+  const sectorDivMap = {};
+  stocks.forEach(s => {
+    const sec = getSector(s);
+    sectorMap[sec] = (sectorMap[sec] || 0) + getMarketVal(s);
+    sectorDivMap[sec] = (sectorDivMap[sec] || 0) + getAnnualDiv(s);
+  });
+  const sectorLabels = Object.keys(sectorMap);
+  const palette = ['#f472b6','#06b6d4','#34d399','#fbbf24','#fb923c','#a78bfa','#22d3ee','#f87171','#84cc16','#e879f9','#38bdf8','#facc15'];
+
+  const doughnutOpts = (total) => ({
+    responsive:true,
+    plugins:{
+      legend:{position:'bottom',labels:{color:getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(),boxWidth:12,padding:6,font:{size:10},
+        generateLabels: function(chart) {
+          const data = chart.data;
+          return data.labels.map((label, i) => {
+            const val = data.datasets[0].data[i];
+            const pct = total > 0 ? (val/total*100).toFixed(1) : '0.0';
+            return {text: label + ' ' + pct + '%', fillStyle: data.datasets[0].backgroundColor[i], hidden: false, index: i};
+          });
+        }
+      }},
+      tooltip:{callbacks:{label: function(ctx) {
+        const val = ctx.parsed;
+        const pct = total > 0 ? (val/total*100).toFixed(1) : '0.0';
+        return ctx.label + ': ' + val.toLocaleString('ja-JP') + '円 (' + pct + '%)';
+      }}}
+    }
+  });
+  const totalVal = sectorLabels.reduce((a,l) => a + (sectorMap[l]||0), 0);
+  const totalDiv = sectorLabels.reduce((a,l) => a + (sectorDivMap[l]||0), 0);
+  createChart('sectorValueChart', {
+    type:'doughnut',
+    data:{labels:sectorLabels, datasets:[{data:sectorLabels.map(l=>Math.round(sectorMap[l])), backgroundColor:palette.slice(0,sectorLabels.length), borderWidth:0}]},
+    options:doughnutOpts(totalVal)
+  });
+  createChart('sectorDivChart', {
+    type:'doughnut',
+    data:{labels:sectorLabels, datasets:[{data:sectorLabels.map(l=>Math.round(sectorDivMap[l])), backgroundColor:palette.slice(0,sectorLabels.length), borderWidth:0}]},
+    options:doughnutOpts(totalDiv)
+  });
+
+  /* Sector Balance Bars */
+  const defensiveSectors = ['食料品','医薬品','電気・ガス','情報・通信業','サービス業','小売業'];
+  const sectorBalanceEl = document.getElementById('sectorBalanceBars');
+  if (sectorBalanceEl && totalVal > 0) {
+    let defensiveTotal = 0;
+    let cyclicalTotal = 0;
+    let barsHtml = '';
+    const sectorEntries = sectorLabels.map(sec => {
+      const pct = parseFloat((sectorMap[sec] / totalVal * 100).toFixed(1));
+      const isDef = defensiveSectors.some(d => sec.includes(d));
+      if (isDef) defensiveTotal += pct; else cyclicalTotal += pct;
+      let color = '#22c55e';
+      let badge = '<span style="color:#22c55e">OK</span>';
+      if (pct > 20) { color = '#ef4444'; badge = '<span style="color:#ef4444">偏りあり</span>'; }
+      else if (pct > 15) { color = '#f59e0b'; badge = '<span style="color:#f59e0b">注意</span>'; }
+      const typeTag = isDef
+        ? '<span style="background:#22c55e20;color:#22c55e;padding:1px 5px;border-radius:4px;font-size:0.7em;margin-left:4px">守</span>'
+        : '<span style="background:#f59e0b20;color:#f59e0b;padding:1px 5px;border-radius:4px;font-size:0.7em;margin-left:4px">攻</span>';
+      return { sec, pct, color, badge, typeTag, isDef };
+    }).sort((a,b) => b.pct - a.pct);
+
+    sectorEntries.forEach(e => {
+      barsHtml += `<div style="display:flex;align-items:center;gap:6px;margin:3px 0">
+        <span style="width:140px;font-size:0.78em;white-space:nowrap">${e.sec}${e.typeTag}</span>
+        <div style="flex:1;background:var(--border);border-radius:4px;height:18px;overflow:hidden">
+          <div style="width:${e.pct}%;height:100%;background:${e.color};border-radius:4px;transition:width 0.3s"></div>
+        </div>
+        <span style="width:45px;font-size:0.78em;text-align:right">${e.pct}%</span>
+        <span style="width:55px;font-size:0.7em">${e.badge}</span>
+      </div>`;
+    });
+
+    barsHtml += '<div style="margin-top:10px;display:flex;gap:12px;font-size:0.75em;color:var(--text-muted)">';
+    barsHtml += '<span><span style="background:#22c55e20;color:#22c55e;padding:1px 5px;border-radius:4px">守</span> ディフェンシブ（食料品・医薬品・電気ガス・通信・サービス・小売）</span>';
+    barsHtml += '<span><span style="background:#f59e0b20;color:#f59e0b;padding:1px 5px;border-radius:4px">攻</span> 景気敏感（鉄鋼・機械・金融・不動産・建設など）</span>';
+    barsHtml += '</div>';
+
+    if (defensiveTotal < 50) {
+      barsHtml += `<div style="margin-top:8px;padding:8px 12px;background:rgba(239,68,68,0.1);border-radius:8px;font-size:0.8em;color:#ef4444">⚠ ディフェンシブ ${defensiveTotal.toFixed(1)}% / 景気敏感 ${cyclicalTotal.toFixed(1)}% — ディフェンシブ50%未満のため景気変動リスクに注意</div>`;
+    } else {
+      barsHtml += `<div style="margin-top:8px;padding:8px 12px;background:rgba(34,197,94,0.1);border-radius:8px;font-size:0.8em;color:#22c55e">✓ ディフェンシブ ${defensiveTotal.toFixed(1)}% / 景気敏感 ${cyclicalTotal.toFixed(1)}% — バランス良好</div>`;
+    }
+    sectorBalanceEl.innerHTML = barsHtml;
+
+    /* Defensive vs Cyclical: compute by value AND by dividend */
+    let defVal = 0, cycVal = 0, defDiv = 0, cycDiv = 0;
+    stocks.forEach(s => {
+      const sec = getSector(s);
+      const isDef = defensiveSectors.some(d => sec.includes(d));
+      if (isDef) { defVal += getMarketVal(s); defDiv += getAnnualDiv(s); }
+      else { cycVal += getMarketVal(s); cycDiv += getAnnualDiv(s); }
+    });
+    const defValPct = (defVal+cycVal) > 0 ? (defVal/(defVal+cycVal)*100).toFixed(1) : '0';
+    const cycValPct = (defVal+cycVal) > 0 ? (cycVal/(defVal+cycVal)*100).toFixed(1) : '0';
+    const defDivPct = (defDiv+cycDiv) > 0 ? (defDiv/(defDiv+cycDiv)*100).toFixed(1) : '0';
+    const cycDivPct = (defDiv+cycDiv) > 0 ? (cycDiv/(defDiv+cycDiv)*100).toFixed(1) : '0';
+
+    const defCycOpts = {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: function(ctx) { return ctx.label + ': ' + ctx.parsed.toLocaleString('ja-JP') + '円 (' + (ctx.dataIndex===0?defValPct:cycValPct) + '%)'; } } }
+      }
+    };
+    const labelPlugin = {
+      id: 'doughnutLabels',
+      afterDraw(chart) {
+        const {ctx, chartArea:{width,height,top,left}} = chart;
+        chart.data.datasets[0].data.forEach((val, i) => {
+          const meta = chart.getDatasetMeta(0).data[i];
+          if (!meta) return;
+          const {x,y} = meta.tooltipPosition();
+          const label = chart.data.labels[i];
+          const pct = i===0 ? chart._defPct : chart._cycPct;
+          ctx.save();
+          ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text-primary').trim() || '#fff';
+          ctx.font = 'bold 13px system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText(label, x, y - 6);
+          ctx.fillText(pct + '%', x, y + 12);
+          ctx.restore();
+        });
+      }
+    };
+
+    const valChart = createChart('defCycValChart', {
+      type: 'doughnut',
+      data: {
+        labels: ['ディフェンシブ', '景気敏感'],
+        datasets: [{ data: [Math.round(defVal), Math.round(cycVal)], backgroundColor: ['#06b6d4', '#fb923c'], borderWidth: 2, borderColor: 'var(--bg-primary)' }]
+      },
+      options: defCycOpts,
+      plugins: [labelPlugin]
+    });
+    if (valChart) { valChart._defPct = defValPct; valChart._cycPct = cycValPct; }
+
+    const divChartDC = createChart('defCycDivChart', {
+      type: 'doughnut',
+      data: {
+        labels: ['ディフェンシブ', '景気敏感'],
+        datasets: [{ data: [Math.round(defDiv), Math.round(cycDiv)], backgroundColor: ['#06b6d4', '#fb923c'], borderWidth: 2, borderColor: 'var(--bg-primary)' }]
+      },
+      options: {...defCycOpts, plugins:{...defCycOpts.plugins, tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.parsed.toLocaleString('ja-JP')+'円 ('+(ctx.dataIndex===0?defDivPct:cycDivPct)+'%)';}}}}}  ,
+      plugins: [labelPlugin]
+    });
+    if (divChartDC) { divChartDC._defPct = defDivPct; divChartDC._cycPct = cycDivPct; }
+  }
+
+  /* === Yield Distribution Histogram === */
+  const yieldRanges = [
+    {label:'~2%', min:0, max:2},
+    {label:'2~3%', min:2, max:3},
+    {label:'3~4%', min:3, max:4},
+    {label:'4~5%', min:4, max:5},
+    {label:'5~6%', min:5, max:6},
+    {label:'6%~', min:6, max:999}
+  ];
+  const yieldBins = yieldRanges.map(r => stocks.filter(s => {const y=getCurYield(s); return y>=r.min && y<r.max;}).length);
+  createChart('yieldDistChart', {
+    type:'bar',
+    data:{
+      labels:yieldRanges.map(r=>r.label),
+      datasets:[{label:'銘柄数',data:yieldBins,backgroundColor:['#94a3b8','#60a5fa','#34d399','#22c55e','#fbbf24','#fb923c'],borderRadius:6}]
+    },
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+'銘柄'}}},scales:{x:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim()},grid:{display:false}},y:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim(),stepSize:1},grid:{color:'rgba(100,116,139,.15)'}}}}
+  });
+
+  /* === Dividend Growth Simulation === */
+  const curAnnualDiv = totalDivPre;
+  const growthRates = [0.03, 0.05, 0.07];
+  const years = Array.from({length:11}, (_,i)=>i);
+  const growthDatasets = growthRates.map((rate,ri) => ({
+    label: (rate*100)+'%成長',
+    data: years.map(y => Math.round(curAnnualDiv * Math.pow(1+rate, y))),
+    borderColor: ['#06b6d4','#34d399','#fbbf24'][ri],
+    backgroundColor: ['rgba(6,182,212,.1)','rgba(52,211,153,.1)','rgba(251,191,36,.1)'][ri],
+    fill: ri === 0,
+    tension: 0.3,
+    pointRadius: 3,
+    borderWidth: 2
+  }));
+  createChart('divGrowthChart', {
+    type:'line',
+    data:{labels:years.map(y=>y===0?'現在':y+'年後'), datasets:growthDatasets},
+    options:{responsive:true,plugins:{legend:{labels:{color:getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(),boxWidth:12,font:{size:10}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)+'円'}}},scales:{x:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim()},grid:{display:false}},y:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim(),callback:v=>fmt(v)+'円'},grid:{color:'rgba(100,116,139,.15)'}}}}
+  });
+
+  /* === Yield Alert === */
+  const threshold = parseFloat(document.getElementById('thresholdInput').value) || 3.5;
+  const alertStocks = stocks.filter(s => getCurYield(s) < threshold && getCurYield(s) > 0).sort((a,b) => getCurYield(a) - getCurYield(b));
+  const alertWrap = document.getElementById('yieldAlertWrap');
+  if (alertStocks.length > 0) {
+    alertWrap.innerHTML = `<h3 style="margin-bottom:10px;color:var(--red)">利回り ${threshold}% 未満の銘柄 (${alertStocks.length})</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${alertStocks.map(s => {
+        const y = getCurYield(s);
+        return `<div style="padding:8px 14px;background:var(--red-bg);border:1px solid rgba(251,113,133,.2);border-radius:12px;font-size:.82em;display:flex;gap:8px;align-items:center">
+          <span style="font-weight:700">${s.code}</span>
+          <span style="color:var(--text-secondary)">${s.name}</span>
+          <span style="color:var(--red);font-weight:700">${y.toFixed(2)}%</span>
+        </div>`;
+      }).join('')}</div>`;
+  } else {
+    alertWrap.innerHTML = '<h3 style="color:var(--green)">全銘柄が利回り閾値 ' + threshold + '% を達成しています</h3>';
+  }
+
+  /* === NISA枠管理パネル === */
+  const nisaStocks = stocks.filter(s => s.nisa === 'NISA');
+  const nisaCost = nisaStocks.reduce((a,s) => a + getCost(s), 0);
+  const nisaMarket = nisaStocks.reduce((a,s) => a + getMarketVal(s), 0);
+  const nisaDiv = nisaStocks.reduce((a,s) => a + getAnnualDiv(s), 0);
+  const nisaYearLimit = 2400000;
+  const nisaLifetimeLimit = 12000000;
+  const nisaYearUsed = nisaCost; // simplified: total cost as proxy
+  const nisaYearPct = Math.min(nisaYearUsed / nisaYearLimit * 100, 100);
+  const nisaLifePct = Math.min(nisaCost / nisaLifetimeLimit * 100, 100);
+  const nisaPanel = document.getElementById('nisaPanel');
+  nisaPanel.innerHTML = `<h3 style="margin-bottom:12px">NISA枠管理</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+      <div style="text-align:center;padding:10px;background:var(--bg-primary);border-radius:10px">
+        <div style="font-size:.65em;color:var(--text-muted)">NISA銘柄数</div>
+        <div style="font-size:1.2em;font-weight:800;color:#22c55e">${nisaStocks.length}銘柄</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:var(--bg-primary);border-radius:10px">
+        <div style="font-size:.65em;color:var(--text-muted)">NISA取得額</div>
+        <div style="font-size:1.2em;font-weight:800">${fmtYen(Math.round(nisaCost))}</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:var(--bg-primary);border-radius:10px">
+        <div style="font-size:.65em;color:var(--text-muted)">NISA評価額</div>
+        <div style="font-size:1.2em;font-weight:800;color:#06b6d4">${fmtYen(Math.round(nisaMarket))}</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:var(--bg-primary);border-radius:10px">
+        <div style="font-size:.65em;color:var(--text-muted)">NISA配当(非課税)</div>
+        <div style="font-size:1.2em;font-weight:800;color:#34d399">${fmtYen(Math.round(nisaDiv))}</div>
+      </div>
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:.78em;margin-bottom:4px">
+        <span style="color:var(--text-muted)">成長投資枠（年間240万円）</span>
+        <span style="color:${nisaYearPct>=90?'var(--red)':'var(--text-secondary)'}">${fmtYen(Math.round(nisaYearUsed))} / ${fmtYen(nisaYearLimit)} (${nisaYearPct.toFixed(1)}%)</span>
+      </div>
+      <div style="background:var(--border);border-radius:6px;height:14px;overflow:hidden">
+        <div style="width:${nisaYearPct}%;height:100%;background:linear-gradient(90deg,#22c55e,${nisaYearPct>=90?'#ef4444':'#06b6d4'});border-radius:6px;transition:width .5s"></div>
+      </div>
+      <div style="font-size:.7em;color:var(--text-muted);margin-top:3px">残り ${fmtYen(Math.max(0,nisaYearLimit - nisaYearUsed))}</div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:.78em;margin-bottom:4px">
+        <span style="color:var(--text-muted)">生涯投資枠（1,200万円）</span>
+        <span style="color:${nisaLifePct>=90?'var(--red)':'var(--text-secondary)'}">${fmtYen(Math.round(nisaCost))} / ${fmtYen(nisaLifetimeLimit)} (${nisaLifePct.toFixed(1)}%)</span>
+      </div>
+      <div style="background:var(--border);border-radius:6px;height:14px;overflow:hidden">
+        <div style="width:${nisaLifePct}%;height:100%;background:linear-gradient(90deg,#fbbf24,${nisaLifePct>=90?'#ef4444':'#fb923c'});border-radius:6px;transition:width .5s"></div>
+      </div>
+      <div style="font-size:.7em;color:var(--text-muted);margin-top:3px">残り ${fmtYen(Math.max(0,nisaLifetimeLimit - nisaCost))}</div>
+    </div>
+    <div style="margin-top:10px;padding:8px 12px;background:var(--accent-light);border-radius:8px;font-size:.75em;color:var(--text-secondary)">
+      NISA配当は非課税のため年間 <strong style="color:#34d399">${fmtYen(Math.round(nisaDiv * TAX_RATE))}</strong> の節税効果があります
+    </div>`;
+
+  /* === DRIP（配当再投資）シミュレーション === */
+  const dripYears = Array.from({length:21},(_,i)=>i);
+  const avgYield = totalMarket > 0 ? totalDivPre / totalMarket : 0.04;
+  const dripWithData = dripYears.map(y => {
+    let val = totalMarket;
+    for(let i=0;i<y;i++) val += val * avgYield;
+    return Math.round(val * avgYield);
+  });
+  const dripWithoutData = dripYears.map(y => Math.round(totalDivPre));
+  const dripTotalWith = dripYears.map(y => {
+    let val = totalMarket;
+    for(let i=0;i<y;i++) val += val * avgYield;
+    return Math.round(val);
+  });
+  createChart('dripChart', {
+    type:'line',
+    data:{
+      labels:dripYears.map(y=>y===0?'現在':y+'年後'),
+      datasets:[
+        {label:'再投資あり 年間配当',data:dripWithData,borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,.1)',fill:true,tension:.3,pointRadius:2,borderWidth:2},
+        {label:'再投資なし 年間配当',data:dripWithoutData,borderColor:'#94a3b8',backgroundColor:'rgba(148,163,184,.05)',fill:false,tension:0,pointRadius:0,borderWidth:1.5,borderDash:[5,3]}
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{labels:{color:getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(),boxWidth:12,font:{size:10}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)+'円'}}},scales:{x:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim()},grid:{display:false}},y:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim(),callback:v=>fmt(v)+'円'},grid:{color:'rgba(100,116,139,.15)'}}}}
+  });
+
+  /* === 損益ヒートマップ（ツリーマップ風） === */
+  const heatArea = document.getElementById('heatmapArea');
+  const totalMV = stocks.reduce((a,s)=>a+getMarketVal(s),0);
+  const heatStocks = [...stocks].sort((a,b)=>getMarketVal(b)-getMarketVal(a));
+  heatArea.innerHTML = heatStocks.map(s => {
+    const mv = getMarketVal(s);
+    const pct = totalMV > 0 ? mv / totalMV * 100 : 0;
+    const plr = getPLRate(s);
+    const minW = Math.max(pct * 3, 40);
+    const h = Math.max(pct * 2.5 + 30, 40);
+    let bg, textC;
+    if (plr > 20) { bg = '#166534'; textC = '#86efac'; }
+    else if (plr > 5) { bg = '#14532d'; textC = '#6ee7b7'; }
+    else if (plr > 0) { bg = '#1a3a2a'; textC = '#a7f3d0'; }
+    else if (plr > -5) { bg = '#3a1a1a'; textC = '#fca5a5'; }
+    else if (plr > -15) { bg = '#7f1d1d'; textC = '#fecaca'; }
+    else { bg = '#991b1b'; textC = '#fca5a5'; }
+    return `<div style="flex:1 1 ${minW}px;min-width:${minW}px;height:${h}px;background:${bg};border-radius:6px;padding:4px 6px;display:flex;flex-direction:column;justify-content:center;cursor:default;position:relative;overflow:hidden;transition:all .2s" title="${s.name} 評価額:${fmtYen(Math.round(mv))} 損益率:${plr.toFixed(1)}%">
+      <div style="font-size:.65em;font-weight:700;color:${textC};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.code} ${s.name}</div>
+      <div style="font-size:.75em;font-weight:800;color:${textC}">${plr>=0?'+':''}${plr.toFixed(1)}%</div>
+    </div>`;
+  }).join('');
+
+  /* === 配当スコアカード === */
+  const scoredStocks = stocks.map(s => {
+    let score = 0, max = 5;
+    const cy = getCurYield(s);
+    const pr = s.payout_ratio ? parseFloat(s.payout_ratio) : NaN;
+    const mix = s.mix_coef || 0;
+    // Yield score (0-1.5)
+    if (cy >= 4.5) score += 1.5;
+    else if (cy >= 3.75) score += 1.2;
+    else if (cy >= 3) score += 0.8;
+    else if (cy >= 2) score += 0.3;
+    // Payout ratio score (0-1)
+    if (!isNaN(pr)) { if (pr <= 40) score += 1; else if (pr <= 60) score += 0.7; else if (pr <= 80) score += 0.3; }
+    // Valuation score (0-1)
+    if (mix > 0) { if (mix <= 11.25) score += 1; else if (mix <= 22.5) score += 0.7; else if (mix <= 40) score += 0.3; }
+    // PL score (0-0.75)
+    const plr = getPLRate(s);
+    if (plr > 20) score += 0.75;
+    else if (plr > 0) score += 0.5;
+    else if (plr > -10) score += 0.2;
+    // Div trend score (0-0.75)
+    const ps = screeningData && screeningData.sector_recommendations ? Object.values(screeningData.sector_recommendations).flat().find(x=>x.code==s.code) : null;
+    const trend = ps ? ps.div_trend : '';
+    if (trend && trend.includes('連続増配')) score += 0.75;
+    else if (trend && trend.includes('非減配')) score += 0.5;
+    const pct = Math.min(score / max * 100, 100);
+    const grade = pct >= 80 ? 'S' : pct >= 65 ? 'A' : pct >= 50 ? 'B' : pct >= 35 ? 'C' : 'D';
+    return {...s, divScore: Math.round(pct), grade, _trend: trend};
+  }).sort((a,b) => b.divScore - a.divScore);
+
+  const avgScore = Math.round(scoredStocks.reduce((a,s)=>a+s.divScore,0) / (scoredStocks.length||1));
+  const avgGrade = avgScore >= 80 ? 'S' : avgScore >= 65 ? 'A' : avgScore >= 50 ? 'B' : avgScore >= 35 ? 'C' : 'D';
+  const gradeColor = g => g==='S'?'#fbbf24':g==='A'?'#22c55e':g==='B'?'#06b6d4':g==='C'?'#f59e0b':'#ef4444';
+
+  const scArea = document.getElementById('scorecardArea');
+  const topStocks = scoredStocks.slice(0,5);
+  const bottomStocks = scoredStocks.slice(-3).reverse();
+  scArea.innerHTML = `
+    <div style="display:flex;gap:14px;align-items:center;margin:12px 0">
+      <div style="text-align:center;padding:14px 20px;background:var(--bg-primary);border-radius:12px">
+        <div style="font-size:.65em;color:var(--text-muted)">ポートフォリオ平均スコア</div>
+        <div style="font-size:2em;font-weight:900;color:${gradeColor(avgGrade)}">${avgGrade}</div>
+        <div style="font-size:.85em;font-weight:700">${avgScore}点</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+        <div style="font-size:.78em;color:var(--text-muted);margin-bottom:2px">TOP 5 銘柄</div>
+        ${topStocks.map(s => `<div style="display:flex;align-items:center;gap:6px;font-size:.82em">
+          <span style="width:28px;text-align:center;font-weight:900;color:${gradeColor(s.grade)}">${s.grade}</span>
+          <span style="width:36px;font-weight:700">${s.code}</span>
+          <span style="flex:1;color:var(--text-secondary)">${s.name}</span>
+          <div style="width:80px;background:var(--border);border-radius:4px;height:8px;overflow:hidden"><div style="width:${s.divScore}%;height:100%;background:${gradeColor(s.grade)};border-radius:4px"></div></div>
+          <span style="width:30px;text-align:right;font-weight:600">${s.divScore}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+    ${bottomStocks.length>0?`<div style="margin-top:8px;padding:10px 14px;background:rgba(239,68,68,.06);border-radius:10px;border-left:3px solid #ef4444">
+      <div style="font-size:.75em;color:#ef4444;font-weight:600;margin-bottom:6px">入替検討候補</div>
+      ${bottomStocks.map(s=>`<div style="display:flex;align-items:center;gap:6px;font-size:.8em;margin:3px 0">
+        <span style="font-weight:900;color:${gradeColor(s.grade)}">${s.grade}</span>
+        <span style="font-weight:700">${s.code}</span>
+        <span style="color:var(--text-secondary)">${s.name}</span>
+        <span style="margin-left:auto;color:var(--text-muted)">${s.divScore}点</span>
+      </div>`).join('')}
+    </div>`:''}`;
+
+}
+
+/* ===== Tab: Sector Recommendations ===== */
+function renderSectors() {
+  const el = document.getElementById('sectorRecommend');
+  if (!el) return;
+  const recs = (screeningData && screeningData.sector_recommendations) || {};
+  const sectors = Object.keys(recs);
+  if (sectors.length === 0) {
+    const sectorBest = {};
+    stocks.forEach(s => { const sec=getSector(s); const cy=getCurYield(s); if(!sectorBest[sec]||cy>sectorBest[sec].yield) sectorBest[sec]={stock:s,yield:cy}; });
+    let h = '<h3 style="margin-bottom:16px;color:var(--text-secondary)">業種別 注目銘柄</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">';
+    Object.keys(sectorBest).sort((a,b)=>sectorBest[b].yield-sectorBest[a].yield).forEach(sec => {
+      const s=sectorBest[sec].stock;
+      h+=`<div class="card" style="padding:12px"><div style="font-size:0.75em;color:var(--text-muted)">${sec}</div><div style="font-weight:bold;margin:4px 0">${s.code} ${s.name}</div><div style="font-size:0.85em">利回り: <span style="color:#22c55e;font-weight:bold">${sectorBest[sec].yield.toFixed(2)}%</span></div></div>`;
+    });
+    el.innerHTML = h+'</div>';
+  } else {
+    const ownCodes = new Set(stocks.map(s=>s.code));
+    const legend = screeningData.score_legend || {};
+    const criteria = screeningData.criteria || '';
+    const scrDate = screeningData.screening_date || '';
+
+    // スコアランクの色
+    const rankColors = {S:'#f59e0b',A:'#22c55e',B:'#3b82f6',C:'#9ca3af',D:'#ef4444'};
+    const rankBg = {S:'rgba(245,158,11,.15)',A:'rgba(34,197,94,.12)',B:'rgba(59,130,246,.12)',C:'rgba(156,163,175,.08)',D:'rgba(239,68,68,.08)'};
+
+    let h = '';
+    // ヘッダーとスコア凡例
+    h += `<div style="margin-bottom:16px">`;
+    h += `<h3 style="margin:0 0 8px;color:var(--text-secondary)">業種別 注目銘柄（リベ大流 強化版）</h3>`;
+    if (scrDate) h += `<div style="font-size:.75em;color:var(--text-muted);margin-bottom:6px">最終更新: ${scrDate}</div>`;
+    h += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">`;
+    ['S','A','B','C','D'].forEach(r => {
+      h += `<span style="font-size:.72em;padding:2px 8px;border-radius:6px;background:${rankBg[r]};color:${rankColors[r]};font-weight:bold">${r}: ${legend[r]||''}</span>`;
+    });
+    h += `</div>`;
+    if (criteria) h += `<div style="font-size:.7em;color:var(--text-muted)">${criteria}</div>`;
+    h += `</div>`;
+
+    // セクターグリッド
+    h += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;align-items:start">';
+    sectors.sort().forEach(sec => {
+      const list = recs[sec];
+      if (!list || list.length === 0) return;
+      h += `<div class="card" style="padding:12px 14px">
+        <h4 style="margin:0 0 8px;color:var(--accent);text-align:center;font-size:.9em">${sec}</h4>
+        <table style="width:100%;font-size:0.75em;border-collapse:collapse;table-layout:fixed">
+        <colgroup><col style="width:28px"><col style="width:42px"><col><col style="width:40px"><col style="width:38px"><col style="width:68px"><col style="width:48px"><col style="width:44px"><col style="width:44px"><col style="width:44px"><col style="width:36px"></colgroup>
+        <tr style="color:var(--text-muted);border-bottom:2px solid var(--border);font-size:.9em">
+          <th style="text-align:center;padding:4px 2px">Rank</th><th style="text-align:left;padding:4px 2px">コード</th><th style="text-align:left;padding:4px 2px">銘柄名</th><th style="text-align:right;padding:4px 2px">利回り</th><th style="text-align:right;padding:4px 2px">性向</th><th style="text-align:center;padding:4px 2px">増配実績</th><th style="text-align:center;padding:4px 2px">割安度</th><th style="text-align:center;padding:4px 2px">売上</th><th style="text-align:center;padding:4px 2px">EPS</th><th style="text-align:center;padding:4px 2px">自己資本</th><th style="text-align:center;padding:4px 2px">保有</th>
+        </tr>`;
+      list.forEach(st => {
+        const own = ownCodes.has(st.code);
+        const mix = st.mix_coef || (st.per && st.pbr ? Math.round(st.per * st.pbr * 100)/100 : 0);
+        const valLabel = getValuationLabel(mix);
+        const valColor = getValuationColor(mix);
+        const payoutDisplay = typeof st.payout_ratio === 'number' ? st.payout_ratio.toFixed(0) + '%' : (st.payout_ratio || '-');
+        const rank = st.rank || 'D';
+        const rc = rankColors[rank] || '#9ca3af';
+        const rb = rankBg[rank] || '';
+        // 新しい財務データ
+        const revTrend = st.revenue_trend || '-';
+        const epsTrend = st.eps_trend || '-';
+        const eqRatio = st.equity_ratio != null ? st.equity_ratio.toFixed(0)+'%' : '-';
+        // トレンドの色
+        const trendColor = (t) => t.includes('↑') ? '#22c55e' : t.includes('↓') ? '#ef4444' : 'var(--text-muted)';
+        h += `<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="goToChecklist(${st.code})" title="クリックでチェックリストへ&#10;${st.reason||''}">
+          <td style="text-align:center;padding:4px 2px"><span style="background:${rb};color:${rc};padding:1px 5px;border-radius:4px;font-weight:bold;font-size:.85em">${rank}</span></td>
+          <td style="padding:4px 2px;font-weight:bold">${st.code}</td>
+          <td style="padding:4px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st.name}</td>
+          <td style="text-align:right;padding:4px 2px;color:#22c55e;font-weight:bold">${st.yield}%</td>
+          <td style="text-align:right;padding:4px 2px">${payoutDisplay}</td>
+          <td style="text-align:center;padding:4px 2px"><span style="display:inline-block;background:${st.div_trend&&st.div_trend.includes('連続増配')?'#22c55e':st.div_trend&&st.div_trend.includes('非減配')?'#93c5fd':'var(--border)'};color:${st.div_trend&&st.div_trend.includes('連続増配')?'#000':st.div_trend&&st.div_trend.includes('非減配')?'#1e3a5f':'var(--text-secondary)'};padding:1px 4px;border-radius:8px;font-size:0.82em;white-space:nowrap">${st.div_trend||'-'}</span></td>
+          <td style="text-align:center;padding:4px 2px"><span style="${valColor};padding:1px 5px;border-radius:6px;font-size:0.78em;font-weight:600">${valLabel}</span></td>
+          <td style="text-align:center;padding:4px 2px;color:${trendColor(revTrend)};font-size:.82em">${revTrend.includes('右肩上がり')?'◎↑':revTrend.includes('成長')?'○↑':revTrend.includes('右肩下がり')?'×↓':revTrend.includes('縮小')?'△↓':revTrend.includes('不安定')?'↕':revTrend.includes('横ばい')?'→':revTrend}</td>
+          <td style="text-align:center;padding:4px 2px;color:${trendColor(epsTrend)};font-size:.82em">${epsTrend.includes('右肩上がり')?'◎↑':epsTrend.includes('成長')?'○↑':epsTrend.includes('右肩下がり')?'×↓':epsTrend.includes('縮小')?'△↓':epsTrend.includes('不安定')?'↕':epsTrend.includes('横ばい')?'→':epsTrend}</td>
+          <td style="text-align:center;padding:4px 2px;font-size:.82em">${eqRatio}</td>
+          <td style="text-align:center;padding:4px 2px">${own?'<span style="color:#f59e0b">保有</span>':''}</td>
+        </tr>`;
+      });
+      h += '</table></div>';
+    });
+    h += '</div>';
+
+    // 買い時ランキング表示
+    const buyTiming = screeningData.buy_timing_ranking || [];
+    if (buyTiming.length > 0) {
+      h += `<h3 style="margin:24px 0 12px;color:var(--text-secondary)">今が買い時？ 割安 × 好業績ランキング</h3>`;
+      h += `<div class="card" style="padding:14px;overflow-x:auto"><table style="width:100%;font-size:0.72em;border-collapse:collapse;white-space:nowrap">
+        <tr style="color:var(--text-muted);border-bottom:2px solid var(--border)">
+          <th style="text-align:center;padding:4px 3px">R</th><th style="text-align:left;padding:4px 3px">コード</th><th style="text-align:left;padding:4px 3px">銘柄名</th><th style="text-align:left;padding:4px 3px">業種</th><th style="text-align:right;padding:4px 3px">利回り</th><th style="text-align:right;padding:4px 3px">ﾐｯｸｽ</th><th style="text-align:right;padding:4px 3px">性向</th><th style="text-align:center;padding:4px 3px">増配</th><th style="text-align:center;padding:4px 3px">売上</th><th style="text-align:center;padding:4px 3px">EPS</th><th style="text-align:right;padding:4px 3px">利益率</th><th style="text-align:right;padding:4px 3px">自己資本</th><th style="text-align:center;padding:4px 3px">CF</th><th style="text-align:center;padding:4px 3px">保有</th>
+        </tr>`;
+      // トレンドを短縮表示するヘルパー
+      const shortTrend = (t) => {
+        if (!t || t === '-') return '-';
+        if (t.includes('右肩上がり')) return '◎↑';
+        if (t.includes('成長傾向')) return '○↑';
+        if (t.includes('右肩下がり')) return '×↓';
+        if (t.includes('縮小傾向')) return '△↓';
+        if (t.includes('不安定')) return '↕';
+        if (t.includes('横ばい')) return '→';
+        return t.replace(/[↑↓→↕]/g, m => m).substring(0, 3);
+      };
+      buyTiming.forEach((st, idx) => {
+        const own = ownCodes.has(st.code);
+        const rank = st.rank || 'D';
+        const rc = rankColors[rank] || '#9ca3af';
+        const rb = rankBg[rank] || '';
+        const payoutDisplay = typeof st.payout_ratio === 'number' ? st.payout_ratio.toFixed(0) + '%' : '-';
+        const revTrend = st.revenue_trend || '-';
+        const epsTrend = st.eps_trend || '-';
+        const eqRatio = st.equity_ratio != null ? st.equity_ratio.toFixed(0)+'%' : '-';
+        const opMargin = st.op_margin != null ? st.op_margin.toFixed(0)+'%' : '-';
+        const cfInfo = st.cf_positive_years ? st.cf_positive_years.replace('年黒字','') : '-';
+        const trendColor = (t) => (t.includes('↑') || t.includes('◎') || t.includes('○')) ? '#22c55e' : (t.includes('↓') || t.includes('×')) ? '#ef4444' : 'var(--text-muted)';
+        const revShort = shortTrend(revTrend);
+        const epsShort = shortTrend(epsTrend);
+        const zebraBg = idx % 2 === 1 ? 'background:rgba(255,255,255,0.03);' : '';
+        h += `<tr style="${zebraBg}border-bottom:1px solid var(--border);cursor:pointer" onclick="goToChecklist(${st.code})" title="クリックでチェックリストへ&#10;${st.reason||''}">
+          <td style="text-align:center;padding:4px 3px"><span style="background:${rb};color:${rc};padding:1px 5px;border-radius:4px;font-weight:bold">${rank}</span></td>
+          <td style="padding:4px 3px;font-weight:bold">${st.code}</td>
+          <td style="padding:4px 3px;max-width:120px;overflow:hidden;text-overflow:ellipsis">${st.name}</td>
+          <td style="padding:4px 3px;color:var(--text-muted)">${st.sector||''}</td>
+          <td style="text-align:right;padding:4px 3px;color:#22c55e;font-weight:bold">${st.yield}%</td>
+          <td style="text-align:right;padding:4px 3px;font-weight:bold">${st.mix_coef}</td>
+          <td style="text-align:right;padding:4px 3px">${payoutDisplay}</td>
+          <td style="text-align:center;padding:4px 3px">${st.div_trend||'-'}</td>
+          <td style="text-align:center;padding:4px 3px;color:${trendColor(revShort)}">${revShort}</td>
+          <td style="text-align:center;padding:4px 3px;color:${trendColor(epsShort)}">${epsShort}</td>
+          <td style="text-align:right;padding:4px 3px">${opMargin}</td>
+          <td style="text-align:right;padding:4px 3px">${eqRatio}</td>
+          <td style="text-align:center;padding:4px 3px">${cfInfo}</td>
+          <td style="text-align:center;padding:4px 3px">${own?'<span style="color:#f59e0b">保有</span>':''}</td>
+        </tr>`;
+      });
+      h += '</table></div>';
+    }
+
+    // 配当成長ポテンシャルランキング
+    const growthRanking = screeningData.growth_potential_ranking || [];
+    if (growthRanking.length > 0) {
+      const growthNote = screeningData.growth_note || '';
+      h += `<h3 style="margin:24px 0 8px;color:var(--text-secondary)">🌱 配当成長ポテンシャル（5年後の予想簿価利回り）</h3>`;
+      if (growthNote) h += `<div style="font-size:.7em;color:var(--text-muted);margin-bottom:10px">⚠️ ${growthNote}</div>`;
+      h += `<div class="card" style="padding:14px;overflow-x:auto"><table style="width:100%;font-size:0.75em;border-collapse:collapse;white-space:nowrap">
+        <tr style="color:var(--text-muted);border-bottom:2px solid var(--border)">
+          <th style="text-align:left;padding:5px 4px">コード</th><th style="text-align:left;padding:5px 4px">銘柄名</th><th style="text-align:right;padding:5px 4px">現在利回り</th><th style="text-align:center;padding:5px 4px">→</th><th style="text-align:right;padding:5px 4px">5年後予想</th><th style="text-align:right;padding:5px 4px">CAGR</th><th style="text-align:right;padding:5px 4px">実績年数</th><th style="text-align:center;padding:5px 4px">増配</th><th style="text-align:center;padding:5px 4px">連続増配</th><th style="text-align:center;padding:5px 4px">減配</th><th style="text-align:center;padding:5px 4px">安定性</th><th style="text-align:center;padding:5px 4px">保有</th>
+        </tr>`;
+      growthRanking.forEach((g, idx) => {
+        const own = ownCodes.has(g.code);
+        const futureColor = g.future_yield_5y >= 5 ? '#f59e0b' : g.future_yield_5y >= 4 ? '#22c55e' : g.future_yield_5y >= 3 ? '#3b82f6' : 'var(--text-secondary)';
+        const cagrColor = g.cagr_used >= 10 ? '#f59e0b' : g.cagr_used >= 7 ? '#22c55e' : 'var(--text-secondary)';
+        const incCount = g.increase_count || 0;
+        const consInc = g.consecutive_increase || 0;
+        const incColor = incCount >= 10 ? '#22c55e' : incCount >= 5 ? '#3b82f6' : 'var(--text-secondary)';
+        const consColor = consInc >= 10 ? '#f59e0b' : consInc >= 5 ? '#22c55e' : consInc >= 3 ? '#3b82f6' : 'var(--text-secondary)';
+        const decColor = g.decrease_count === 0 ? '#22c55e' : g.decrease_count <= 2 ? '#f59e0b' : '#ef4444';
+        const stabColor = g.stability === '安定' ? '#22c55e' : '#f59e0b';
+        const zebraBg = idx % 2 === 1 ? 'background:rgba(255,255,255,0.03);' : '';
+        h += `<tr style="${zebraBg}border-bottom:1px solid var(--border);cursor:pointer" onclick="goToChecklist(${g.code})" title="クリックでチェックリストへ">
+          <td style="padding:5px 4px;font-weight:bold">${g.code}</td>
+          <td style="padding:5px 4px">${g.name}</td>
+          <td style="text-align:right;padding:5px 4px">${g.current_yield}%</td>
+          <td style="text-align:center;padding:5px 4px;color:var(--text-muted)">→</td>
+          <td style="text-align:right;padding:5px 4px;color:${futureColor};font-weight:bold;font-size:1.05em">${g.future_yield_5y}%</td>
+          <td style="text-align:right;padding:5px 4px;color:${cagrColor};font-weight:bold">${g.cagr_used}%/年</td>
+          <td style="text-align:right;padding:5px 4px">${g.data_years}年</td>
+          <td style="text-align:center;padding:5px 4px;color:${incColor}">${incCount}回</td>
+          <td style="text-align:center;padding:5px 4px;color:${consColor};font-weight:${consInc>=5?'bold':'normal'}">${consInc > 0 ? consInc + '期' : '-'}</td>
+          <td style="text-align:center;padding:5px 4px;color:${decColor}">${g.decrease_count === 0 ? '✅0回' : g.decrease_count + '回'}</td>
+          <td style="text-align:center;padding:5px 4px;color:${stabColor}">${g.stability}</td>
+          <td style="text-align:center;padding:5px 4px">${own?'<span style="color:#f59e0b">保有</span>':''}</td>
+        </tr>`;
+      });
+      h += '</table></div>';
+    }
+
+    el.innerHTML = h;
+  }
+}
+
+/* ===== Tab 2: Portfolio ===== */
+let sortCol = null, sortAsc = true;
+function renderPortfolio() {
+  const cols = [
+    {key:'code',label:'証券コード',get:s=>s.code},
+    {key:'name',label:'銘柄名',get:s=>s.name},
+    {key:'shares',label:'保有株数',get:s=>s.shares||0},
+    {key:'buy_price',label:'取得単価',get:s=>s.buy_price||0},
+    {key:'cost',label:'取得総額',get:s=>getCost(s)},
+    {key:'cur_price',label:'現在値',get:s=>getPrice(s)},
+    {key:'market',label:'評価額',get:s=>getMarketVal(s)},
+    {key:'pl',label:'含み損益',get:s=>getPL(s)},
+    {key:'plr',label:'含み損益率%',get:s=>getPLRate(s)},
+    {key:'div_per',label:'年間配当/株',get:s=>s.annual_div||0},
+    {key:'book_yield',label:'簿価利回り%',get:s=>getBookYield(s)},
+    {key:'cur_yield',label:'現在利回り%',get:s=>getCurYield(s)},
+    {key:'per',label:'PER',get:s=>s.per||0},
+    {key:'pbr',label:'PBR',get:s=>s.pbr||0},
+    {key:'mix_coef',label:'ミックス係数',get:s=>s.mix_coef||0},
+    {key:'valuation',label:'割安度',get:s=>{const m=s.mix_coef||0;return m<=0?99:m}},
+    {key:'sector',label:'セクター',get:s=>getSector(s)}
+  ];
+
+  /* Populate sector filter dropdown */
+  const sectorFilterEl = document.getElementById('portfolioSectorFilter');
+  const allSectors = [...new Set(stocks.map(s => getSector(s)))].sort((a,b)=>a.localeCompare(b,'ja'));
+  const curSectorVal = sectorFilterEl.value;
+  sectorFilterEl.innerHTML = '<option value="">全セクター</option>' + allSectors.map(s => `<option value="${s}"${s===curSectorVal?' selected':''}>${s}</option>`).join('');
+
+  /* Search & filter */
+  const searchText = (document.getElementById('portfolioSearch').value || '').trim().toLowerCase();
+  const sectorFilter = sectorFilterEl.value;
+  let sorted = stocks.filter(s => {
+    if (searchText && !(s.code+'').includes(searchText) && !(s.name||'').toLowerCase().includes(searchText)) return false;
+    if (sectorFilter && getSector(s) !== sectorFilter) return false;
+    return true;
+  });
+
+  if (sortCol) {
+    const col = cols.find(c => c.key === sortCol);
+    if (col) {
+      sorted.sort((a,b) => {
+        let va = col.get(a), vb = col.get(b);
+        if (typeof va === 'string') return sortAsc ? va.localeCompare(vb,'ja') : vb.localeCompare(va,'ja');
+        return sortAsc ? va - vb : vb - va;
+      });
+    }
+  }
+
+  const wrap = document.getElementById('portfolioTableWrap');
+  let html = '<table><thead><tr>';
+  cols.forEach(c => {
+    const arrow = sortCol === c.key ? (sortAsc ? ' \u25B2' : ' \u25BC') : '';
+    html += `<th data-sort="${c.key}">${c.label}<span class="sort-arrow">${arrow}</span></th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  sorted.forEach((s, i) => {
+    const pl = getPL(s);
+    const cls = pl > 0 ? 'row-positive' : pl < 0 ? 'row-negative' : '';
+    html += `<tr class="${cls}" data-idx="${i}" style="cursor:pointer">`;
+    const hasMemo = getMemo(s.code);
+    html += `<td>${s.code||''}${s.nisa==='NISA'?' <span class="nisa-badge">NISA</span>':''}</td>`;
+    html += `<td>${s.name||''}${hasMemo?' <span title="メモあり" style="font-size:.7em;opacity:.6">📝</span>':''}</td>`;
+    html += `<td>${fmt(s.shares||0)}</td>`;
+    html += `<td>${fmtYen(s.buy_price||0)}</td>`;
+    html += `<td>${fmtYen(Math.round(getCost(s)))}</td>`;
+    html += `<td>${fmtYen(getPrice(s))}</td>`;
+    html += `<td>${fmtYen(Math.round(getMarketVal(s)))}</td>`;
+    html += `<td class="${pl>=0?'text-green':'text-red'}">${fmtYen(Math.round(pl))}</td>`;
+    html += `<td class="${pl>=0?'text-green':'text-red'}">${fmtPct(getPLRate(s))}</td>`;
+    html += `<td>${fmtYen(s.annual_div||0)}</td>`;
+    html += `<td>${fmtPct(getBookYield(s))}</td>`;
+    html += `<td>${fmtPct(getCurYield(s))}</td>`;
+    html += `<td>${s.per ? s.per.toFixed(1) : '-'}</td>`;
+    html += `<td>${s.pbr ? s.pbr.toFixed(2) : '-'}</td>`;
+    html += `<td>${s.mix_coef ? s.mix_coef.toFixed(2) : '-'}</td>`;
+    html += `<td style="${getValuationColor(s.mix_coef)};padding:4px 8px;border-radius:4px;font-weight:600;font-size:.78rem">${getValuationLabel(s.mix_coef)}</td>`;
+    html += `<td>${getSector(s)}</td>`;
+    html += '</tr>';
+  });
+
+  /* Totals row */
+  const tc = stocks.reduce((a,s)=>a+getCost(s),0);
+  const tm = stocks.reduce((a,s)=>a+getMarketVal(s),0);
+  const tp = tm - tc;
+  const tpr = safeDiv(tp,tc)*100;
+  const td = stocks.reduce((a,s)=>a+getAnnualDiv(s),0);
+  html += `<tr class="totals-row"><td colspan="2">合計</td><td>${fmt(stocks.reduce((a,s)=>a+(s.shares||0),0))}</td><td>-</td><td>${fmtYen(Math.round(tc))}</td><td>-</td><td>${fmtYen(Math.round(tm))}</td><td class="${tp>=0?'text-green':'text-red'}">${fmtYen(Math.round(tp))}</td><td class="${tp>=0?'text-green':'text-red'}">${fmtPct(tpr)}</td><td>-</td><td>${fmtPct(safeDiv(td,tc)*100)}</td><td>${fmtPct(safeDiv(td,tm)*100)}</td><td>-</td><td>-</td><td>-</td><td>-</td><td>${stocks.length}銘柄</td></tr>`;
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+
+  /* Sort click */
+  wrap.querySelectorAll('th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const k = th.dataset.sort;
+      if (sortCol === k) sortAsc = !sortAsc; else { sortCol = k; sortAsc = true; }
+      renderPortfolio();
+    });
+  });
+
+  /* Row click for detail */
+  wrap.querySelectorAll('tr[data-idx]').forEach(tr => {
+    tr.addEventListener('click', () => showDetail(sorted[+tr.dataset.idx]));
+  });
+}
+/* Portfolio search & filter event listeners */
+document.getElementById('portfolioSearch').addEventListener('input', () => renderPortfolio());
+document.getElementById('portfolioSectorFilter').addEventListener('change', () => renderPortfolio());
+
+function showDetail(s) {
+  if (!s) return;
+  const pl = getPL(s);
+  const rows = [
+    ['証券コード', s.code + (s.nisa === 'NISA' ? ' (NISA)' : ' (課税)')],
+    ['セクター', getSector(s)],
+    ['保有株数', fmt(s.shares||0) + '株'],
+    ['取得単価', fmtYen(s.buy_price||0)],
+    ['取得総額', fmtYen(Math.round(getCost(s)))],
+    ['現在値', fmtYen(getPrice(s))],
+    ['評価額', fmtYen(Math.round(getMarketVal(s)))],
+    ['含み損益', fmtYen(Math.round(pl))],
+    ['含み損益率', fmtPct(getPLRate(s))],
+    ['年間配当/株', fmtYen(s.annual_div||0)],
+    ['年間配当総額(税引前)', fmtYen(Math.round(getAnnualDiv(s)))],
+    ['年間配当総額(税引後)', fmtYen(Math.round(getAnnualDivAfterTax(s)))],
+    ['簿価利回り', fmtPct(getBookYield(s))],
+    ['現在利回り', fmtPct(getCurYield(s))],
+    ['中間配当', fmtYen(s.mid_div||0) + ' (' + (s.mid_month||'-') + '月)'],
+    ['期末配当', fmtYen((s.annual_div||0)-(s.mid_div||0)) + ' (' + (s.end_month||'-') + '月)']
+  ];
+  const card = document.getElementById('detailCard');
+  const nisaBtn = `<div style="margin-top:12px;display:flex;gap:8px;align-items:center"><span style="font-size:.85rem;color:var(--text-muted)">口座区分:</span><button onclick="toggleNisa(${s.code})" style="padding:6px 16px;border-radius:20px;border:none;cursor:pointer;font-weight:600;font-size:.85rem;${s.nisa==='NISA'?'background:#22c55e20;color:#22c55e':'background:var(--border);color:var(--text-secondary)'}">${s.nisa==='NISA'?'NISA':'課税'}</button><span style="font-size:.7rem;color:var(--text-muted)">クリックで切替</span></div>`;
+  const memoVal = getMemo(s.code);
+  const memoHtml = `<div style="margin-top:14px"><div style="font-size:.78rem;color:var(--text-muted);margin-bottom:4px">メモ</div><textarea id="detailMemo" rows="3" style="width:100%;padding:8px 10px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;font-size:.85rem;font-family:var(--font);resize:vertical" placeholder="この銘柄についてのメモ...">${memoVal}</textarea><button onclick="saveMemo('${s.code}',document.getElementById('detailMemo').value);this.textContent='保存しました';setTimeout(()=>this.textContent='メモ保存',1200)" style="margin-top:4px;padding:4px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:.78rem;cursor:pointer">メモ保存</button></div>`;
+  card.innerHTML = `<h2>${s.name||'詳細'}<button class="close-btn" onclick="closeDetail()">&times;</button></h2>` +
+    rows.map(r => `<div class="detail-row"><span class="dl">${r[0]}</span><span>${r[1]}</span></div>`).join('') + nisaBtn + memoHtml;
+  document.getElementById('detailOverlay').classList.add('show');
+}
+function closeDetail() { document.getElementById('detailOverlay').classList.remove('show'); }
+function toggleNisa(code) {
+  const s = stocks.find(st => st.code == code);
+  if (!s) return;
+  s.nisa = s.nisa === 'NISA' ? '課税' : 'NISA';
+  showDetail(s);
+  renderPortfolio();
+}
+document.getElementById('detailOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeDetail(); });
+
+/* ===== Tab 3: Calendar ===== */
+function renderCalendar() {
+  const monthly = getMonthlyDividends(stocks);
+  const maxVal = Math.max(...monthly.map(m => m.preTax), 1);
+  const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const grid = document.getElementById('calGrid');
+  const yearTotal = monthly.reduce((a,m) => a + m.preTax, 0);
+  const yearAfter = monthly.reduce((a,m) => a + m.afterTax, 0);
+  const monthsWith = monthly.filter(m => m.preTax > 0).length;
+  grid.innerHTML = `<div style="grid-column:1/-1;display:flex;justify-content:center;gap:24px;padding:8px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;align-items:baseline">
+    <span style="font-size:.85em;color:var(--text-muted)">年間合計</span>
+    <span style="font-size:1.2em;font-weight:800;color:#06b6d4">${fmtYen(Math.round(yearTotal))}</span>
+    <span style="font-size:.8em;color:var(--text-muted)">税引後 ${fmtYen(Math.round(yearAfter))}</span>
+    <span style="font-size:.75em;color:var(--text-muted)">${monthsWith}ヶ月配当あり</span>
+    <span style="font-size:.75em;color:var(--text-muted)">月平均 ${fmtYen(Math.round(yearTotal/12))}</span>
+  </div>` + monthly.map((m, i) => {
+    const intensity = Math.min(m.preTax / maxVal, 1);
+    const bg = `rgba(6,182,212,${0.04 + intensity * 0.15})`;
+    const sorted = [...m.items].sort((a,b) => b.amount - a.amount);
+    const count = sorted.length;
+    const tooltip = count > 0
+      ? `<div class="tt-header"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:700;font-size:1.05em">${monthNames[i]} 合計</span><span style="font-weight:800;color:var(--accent);font-size:1.15em">${fmtYen(Math.round(m.preTax))}</span></div><div style="display:flex;justify-content:space-between;font-size:.78em;color:var(--text-muted);margin-top:2px"><span>税引後</span><span>${fmtYen(Math.round(m.afterTax))}</span></div><div style="font-size:.72em;color:var(--text-muted);margin-top:2px">${count}銘柄</div></div><div class="tt-body">` + sorted.map(it =>
+          `<div class="stock-item"><span>${it.code} ${it.name}</span><span>${fmtYen(Math.round(it.amount))}</span></div>`
+        ).join('') + '</div>'
+      : '<div style="color:var(--text-muted);text-align:center;padding:8px 0">配当なし</div>';
+    return `<div class="card cal-card" style="border-left:3px solid rgba(6,182,212,${0.3+intensity*0.7});background:${bg}">
+      <div class="month-name">${monthNames[i]}</div>
+      <div class="month-total">${m.preTax > 0 ? fmtYen(Math.round(m.preTax)) : '-'}</div>
+      <div class="month-after">${m.preTax > 0 ? '税引後 ' + fmtYen(Math.round(m.afterTax)) : ''}</div>
+      <div class="month-count">${count > 0 ? count + '銘柄' : '配当なし'}</div>
+      <div class="cal-tooltip">${tooltip}</div>
+    </div>`;
+  }).join('');
+  /* Position tooltips: overlapping card edge, full viewport height */
+  const leftColIndices = new Set([0,1,4,5,8,9]); // 1,2,5,6,9,10月
+  const cards = grid.querySelectorAll('.cal-card');
+  cards.forEach((card, idx) => {
+    const tip = card.querySelector('.cal-tooltip');
+    if (!tip) return;
+    const showRight = leftColIndices.has(idx);
+    /* Use JS hover with delay to prevent flicker */
+    let hideTimer = null;
+    const show = () => {
+      clearTimeout(hideTimer);
+      const r = card.getBoundingClientRect();
+      /* Move tooltip to body to avoid transform issues */
+      if (!tip.parentElement || tip.parentElement !== document.body) {
+        document.body.appendChild(tip);
+      }
+      /* Use full viewport height */
+      tip.style.top = '2px';
+      tip.style.bottom = '2px';
+      tip.style.maxHeight = (window.innerHeight - 4) + 'px';
+      /* Tooltip slightly overlaps card, appears right next to it */
+      const tipW = 340;
+      const overlap = 30;
+      if (showRight) {
+        tip.style.left = (r.right - overlap) + 'px';
+        tip.style.right = '';
+        tip.style.width = tipW + 'px';
+      } else {
+        tip.style.right = (window.innerWidth - r.left - overlap) + 'px';
+        tip.style.left = '';
+        tip.style.width = tipW + 'px';
+      }
+      tip.style.display = 'flex';
+    };
+    const hide = () => { hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 80); };
+    card.addEventListener('mouseenter', show);
+    card.addEventListener('mouseleave', hide);
+    tip.addEventListener('mouseenter', () => { clearTimeout(hideTimer); });
+    tip.addEventListener('mouseleave', hide);
+  });
+
+  /* === Calendar Timeline (今月・来月の配当イベント) === */
+  const tlEl = document.getElementById('calTimeline');
+  if (tlEl) {
+    const now = new Date();
+    const curM = now.getMonth(); // 0-indexed
+    const nextM = (curM + 1) % 12;
+    const mNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+    // Build events: for each stock, the dividend months
+    const events = [];
+    stocks.forEach(s => {
+      const midM = (s.mid_month||0) - 1;
+      const endM = (s.end_month||0) - 1;
+      const midDiv = s.mid_div || 0;
+      const endDiv = (s.annual_div||0) - midDiv;
+      if (midM >= 0 && midDiv > 0 && (midM === curM || midM === nextM)) {
+        // 権利確定は配当月の3ヶ月前末
+        const kenriM = (midM - 3 + 12) % 12;
+        events.push({code:s.code, name:s.name, month:midM, type:'中間', amount:midDiv*(s.shares||0), kenriMonth:kenriM});
+      }
+      if (endM >= 0 && endDiv > 0 && (endM === curM || endM === nextM)) {
+        const kenriM = (endM - 3 + 12) % 12;
+        events.push({code:s.code, name:s.name, month:endM, type:'期末', amount:endDiv*(s.shares||0), kenriMonth:kenriM});
+      }
+    });
+
+    events.sort((a,b) => a.month - b.month || b.amount - a.amount);
+    const curEvents = events.filter(e => e.month === curM);
+    const nextEvents = events.filter(e => e.month === nextM);
+
+    const renderGroup = (title, evts) => {
+      if (evts.length === 0) return `<div style="margin-bottom:8px"><span style="font-weight:700;font-size:.9em">${title}</span><span style="color:var(--text-muted);font-size:.8em;margin-left:8px">配当入金なし</span></div>`;
+      const total = evts.reduce((a,e)=>a+e.amount,0);
+      return `<div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+          <span style="font-weight:700;font-size:.9em">${title}<span style="font-size:.75em;color:var(--text-muted);margin-left:6px">${evts.length}銘柄</span></span>
+          <span style="font-weight:800;color:#06b6d4">${fmtYen(Math.round(total))}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">${evts.map(e =>
+          `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-primary);border-radius:8px;font-size:.82em">
+            <span style="width:46px;font-weight:700">${e.code}</span>
+            <span style="flex:1;color:var(--text-secondary)">${e.name}</span>
+            <span style="padding:1px 8px;border-radius:10px;font-size:.72em;font-weight:600;${e.type==='中間'?'background:#06b6d420;color:#06b6d4':'background:#f472b620;color:#f472b6'}">${e.type}</span>
+            <span style="font-weight:700;min-width:70px;text-align:right">${fmtYen(Math.round(e.amount))}</span>
+          </div>`).join('')}</div>
+      </div>`;
+    };
+
+    tlEl.innerHTML = `<h3 style="margin-bottom:12px">直近の配当イベント</h3>` +
+      renderGroup(mNames[curM] + '（今月）', curEvents) +
+      renderGroup(mNames[nextM] + '（来月）', nextEvents);
+  }
+}
+
+/* ===== Tab 4: Simulator ===== */
+function renderSimulator() {
+  const datalist = document.getElementById('stockDatalist');
+  const allStocks = [...stocks];
+  /* Merge screening data if available, avoiding duplicates */
+  const existingCodes = new Set(stocks.map(s => s.code));
+  if (screeningData && screeningData.high_dividend_ranking) {
+    (screeningData.high_dividend_ranking||[]).forEach(s => {
+      if (!existingCodes.has(s.code)) { allStocks.push(s); existingCodes.add(s.code); }
+    });
+  }
+  /* Also add sector recommendation stocks */
+  if (screeningData && screeningData.sector_recommendations) {
+    Object.entries(screeningData.sector_recommendations).forEach(([secName, list]) => {
+      list.forEach(st => {
+        if (!existingCodes.has(st.code)) {
+          allStocks.push({ code: st.code, name: st.name, annual_div: 0, buy_price: st.price||0, cur_price: st.price||0, shares: 0, sector: secName, _yield: st.yield });
+          existingCodes.add(st.code);
+        }
+      });
+    });
+  }
+  datalist.innerHTML = allStocks.map(s => {
+    const y = getCurYield(s) || s._yield || s.yield || 0;
+    return `<option value="${s.code} ${s.name}">${s.code} ${s.name} (利回り${(typeof y==='number'?y:0).toFixed(1)}%)</option>`;
+  }).join('');
+  calcBuyTiming();
+}
+
+function findStockByInput(inputVal) {
+  if (!inputVal) return null;
+  /* Strip sector bracket if present: "8411 みずほFG [銀行業]" → "8411 みずほFG" */
+  const val = inputVal.replace(/\s*\[[^\]]*\]\s*$/, '').trim();
+  /* Try to extract code from beginning */
+  const codeMatch = val.match(/^(\d{4})/);
+  const code = codeMatch ? codeMatch[1] : null;
+  /* Search in portfolio stocks first */
+  let found = null;
+  if (code) found = stocks.find(s => s.code == code);
+  if (!found) found = stocks.find(s => s.name && s.name === val.replace(/^\d{4}\s*/, '').trim());
+  if (!found) found = stocks.find(s => s.name && val.includes(s.name) && (!code || s.code == code));
+  /* Then search in screening data (ranking + sector recommendations) */
+  if (!found && screeningData) {
+    /* Build a flat list of all screening stocks */
+    const allScr = [...(screeningData.high_dividend_ranking || [])];
+    /* Add sector recommendation stocks with sector name */
+    if (screeningData.sector_recommendations) {
+      Object.entries(screeningData.sector_recommendations).forEach(([secName, list]) => {
+        list.forEach(st => {
+          if (!allScr.find(s => s.code == st.code)) {
+            allScr.push({ code: st.code, name: st.name, yield: st.yield, price: st.price || 0, sector: secName, payout_ratio: st.payout_ratio, div_trend: st.div_trend, per: st.per || 0, pbr: st.pbr || 0, mix_coef: st.mix_coef || 0 });
+          }
+        });
+      });
+    }
+    let scrFound = null;
+    if (code) scrFound = allScr.find(s => s.code == code);
+    if (!scrFound) scrFound = allScr.find(s => s.name && s.name === val.replace(/^\d{4}\s*/, '').trim());
+    if (!scrFound) scrFound = allScr.find(s => s.name && val.includes(s.name) && (!code || s.code == code));
+    if (scrFound) {
+      const p = scrFound.price || scrFound.cur_price || 0;
+      const y = scrFound.yield || 0;
+      found = {
+        code: scrFound.code, name: scrFound.name,
+        shares: 0, buy_price: p, cur_price: p,
+        annual_div: y && p ? Math.round(p * y / 100) : 0,
+        mid_div: 0, mid_month: 12, end_month: 6,
+        nisa: '課税', sector: scrFound.sector || '未分類',
+        per: scrFound.per || 0, pbr: scrFound.pbr || 0, mix_coef: scrFound.mix_coef || 0
+      };
+    }
+  }
+  /* Finally, search in all listed stocks (JPX data) */
+  if (!found && allListedStocks && allListedStocks.length > 0) {
+    let jpxFound = null;
+    if (code) jpxFound = allListedStocks.find(s => s.code == code);
+    if (!jpxFound) jpxFound = allListedStocks.find(s => s.name && s.name === val);
+    if (!jpxFound) jpxFound = allListedStocks.find(s => s.name && val.includes(s.name));
+    if (jpxFound) {
+      found = {
+        code: jpxFound.code, name: jpxFound.name,
+        shares: 0, buy_price: 0, cur_price: 0,
+        annual_div: 0, mid_div: 0, mid_month: 12, end_month: 6,
+        nisa: '課税', sector: jpxFound.sector || '未分類',
+        per: 0, pbr: 0, mix_coef: 0
+      };
+    }
+  }
+  return found;
+}
+
+function calcBuyTiming() {
+  const inputVal = document.getElementById('simStockInput').value;
+  const targetYield = parseFloat(document.getElementById('simTargetYield').value) || 3.8;
+  const res = document.getElementById('simResults');
+  const s = findStockByInput(inputVal);
+
+  if (!s) {
+    /* Show all stocks ranked by yield gap */
+    const allStocksForRanking = [...stocks];
+    if (screeningData && screeningData.high_dividend_ranking) {
+      const existingCodes = new Set(stocks.map(st => st.code));
+      (screeningData.high_dividend_ranking||[]).forEach(st => { if (!existingCodes.has(st.code)) allStocksForRanking.push(st); });
+    }
+    const ranked = allStocksForRanking.filter(s => (s.annual_div||0) > 0).map(s => {
+      const curY = getCurYield(s);
+      const targetPrice = (s.annual_div||0) / (targetYield/100);
+      const curP = getPrice(s);
+      const gap = targetPrice - curP;
+      const gapPct = curP > 0 ? (gap/curP*100) : 0;
+      return {...s, curY, targetPrice, gap, gapPct};
+    }).sort((a,b) => b.curY - a.curY);
+
+    const near = ranked.filter(s => s.gap >= 0);
+    const over = ranked.filter(s => s.curY >= targetYield);
+
+    res.innerHTML = `
+      <div class="card sim-box" style="margin-bottom:16px">
+        <h4 style="color:#22c55e">利回り${targetYield}%以上の銘柄（${over.length}銘柄）</h4>
+        ${over.length === 0 ? '<p style="color:var(--text-muted)">該当なし</p>' : over.map(s => `
+          <div class="sim-row" style="padding:8px 0;border-bottom:1px solid var(--card-border)">
+            <span><strong>${s.code}</strong> ${s.name}</span>
+            <span><span class="text-green" style="font-size:1.1em;font-weight:bold">${s.curY.toFixed(2)}%</span> 現在値${fmtYen(Math.round(getPrice(s)))}</span>
+          </div>`).join('')}
+      </div>
+      <div class="card sim-box">
+        <h4>全銘柄 利回りランキング</h4>
+        <div style="overflow-x:auto">
+        <table style="width:100%;font-size:0.85em;border-collapse:collapse">
+          <tr style="color:var(--text-muted);text-align:left;border-bottom:2px solid var(--card-border)">
+            <th style="padding:8px 4px">コード</th><th>銘柄</th><th style="text-align:right">現在利回り</th><th style="text-align:right">現在値</th><th style="text-align:right">${targetYield}%になる株価</th><th style="text-align:right">あといくら</th><th style="text-align:right">判定</th>
+          </tr>
+          ${ranked.map(s => {
+            const isBuy = s.curY >= targetYield;
+            const isNear = !isBuy && s.gapPct > -10;
+            const badge = isBuy ? '<span style="background:#22c55e;color:#000;padding:2px 8px;border-radius:12px;font-size:0.8em;font-weight:bold">買い時</span>' :
+              isNear ? '<span style="background:#f59e0b;color:#000;padding:2px 8px;border-radius:12px;font-size:0.8em">もう少し</span>' :
+              '<span style="color:var(--text-muted);font-size:0.8em">待ち</span>';
+            return `<tr style="border-bottom:1px solid var(--card-border)${isBuy ? ';background:rgba(34,197,94,0.08)':''}">
+              <td style="padding:6px 4px">${s.code}</td>
+              <td>${s.name}</td>
+              <td style="text-align:right;font-weight:bold;color:${isBuy?'#22c55e':s.curY>=targetYield*0.8?'#f59e0b':'var(--text-primary)'}">${s.curY.toFixed(2)}%</td>
+              <td style="text-align:right">${fmtYen(Math.round(getPrice(s)))}</td>
+              <td style="text-align:right">${fmtYen(Math.round(s.targetPrice))}</td>
+              <td style="text-align:right;color:${s.gap>=0?'#22c55e':'var(--text-muted)'}">${s.gap>=0?'↓':'↑'}${fmtYen(Math.abs(Math.round(s.gap)))}</td>
+              <td style="text-align:right">${badge}</td>
+            </tr>`;
+          }).join('')}
+        </table>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const curPrice = getPrice(s);
+  const annDiv = s.annual_div || 0;
+  const bookYield = getBookYield(s);
+  const curYield = getCurYield(s);
+  const targetPrice = annDiv > 0 ? annDiv / (targetYield/100) : 0;
+  const priceDiff = targetPrice - curPrice;
+  const priceDiffPct = curPrice > 0 ? (priceDiff/curPrice*100) : 0;
+  const isBuy = curYield >= targetYield;
+  const monthlyDiv = Math.round(annDiv * (s.shares||0) / 12);
+  const monthlyDivAfterTax = Math.round(monthlyDiv * (1 - TAX_RATE));
+
+  /* What if I buy 10/50/100 shares more */
+  const simCounts = [10, 50, 100];
+
+  res.innerHTML = `
+    <div class="card sim-box" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h4>${s.code} ${s.name}</h4>
+        ${isBuy
+          ? '<span style="background:#22c55e;color:#000;padding:6px 16px;border-radius:20px;font-weight:bold;font-size:1.1em">買い時!</span>'
+          : '<span style="background:var(--card-border);color:var(--text-secondary);padding:6px 16px;border-radius:20px;font-weight:bold">様子見</span>'}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="card" style="text-align:center;padding:16px">
+          <div style="font-size:0.8em;color:var(--text-muted)">現在利回り</div>
+          <div style="font-size:1.8em;font-weight:bold;color:${curYield>=targetYield?'#22c55e':'#3b82f6'}">${curYield.toFixed(2)}%</div>
+        </div>
+        <div class="card" style="text-align:center;padding:16px">
+          <div style="font-size:0.8em;color:var(--text-muted)">簿価利回り</div>
+          <div style="font-size:1.8em;font-weight:bold;color:#3b82f6">${bookYield.toFixed(2)}%</div>
+        </div>
+      </div>
+      <div class="sim-row"><span>年間配当 (1株)</span><span style="font-weight:bold">${fmtYen(annDiv)}</span></div>
+      <div class="sim-row"><span>現在値</span><span>${fmtYen(Math.round(curPrice))}</span></div>
+      <div class="sim-row"><span>目標利回り ${targetYield}% になる株価</span><span style="font-weight:bold;color:#f59e0b">${fmtYen(Math.round(targetPrice))}</span></div>
+      <div class="sim-row"><span>${isBuy ? '現在値との差額' : 'あといくら下がれば買い時か'}</span><span style="color:${priceDiff>=0?'#22c55e':'#f59e0b'}">${priceDiff>=0?'すでに達成！ ':''}${priceDiff<0?'↓'+fmtYen(Math.abs(Math.round(priceDiff)))+' ('+Math.abs(priceDiffPct).toFixed(1)+'%下落待ち)':'↓'+fmtYen(Math.round(priceDiff))+'の余裕あり'}</span></div>
+      <div class="sim-row"><span>月々の配当収入 (税引後)</span><span style="font-weight:bold;color:#22c55e">${fmtYen(monthlyDivAfterTax)}/月</span></div>
+    </div>
+
+    <div class="card sim-box">
+      <h4 style="margin-bottom:12px">買い増しで配当はどう変わる？</h4>
+      <table style="width:100%;font-size:0.9em;border-collapse:collapse">
+        <tr style="color:var(--text-muted);border-bottom:2px solid var(--card-border)">
+          <th style="padding:8px;text-align:left">追加株数</th><th style="text-align:right">投資額</th><th style="text-align:right">年間配当増</th><th style="text-align:right">月配当増(税引後)</th><th style="text-align:right">新・簿価利回り</th>
+        </tr>
+        ${simCounts.map(n => {
+          const addCost = n * curPrice;
+          const addDiv = annDiv * n;
+          const addDivMonthly = Math.round(addDiv * (1-TAX_RATE) / 12);
+          const newAvg = ((s.shares||0)*s.buy_price + addCost) / ((s.shares||0)+n);
+          const newYield = newAvg > 0 ? annDiv / newAvg * 100 : 0;
+          return `<tr style="border-bottom:1px solid var(--card-border)">
+            <td style="padding:8px;font-weight:bold">+${n}株</td>
+            <td style="text-align:right">${fmtYen(Math.round(addCost))}</td>
+            <td style="text-align:right;color:#22c55e">+${fmtYen(Math.round(addDiv))}</td>
+            <td style="text-align:right;color:#22c55e">+${fmtYen(addDivMonthly)}/月</td>
+            <td style="text-align:right;font-weight:bold">${newYield.toFixed(2)}%</td>
+          </tr>`;
+        }).join('')}
+      </table>
+    </div>`;
+}
+
+/* Buy timing tool live update */
+document.getElementById('simStockInput').addEventListener('input', () => {
+  /* If user selected from datalist, the value will be "code name" format - trigger immediately */
+  calcBuyTiming();
+});
+document.getElementById('simStockInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const input = document.getElementById('simStockInput');
+    const val = input.value.trim();
+    /* If only code entered, try to find and fill the full name */
+    if (/^\d{4}$/.test(val)) {
+      const s = findStockByInput(val);
+      if (s) input.value = s.code + ' ' + s.name;
+    }
+    calcBuyTiming();
+  }
+});
+document.getElementById('simTargetYield').addEventListener('input', calcBuyTiming);
+
+/* ===== Tab 6: Checklist ===== */
+let checklistItems = JSON.parse(localStorage.getItem('checklistItems') || '[]');
+let favoritesCodes = JSON.parse(localStorage.getItem('favoritesCodes') || '[]');
+
+function toggleFavorite(code) {
+  const idx = favoritesCodes.indexOf(code);
+  if (idx >= 0) favoritesCodes.splice(idx, 1);
+  else favoritesCodes.push(code);
+  localStorage.setItem('favoritesCodes', JSON.stringify(favoritesCodes));
+  renderChecklistTable();
+}
+
+function isFavorite(code) { return favoritesCodes.includes(code); }
+
+function renderChecklist() {
+  /* Populate datalist — 上場全銘柄を含める */
+  const dl = document.getElementById('checklistDatalist');
+  const mergedMap = new Map();
+
+  /* 1. 上場全銘柄（JPXデータ）をベースに */
+  (allListedStocks || []).forEach(s => {
+    mergedMap.set(s.code, { code: s.code, name: s.name, sector: s.sector || '' });
+  });
+
+  /* 2. ポートフォリオ銘柄で上書き（より詳しいデータ） */
+  stocks.forEach(s => {
+    const existing = mergedMap.get(s.code) || {};
+    mergedMap.set(s.code, { ...existing, code: s.code, name: s.name, sector: s.sector || existing.sector || '' });
+  });
+
+  /* 3. スクリーニングデータで補完 */
+  if (screeningData && screeningData.high_dividend_ranking) {
+    screeningData.high_dividend_ranking.forEach(s => {
+      const existing = mergedMap.get(s.code) || {};
+      mergedMap.set(s.code, { ...existing, code: s.code, name: s.name || existing.name, sector: s.sector || existing.sector || '' });
+    });
+  }
+  if (screeningData && screeningData.sector_recommendations) {
+    Object.entries(screeningData.sector_recommendations).forEach(([sec, list]) => {
+      list.forEach(st => {
+        const existing = mergedMap.get(st.code) || {};
+        mergedMap.set(st.code, { ...existing, code: st.code, name: st.name || existing.name, sector: sec || existing.sector || '' });
+      });
+    });
+  }
+
+  /* datalistを生成（コード順） */
+  const allStocksList = Array.from(mergedMap.values()).sort((a, b) => a.code - b.code);
+  dl.innerHTML = allStocksList.map(s => {
+    const sec = s.sector || '';
+    return sec ? `<option value="${s.code} ${s.name} [${sec}]">` : `<option value="${s.code} ${s.name}">`;
+  }).join('');
+
+  renderChecklistTable();
+}
+
+function addToChecklist() {
+  const input = document.getElementById('checklistInput');
+  const val = input.value.trim();
+  if (!val) return;
+  const s = findStockByInput(val);
+  if (!s) { alert('銘柄が見つかりません: ' + val); return; }
+  if (checklistItems.find(c => c.code == s.code)) { alert(s.name + 'は既にリストにあります'); return; }
+
+  /* Find screening info - first from stocks.json (portfolio), then screening data */
+  let divTrend = s.div_trend || '-', payoutRatio = s.payout_ratio || '-', scrYield = 0;
+  let scrPer = s.per || 0, scrPbr = s.pbr || 0, scrMix = s.mix_coef || 0;
+  if (screeningData && screeningData.sector_recommendations) {
+    Object.values(screeningData.sector_recommendations).forEach(list => {
+      const found = list.find(st => st.code == s.code);
+      if (found) { divTrend = divTrend !== '-' ? divTrend : (found.div_trend || '-'); payoutRatio = payoutRatio !== '-' ? payoutRatio : (found.payout_ratio || '-'); scrYield = found.yield || 0; scrPer = scrPer || found.per || 0; scrPbr = scrPbr || found.pbr || 0; scrMix = scrMix || found.mix_coef || 0; }
+    });
+  }
+  if (screeningData && screeningData.high_dividend_ranking) {
+    const found = screeningData.high_dividend_ranking.find(st => st.code == s.code);
+    if (found) { scrPer = scrPer || found.per || 0; scrPbr = scrPbr || found.pbr || 0; scrMix = scrMix || found.mix_coef || 0; }
+  }
+
+  const item = {
+    code: s.code, name: s.name,
+    price: getPrice(s) || 0,
+    yield: getCurYield(s) || scrYield || s._yield || 0,
+    payout_ratio: payoutRatio,
+    div_trend: divTrend,
+    per: s.per || scrPer || 0,
+    pbr: s.pbr || scrPbr || 0,
+    mix_coef: s.mix_coef || scrMix || 0,
+    sector: getSector(s) || s.sector || '',
+    owned: stocks.some(st => st.code == s.code),
+    buy_price: (() => { const p = stocks.find(st => st.code == s.code); return p ? (p.buy_price || 0) : 0; })(),
+    shares: (() => { const p = stocks.find(st => st.code == s.code); return p ? (p.shares || 0) : 0; })(),
+    added: new Date().toISOString().split('T')[0]
+  };
+
+  /* Score the stock */
+  let score = 0; let notes = []; let advice = [];
+  const pr = parseFloat(item.payout_ratio);
+  const mix = item.mix_coef || 0;
+  const per = item.per || 0;
+
+  /* Basic checks */
+  if (item.yield >= 3.75) { score++; notes.push('✓ 利回り3.75%以上'); } else { notes.push('× 利回り3.75%未満'); }
+  if (!isNaN(pr) && pr <= 70) { score++; notes.push('✓ 配当性向70%以下'); } else if (!isNaN(pr)) { notes.push('× 配当性向70%超'); } else { notes.push('- 配当性向データなし'); }
+  if (item.div_trend.includes('連続増配') || item.div_trend.includes('非減配')) { score++; notes.push('✓ ' + item.div_trend); } else if (item.div_trend.includes('減配')) { notes.push('⚠ ' + item.div_trend); } else { notes.push('- 増配データなし'); }
+  if (item.yield > 7) { score--; notes.push('⚠ 超高利回り（罠リスク）'); }
+
+  /* Contextual advice */
+  if (mix > 0 && mix <= 22.5 && !isNaN(pr) && pr > 70) {
+    advice.push('割安度は良好ですが、配当性向が高く利益の余力が少ないです。IR BANKで業績推移を確認し、今後も配当を維持できるかチェックしてください。');
+  }
+  if (mix > 0 && mix <= 22.5 && item.yield < 3.75) {
+    advice.push('割安ですが利回りが低めです。株価が下がって利回りが上がるタイミングを待つのも手です。');
+  }
+  if (mix > 40 && item.yield >= 3.75) {
+    advice.push('利回りは魅力的ですが、ミックス係数が割高です。PERが一時的に高い（業績悪化）可能性があるので、IR BANKで直近の業績が一時的な落ち込みか構造的な問題かを確認してください。');
+  }
+  if (per > 30 && item.yield >= 3.75) {
+    advice.push('PERが' + per.toFixed(0) + '倍と高水準です。利益が一時的に落ちている可能性があり、高配当に見えても減配リスクがあります。バフェット・コードで利益推移を確認してください。');
+  }
+  if (!isNaN(pr) && pr > 100) {
+    advice.push('配当性向が100%超で、利益以上の配当を出しています。内部留保を切り崩している状態なので、長期的に維持困難な可能性が高いです。');
+  }
+  if (!isNaN(pr) && pr > 70 && pr <= 100 && item.div_trend.includes('非減配')) {
+    advice.push('配当性向が高めですが非減配を維持しています。株主還元に積極的な可能性がありますが、業績悪化時の減配リスクに注意してください。');
+  }
+  if (item.yield >= 3.75 && !isNaN(pr) && pr <= 50 && item.div_trend.includes('連続増配')) {
+    advice.push('高利回り・低配当性向・連続増配と三拍子揃っています。今後も増配余力があり、長期保有に向いた銘柄です。');
+  }
+  if (item.yield >= 3.75 && mix > 0 && mix <= 22.5 && !isNaN(pr) && pr <= 70) {
+    advice.push('利回り・割安度・配当性向すべて良好です。買い時として有望な銘柄です。');
+  }
+  if (item.yield > 5 && item.yield <= 7 && (!item.div_trend || item.div_trend === '-')) {
+    advice.push('高利回りですが増配実績が不明です。投資の森やIR BANKで過去の配当履歴を確認し、減配歴がないかチェックしてください。');
+  }
+  if (item.yield > 7) {
+    advice.push('利回りが極端に高く、高配当トラップの可能性があります。特別配当や記念配当が含まれていないか、株探で確認してください。');
+  }
+  if (advice.length === 0 && mix > 0) {
+    advice.push('大きな懸念点はありません。IR BANKで直近の業績推移と配当履歴を確認して最終判断してください。');
+  }
+
+  item.score = score;
+  item.notes = notes;
+  item.advice = advice;
+  item.verdict = score >= 3 ? '◎優良' : score >= 2 ? '○候補' : score >= 1 ? '△要確認' : '×見送り';
+
+  checklistItems.push(item);
+  localStorage.setItem('checklistItems', JSON.stringify(checklistItems));
+  input.value = '';
+  renderChecklistTable();
+
+  /* データが不足している場合、サーバーから自動取得 */
+  if (!item.price || item.price === 0 || !item.per) {
+    fetchAndUpdateChecklistItem(item.code);
+  }
+}
+
+async function fetchAndUpdateChecklistItem(code) {
+  if (IS_STATIC) {
+    const card = document.querySelector(`[data-checklist-code="${code}"]`);
+    if (card) {
+      const badge = document.createElement('div');
+      badge.style.cssText = 'position:absolute;top:8px;left:50%;transform:translateX(-50%);background:var(--text-muted);color:#fff;padding:4px 14px;border-radius:20px;font-size:0.7em;font-weight:600;z-index:10';
+      badge.textContent = 'オフライン版ではデータ自動取得は利用できません';
+      badge.id = 'fetchBadge-' + code;
+      card.appendChild(badge);
+      setTimeout(() => { const b = document.getElementById('fetchBadge-' + code); if (b) b.remove(); }, 4000);
+    }
+    return;
+  }
+  try {
+    const card = document.querySelector(`[data-checklist-code="${code}"]`);
+    if (card) {
+      const badge = document.createElement('div');
+      badge.style.cssText = 'position:absolute;top:8px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:4px 14px;border-radius:20px;font-size:0.7em;font-weight:600;z-index:10;animation:pulse 1s infinite';
+      badge.textContent = '📡 データ取得中...';
+      badge.id = 'fetchBadge-' + code;
+      card.appendChild(badge);
+    }
+
+    const resp = await fetch('/api/stock_info?code=' + code);
+    if (!resp.ok) return;
+    const info = await resp.json();
+
+    const item = checklistItems.find(c => c.code == code);
+    if (!item) return;
+
+    /* Update with fetched data */
+    if (info.price > 0) item.price = info.price;
+    if (info.yield > 0) item.yield = info.yield;
+    if (info.per > 0) item.per = info.per;
+    if (info.pbr > 0) item.pbr = info.pbr;
+    if (info.per > 0 && info.pbr > 0) item.mix_coef = Math.round(info.per * info.pbr * 100) / 100;
+    if (info.payout_ratio > 0) item.payout_ratio = info.payout_ratio;
+    if (info.div_trend) item.div_trend = info.div_trend;
+    if (info.sector) item.sector = info.sector;
+    if (info.annual_div > 0) item.annual_div = info.annual_div;
+
+    /* Re-score */
+    let score = 0; let notes = []; let advice = [];
+    const pr = parseFloat(item.payout_ratio);
+    const mix = item.mix_coef || 0;
+    const per = item.per || 0;
+
+    if (item.yield >= 3.75) { score++; notes.push('✓ 利回り3.75%以上'); } else { notes.push('× 利回り3.75%未満'); }
+    if (!isNaN(pr) && pr > 0 && pr <= 70) { score++; notes.push('✓ 配当性向70%以下'); } else if (!isNaN(pr) && pr > 70) { notes.push('× 配当性向70%超'); } else { notes.push('- 配当性向データなし'); }
+    if (item.div_trend && (item.div_trend.includes('連続増配') || item.div_trend.includes('非減配'))) { score++; notes.push('✓ ' + item.div_trend); } else if (item.div_trend && item.div_trend.includes('減配')) { notes.push('⚠ ' + item.div_trend); } else { notes.push('- 増配データなし'); }
+    if (item.yield > 7) { score--; notes.push('⚠ 超高利回り（罠リスク）'); }
+    if (mix > 0 && mix <= 22.5 && !isNaN(pr) && pr <= 70 && item.yield >= 3.75) advice.push('利回り・割安度・配当性向すべて良好。買い時として有望です。');
+    if (mix > 40 && item.yield >= 3.75) advice.push('利回りは魅力的ですが、ミックス係数が割高です。IR BANKで業績推移を確認してください。');
+    if (!isNaN(pr) && pr > 100) advice.push('配当性向が100%超。利益以上の配当で維持困難な可能性。');
+    if (advice.length === 0) advice.push('IR BANKで業績推移と配当履歴を確認して最終判断してください。');
+
+    item.score = score;
+    item.notes = notes;
+    item.advice = advice;
+    item.verdict = score >= 3 ? '◎優良' : score >= 2 ? '○候補' : score >= 1 ? '△要確認' : '×見送り';
+
+    localStorage.setItem('checklistItems', JSON.stringify(checklistItems));
+    renderChecklistTable();
+    console.log(`[${code}] データ取得完了: price=${item.price}, yield=${item.yield}%, PER=${item.per}`);
+  } catch(e) {
+    console.error('stock_info fetch error:', e);
+    const badge = document.getElementById('fetchBadge-' + code);
+    if (badge) badge.remove();
+  }
+}
+
+function removeFromChecklist(code) {
+  checklistItems = checklistItems.filter(c => c.code != code);
+  localStorage.setItem('checklistItems', JSON.stringify(checklistItems));
+  renderChecklistTable();
+}
+
+function renderChecklistTable() {
+  const el = document.getElementById('checklistResults');
+  if (checklistItems.length === 0) {
+    el.innerHTML = '<div class="card" style="text-align:center;padding:40px;color:var(--text-muted)">銘柄を追加してチェックリストを作成しましょう</div>';
+    return;
+  }
+
+  /* Auto-refresh: update stored items with latest PER/PBR/mix/payout/price from stocks + screening */
+  let dirty = false;
+  checklistItems.forEach(item => {
+    /* Try portfolio stocks first */
+    const ps = stocks.find(st => st.code == item.code);
+    if (ps) {
+      if (ps.per && !item.per) { item.per = ps.per; dirty = true; }
+      if (ps.pbr && !item.pbr) { item.pbr = ps.pbr; dirty = true; }
+      if (ps.mix_coef && !item.mix_coef) { item.mix_coef = ps.mix_coef; dirty = true; }
+      if (ps.payout_ratio && (item.payout_ratio === '-' || !item.payout_ratio)) { item.payout_ratio = ps.payout_ratio; dirty = true; }
+      if (ps.cur_price && ps.cur_price > 0) { item.price = ps.cur_price; item.yield = (ps.annual_div || 0) / ps.cur_price * 100; dirty = true; }
+    }
+    /* Then screening data */
+    if (screeningData) {
+      const tryUpdate = (found) => {
+        if (!found) return;
+        if (found.per && !item.per) { item.per = found.per; dirty = true; }
+        if (found.pbr && !item.pbr) { item.pbr = found.pbr; dirty = true; }
+        if (found.mix_coef && !item.mix_coef) { item.mix_coef = found.mix_coef; dirty = true; }
+        if (found.payout_ratio && (item.payout_ratio === '-' || !item.payout_ratio)) { item.payout_ratio = found.payout_ratio; dirty = true; }
+        if (found.div_trend && (item.div_trend === '-' || !item.div_trend)) { item.div_trend = found.div_trend; dirty = true; }
+      };
+      if (screeningData.high_dividend_ranking) tryUpdate(screeningData.high_dividend_ranking.find(s => s.code == item.code));
+      if (screeningData.sector_recommendations) Object.values(screeningData.sector_recommendations).forEach(list => tryUpdate(list.find(s => s.code == item.code)));
+    }
+    /* Recalculate mix_coef if we now have both per and pbr */
+    if (item.per && item.pbr && !item.mix_coef) { item.mix_coef = Math.round(item.per * item.pbr * 100) / 100; dirty = true; }
+  });
+  if (dirty) localStorage.setItem('checklistItems', JSON.stringify(checklistItems));
+
+  let h = '';
+  checklistItems.forEach(item => {
+    const verdictColor = item.verdict.includes('優良') ? '#22c55e' : item.verdict.includes('候補') ? '#3b82f6' : item.verdict.includes('確認') ? '#f59e0b' : '#ef4444';
+    const verdictBg = item.verdict.includes('優良') ? '#22c55e20' : item.verdict.includes('候補') ? '#3b82f620' : item.verdict.includes('確認') ? '#f59e0b20' : '#ef444420';
+
+    const payoutNum = typeof item.payout_ratio === 'number' ? item.payout_ratio : parseFloat(item.payout_ratio);
+    const payoutDisplay = !isNaN(payoutNum) ? payoutNum.toFixed(1) + '%' : (item.payout_ratio && item.payout_ratio !== '-' ? item.payout_ratio : '-');
+    const payoutWarn = !isNaN(payoutNum) && payoutNum > 70;
+    const trendBadge = item.div_trend.includes('連続増配') ? 'background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff' : item.div_trend.includes('非減配') ? 'background:#93c5fd;color:#1e3a5f' : 'background:var(--border);color:var(--text-secondary)';
+
+    h += `<div data-checklist-code="${item.code}" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:14px;box-shadow:var(--shadow);position:relative;overflow:hidden;transition:outline .3s">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,${verdictColor},${verdictColor}88,transparent)"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+        <div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
+            <span style="font-size:1.3em;font-weight:800;letter-spacing:0.5px">${item.code}</span>
+            <span style="font-size:1.1em;font-weight:600">${item.name}</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${item.owned ? '<span style="background:linear-gradient(135deg,#f59e0b20,#f59e0b10);color:#f59e0b;padding:2px 10px;border-radius:20px;font-size:0.72em;font-weight:600;border:1px solid #f59e0b40">保有中' + (item.shares ? ' ' + item.shares + '株' : '') + (item.buy_price ? ' @' + fmt(Math.round(item.buy_price)) + '円' : '') + '</span>' : ''}
+            <span style="background:var(--accent-light);color:var(--accent);padding:2px 10px;border-radius:20px;font-size:0.72em;font-weight:500">${item.sector}</span>
+            <span style="${trendBadge};padding:2px 10px;border-radius:20px;font-size:0.72em;font-weight:600">${item.div_trend || '-'}</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="background:${verdictBg};color:${verdictColor};padding:6px 16px;border-radius:20px;font-weight:700;font-size:0.9em;white-space:nowrap">${item.verdict}</span>
+          <button onclick="toggleFavorite(${item.code})" style="background:${isFavorite(item.code) ? '#fbbf2430' : 'var(--bg-primary)'};border:1px solid ${isFavorite(item.code) ? '#fbbf24' : 'var(--border)'};color:${isFavorite(item.code) ? '#fbbf24' : 'var(--text-muted)'};cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1em;transition:all .2s" title="お気に入り">★</button>
+          <button onclick="removeFromChecklist(${item.code})" style="background:var(--bg-primary);border:1px solid var(--border);color:var(--text-muted);cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1em;transition:all .2s" title="削除">×</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px">
+        <div style="text-align:center;padding:10px 6px;background:var(--bg-primary);border-radius:10px">
+          <div style="font-size:0.75em;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">株価</div>
+          <div style="font-size:1.2em;font-weight:700">${item.price > 0 ? fmtYen(Math.round(item.price)) : '-'}</div>
+        </div>
+        <div style="text-align:center;padding:10px 6px;background:var(--bg-primary);border-radius:10px">
+          <div style="font-size:0.75em;color:var(--text-muted);letter-spacing:0.5px;margin-bottom:2px">利回り</div>
+          <div style="font-size:1.2em;font-weight:700;color:${item.yield>=3.75?'#22c55e':'var(--text-primary)'}">${item.yield > 0 ? item.yield.toFixed(2)+'%' : '-'}</div>
+        </div>
+        <div style="text-align:center;padding:10px 6px;background:var(--bg-primary);border-radius:10px">
+          <div style="font-size:0.75em;color:var(--text-muted);letter-spacing:0.5px;margin-bottom:2px">配当性向</div>
+          <div style="font-size:1.2em;font-weight:700;color:${payoutWarn?'#ef4444':'var(--text-primary)'}">${payoutDisplay}</div>
+        </div>
+        <div style="text-align:center;padding:10px 6px;border-radius:10px;${getValuationColor(item.mix_coef) || 'background:var(--bg-primary)'}">
+          <div style="font-size:0.75em;opacity:0.8;letter-spacing:0.5px;margin-bottom:2px">割安度</div>
+          <div style="font-size:1.2em;font-weight:700">${getValuationLabel(item.mix_coef)}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">
+        <div style="text-align:center;padding:8px 6px;background:var(--bg-primary);border-radius:10px">
+          <div style="font-size:0.6em;color:var(--text-muted)">PER</div>
+          <div style="font-weight:600;font-size:0.95em">${item.per ? item.per.toFixed(1)+'<span style="font-size:0.7em;color:var(--text-muted)">倍</span>' : '-'}</div>
+        </div>
+        <div style="text-align:center;padding:8px 6px;background:var(--bg-primary);border-radius:10px">
+          <div style="font-size:0.6em;color:var(--text-muted)">PBR</div>
+          <div style="font-weight:600;font-size:0.95em">${item.pbr ? item.pbr.toFixed(2)+'<span style="font-size:0.7em;color:var(--text-muted)">倍</span>' : '-'}</div>
+        </div>
+        <div style="text-align:center;padding:8px 6px;background:var(--bg-primary);border-radius:10px">
+          <div style="font-size:0.6em;color:var(--text-muted)">ミックス係数</div>
+          <div style="font-weight:600;font-size:0.95em">${item.mix_coef ? item.mix_coef.toFixed(2) : '-'}</div>
+        </div>
+      </div>
+      <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:8px;padding:10px 12px;background:var(--bg-primary);border-radius:8px">
+        ${(item.notes||[]).map(n => '<span style="margin-right:12px;white-space:nowrap">' + n + '</span>').join('')}
+      </div>
+      ${(item.advice && item.advice.length) ? '<div style="font-size:0.92em;margin-bottom:10px;padding:12px 14px;border-radius:10px;background:linear-gradient(135deg,rgba(6,182,212,0.08),rgba(244,114,182,0.08));border-left:3px solid var(--accent);line-height:1.8">' + (item.advice||[]).map(a => '<div style="margin-bottom:6px">💡 ' + a + '</div>').join('') + '</div>' : ''}
+      <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+        <a href="https://irbank.net/${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#1565C0;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600;transition:opacity .2s">IR BANK</a>
+        <a href="https://www.buffett-code.com/company/${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#2e7d32;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">バフェット・コード</a>
+        <a href="https://kabutan.jp/stock/?code=${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#d32f2f;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">株探</a>
+        <a href="https://nikkeiyosoku.com/stock/${item.code}/" target="_blank" rel="noopener" style="padding:4px 12px;background:#f57c00;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">投資の森</a>
+        <a href="https://site1.sbisec.co.jp/ETGate/?_ControlID=WPLETsiR001Control&_DataStoreID=DSWPLETsiR001Control&_ActionID=stockDetail&stockCode=${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#0277bd;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">SBI証券</a>
+        <a href="https://monex.ifis.co.jp/index.php?action=tp2&sa=stockDetail&stockCode=${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#6a1b9a;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">銘柄スカウター</a>
+        <span style="font-size:0.65em;color:var(--text-muted);margin-left:auto">${item.added}</span>
+      </div>
+    </div>`;
+  });
+
+  el.innerHTML = h;
+}
+
+document.getElementById('btnAddChecklist').addEventListener('click', addToChecklist);
+document.getElementById('checklistInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); addToChecklist(); }
+});
+
+/* ===== Tab: Favorites ===== */
+function renderFavorites() {
+  const wrap = document.getElementById('favoritesTableWrap');
+  const countEl = document.getElementById('favCount');
+  const favItems = checklistItems.filter(item => isFavorite(item.code));
+  countEl.textContent = favItems.length + '銘柄';
+
+  if (favItems.length === 0) {
+    wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">お気に入り銘柄がありません。チェックリストの★ボタンで追加しましょう。</div>';
+    return;
+  }
+
+  let h = '<table><thead><tr>';
+  h += '<th style="text-align:left">コード</th><th style="text-align:left">銘柄名</th>';
+  h += '<th>セクター</th><th>株価</th><th>利回り</th><th>PER</th><th>PBR</th>';
+  h += '<th>ミックス係数</th><th>割安度</th><th>配当性向</th><th>増配実績</th><th>判定</th><th>追加日</th><th></th>';
+  h += '</tr></thead><tbody>';
+
+  favItems.forEach(item => {
+    const payoutNum = typeof item.payout_ratio === 'number' ? item.payout_ratio : parseFloat(item.payout_ratio);
+    const payoutDisplay = !isNaN(payoutNum) ? payoutNum.toFixed(1) + '%' : '-';
+    const payoutWarn = !isNaN(payoutNum) && payoutNum > 70;
+    const verdictColor = item.verdict && item.verdict.includes('優良') ? '#22c55e' : item.verdict && item.verdict.includes('候補') ? '#3b82f6' : item.verdict && item.verdict.includes('確認') ? '#f59e0b' : '#ef4444';
+
+    h += '<tr>';
+    h += `<td style="text-align:left;font-weight:700">${item.code}</td>`;
+    h += `<td style="text-align:left;font-weight:600">${item.name}${item.owned ? ' <span class="nisa-badge" style="background:rgba(251,191,36,.15);color:#f59e0b">保有中</span>' : ''}</td>`;
+    h += `<td style="font-size:.82em;color:var(--text-secondary)">${item.sector || '-'}</td>`;
+    h += `<td>${item.price > 0 ? fmtYen(Math.round(item.price)) : '-'}</td>`;
+    h += `<td style="color:${item.yield >= 3.75 ? '#22c55e' : 'var(--text-primary)'};font-weight:600">${item.yield > 0 ? item.yield.toFixed(2) + '%' : '-'}</td>`;
+    h += `<td>${item.per ? item.per.toFixed(1) + '倍' : '-'}</td>`;
+    h += `<td>${item.pbr ? item.pbr.toFixed(2) + '倍' : '-'}</td>`;
+    h += `<td>${item.mix_coef ? item.mix_coef.toFixed(2) : '-'}</td>`;
+    h += `<td><span style="padding:2px 8px;border-radius:12px;font-size:.82em;font-weight:600;${getValuationColor(item.mix_coef)}">${getValuationLabel(item.mix_coef)}</span></td>`;
+    h += `<td style="color:${payoutWarn ? '#ef4444' : 'var(--text-primary)'}">${payoutDisplay}</td>`;
+    h += `<td style="font-size:.82em">${item.div_trend || '-'}</td>`;
+    h += `<td><span style="color:${verdictColor};font-weight:700;font-size:.88em">${item.verdict || '-'}</span></td>`;
+    h += `<td style="font-size:.78em;color:var(--text-muted)">${item.added || '-'}</td>`;
+    h += `<td><button onclick="toggleFavorite(${item.code});renderFavorites()" style="background:none;border:none;color:#fbbf24;cursor:pointer;font-size:1.1em" title="お気に入り解除">★</button></td>`;
+    h += '</tr>';
+  });
+
+  h += '</tbody></table>';
+  wrap.innerHTML = h;
+}
+
+/* ===== Tab 5: Settings ===== */
+document.getElementById('btnDownload').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(stocks, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'stocks.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+/* === Export: Portfolio CSV === */
+document.getElementById('btnExportCSV').addEventListener('click', () => {
+  const header = ['証券コード','銘柄名','セクター','保有株数','取得単価','現在値','取得総額','評価額','含み損益','含み損益率%','年間配当/株','簿価利回り%','現在利回り%','PER','PBR','ミックス係数','口座'];
+  const rows = stocks.map(s => [
+    s.code, s.name, getSector(s), s.shares||0, s.buy_price||0, getPrice(s),
+    Math.round(getCost(s)), Math.round(getMarketVal(s)), Math.round(getPL(s)),
+    getPLRate(s).toFixed(2), s.annual_div||0, getBookYield(s).toFixed(2), getCurYield(s).toFixed(2),
+    s.per||'', s.pbr||'', s.mix_coef||'', s.nisa||''
+  ]);
+  const csv = '\uFEFF' + [header, ...rows].map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'portfolio_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+/* === Export: Tax Data CSV === */
+document.getElementById('btnExportTax').addEventListener('click', () => {
+  const header = ['証券コード','銘柄名','口座区分','保有株数','取得単価','取得総額','現在値','評価額','含み損益','年間配当/株','年間配当合計(税引前)','年間配当合計(税引後)','税額'];
+  const rows = stocks.map(s => {
+    const divTotal = getAnnualDiv(s);
+    const isNisa = s.nisa === 'NISA';
+    const tax = isNisa ? 0 : Math.round(divTotal * TAX_RATE);
+    return [
+      s.code, s.name, isNisa ? 'NISA(非課税)' : '特定口座(課税)', s.shares||0,
+      s.buy_price||0, Math.round(getCost(s)), getPrice(s), Math.round(getMarketVal(s)),
+      Math.round(getPL(s)), s.annual_div||0, Math.round(divTotal),
+      Math.round(divTotal - tax), tax
+    ];
+  });
+  const totalDiv = stocks.reduce((a,s)=>a+getAnnualDiv(s),0);
+  const nisaDiv = stocks.filter(s=>s.nisa==='NISA').reduce((a,s)=>a+getAnnualDiv(s),0);
+  const taxableDiv = totalDiv - nisaDiv;
+  const totalTax = Math.round(taxableDiv * TAX_RATE);
+  rows.push(['','合計','','','','','',' ','',
+    '', Math.round(totalDiv), Math.round(totalDiv - totalTax), totalTax]);
+  const csv = '\uFEFF' + [header, ...rows].map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tax_data_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('fileUpload').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (Array.isArray(data)) {
+        stocks = data;
+        if (IS_STATIC) savePortfolioToLocal();
+        switchTab('dashboard');
+        alert('データを読み込みました (' + stocks.length + '銘柄)');
+      }
+      else alert('不正なJSONフォーマットです');
+    } catch(err) { alert('JSONの解析に失敗しました: ' + err.message); }
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById('csvUpload').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (IS_STATIC) {
+    alert('オフライン版ではCSVアップロードは利用できません。JSONインポートをお使いください。');
+    return;
+  }
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const resp = await fetch('/api/import-csv', {method:'POST', body:formData});
+    if (resp.ok) { const data = await resp.json(); stocks = data; switchTab('dashboard'); alert('CSVを取り込みました'); }
+    else alert('CSVアップロードに失敗しました: ' + resp.statusText);
+  } catch(err) { alert('CSVアップロードに失敗しました: ' + err.message); }
+});
+
+/* Theme toggle */
+const toggle = document.getElementById('themeToggle');
+function setTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  toggle.classList.toggle('on', dark);
+  localStorage.setItem('theme', dark ? 'dark' : 'light');
+}
+toggle.addEventListener('click', () => {
+  const isDark = toggle.classList.contains('on');
+  setTheme(!isDark);
+  /* Re-render current tab to update chart colors */
+  const activeTab = document.querySelector('.nav-btn.active');
+  if (activeTab) switchTab(activeTab.dataset.tab);
+});
+/* Restore theme */
+const saved = localStorage.getItem('theme');
+if (saved === 'light') setTheme(false);
+
+/* Threshold */
+document.getElementById('thresholdInput').addEventListener('change', e => {
+  localStorage.setItem('threshold', e.target.value);
+});
+const savedThreshold = localStorage.getItem('threshold');
+if (savedThreshold) document.getElementById('thresholdInput').value = savedThreshold;
+
+/* Stock price update button */
+document.getElementById('btnUpdatePrices').addEventListener('click', async () => {
+  const btn = document.getElementById('btnUpdatePrices');
+  const status = document.getElementById('priceUpdateStatus');
+  if (IS_STATIC) {
+    status.textContent = 'オフライン版では株価の自動更新は利用できません。ローカルサーバー版をお使いください。';
+    status.style.color = 'var(--text-muted)';
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '更新中...';
+  status.textContent = 'サーバーで株価を取得中（数分かかります）...';
+  status.style.color = 'var(--accent2)';
+  try {
+    const resp = await fetch('/api/update-prices', {method:'POST'});
+    if (resp.ok) {
+      const result = await resp.json();
+      status.textContent = '更新完了: ' + (result.updated || 0) + '件成功, ' + (result.failed || 0) + '件失敗';
+      status.style.color = 'var(--green)';
+      /* Reload stocks */
+      const r2 = await fetch('/api/stocks');
+      if (r2.ok) { stocks = await r2.json(); if (!Array.isArray(stocks)) stocks = stocks.stocks || []; }
+      const activeTab = document.querySelector('.nav-btn.active');
+      if (activeTab) switchTab(activeTab.dataset.tab);
+    } else {
+      status.textContent = '更新失敗: ' + resp.statusText;
+      status.style.color = 'var(--red)';
+    }
+  } catch(err) {
+    status.textContent = '更新失敗: ' + err.message;
+    status.style.color = 'var(--red)';
+  }
+  btn.disabled = false;
+  btn.textContent = '株価を更新';
+});
+
+/* === MFデータ貼り付け取り込み === */
+document.getElementById('btnImportPaste').addEventListener('click', async () => {
+  const text = document.getElementById('mfPasteArea').value.trim();
+  const status = document.getElementById('pasteImportStatus');
+  if (IS_STATIC) {
+    status.textContent = 'オフライン版ではMFデータ取り込みは利用できません。JSONインポートをお使いください。';
+    status.style.color = 'var(--text-muted)';
+    return;
+  }
+  if (!text) { status.textContent = 'データを貼り付けてください'; status.style.color = 'var(--red)'; return; }
+  const btn = document.getElementById('btnImportPaste');
+  btn.disabled = true; btn.textContent = '取り込み中...';
+  status.textContent = ''; status.style.color = 'var(--text-muted)';
+  try {
+    const resp = await fetch('/api/import-paste', {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain; charset=utf-8'},
+      body: text
+    });
+    const result = await resp.json();
+    if (resp.ok && result.ok) {
+      status.textContent = `✅ ${result.imported}銘柄を取り込み（合計${result.total}銘柄）`;
+      status.style.color = 'var(--green)';
+      document.getElementById('mfPasteArea').value = '';
+      const r2 = await fetch('/api/stocks');
+      if (r2.ok) { stocks = await r2.json(); if (!Array.isArray(stocks)) stocks = stocks.stocks || []; }
+      const activeTab = document.querySelector('.nav-btn.active');
+      if (activeTab) switchTab(activeTab.dataset.tab);
+    } else {
+      status.textContent = '❌ ' + (result.error || 'エラー');
+      status.style.color = 'var(--red)';
+    }
+  } catch(err) {
+    status.textContent = '❌ ' + err.message;
+    status.style.color = 'var(--red)';
+  }
+  btn.disabled = false; btn.textContent = '🔄 取り込み';
+});
+
+/* === 銘柄データ更新（IR BANK / バフェットコード等） === */
+async function enrichStocks(onlyMissing) {
+  const btn1 = document.getElementById('btnEnrichAll');
+  const btn2 = document.getElementById('btnEnrichMissing');
+  const status = document.getElementById('enrichStatus');
+  const progress = document.getElementById('enrichProgress');
+  const bar = document.getElementById('enrichBar');
+  const detail = document.getElementById('enrichDetail');
+  if (IS_STATIC) {
+    status.textContent = 'オフライン版では銘柄データの自動更新は利用できません。ローカルサーバー版をお使いください。';
+    status.style.color = 'var(--text-muted)';
+    return;
+  }
+  btn1.disabled = btn2.disabled = true;
+  progress.style.display = 'block';
+  bar.style.width = '0%';
+  status.textContent = '更新開始...';
+  status.style.color = 'var(--accent2)';
+  try {
+    const resp = await fetch('/api/enrich-stocks', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ only_missing: onlyMissing })
+    });
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream: true});
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const msg = JSON.parse(line);
+          if (msg.type === 'progress') {
+            bar.style.width = msg.pct + '%';
+            detail.textContent = `${msg.current}/${msg.total}: ${msg.code} ${msg.name} - ${msg.result}`;
+          } else if (msg.type === 'done') {
+            status.textContent = `✅ ${msg.updated}銘柄を更新完了`;
+            status.style.color = 'var(--green)';
+            bar.style.width = '100%';
+          } else if (msg.type === 'error') {
+            status.textContent = '❌ ' + msg.message;
+            status.style.color = 'var(--red)';
+          }
+        } catch(e) {}
+      }
+    }
+    /* Reload stocks */
+    const r2 = await fetch('/api/stocks');
+    if (r2.ok) { stocks = await r2.json(); if (!Array.isArray(stocks)) stocks = stocks.stocks || []; }
+    /* 株価更新日時を記録 */
+    const nowStr = new Date().toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+    localStorage.setItem('lastPriceUpdate', nowStr);
+    const activeTab = document.querySelector('.nav-btn.active');
+    if (activeTab) switchTab(activeTab.dataset.tab);
+  } catch(err) {
+    status.textContent = '❌ ' + err.message;
+    status.style.color = 'var(--red)';
+  }
+  btn1.disabled = btn2.disabled = false;
+  setTimeout(() => { progress.style.display = 'none'; }, 5000);
+}
+document.getElementById('btnEnrichAll').addEventListener('click', () => enrichStocks(false));
+document.getElementById('btnEnrichMissing').addEventListener('click', () => enrichStocks(true));
+
+/* === リベ大流スクリーニング実行 === */
+document.getElementById('btnRunScreening').addEventListener('click', async () => {
+  const btn = document.getElementById('btnRunScreening');
+  const status = document.getElementById('screeningStatus');
+  const progress = document.getElementById('screeningProgress');
+  const logEl = document.getElementById('screeningLog');
+  if (IS_STATIC) {
+    status.textContent = 'オフライン版ではスクリーニング実行は利用できません。事前に生成されたデータを表示しています。';
+    status.style.color = 'var(--text-muted)';
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '実行中...';
+  status.textContent = 'スクリーニング開始（数分かかります）...';
+  status.style.color = 'var(--accent2)';
+  progress.style.display = 'block';
+  logEl.innerHTML = '';
+  try {
+    const resp = await fetch('/api/run-screening', {method: 'POST'});
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream: true});
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const msg = JSON.parse(line);
+          if (msg.type === 'progress') {
+            logEl.innerHTML += '<div>' + msg.message + '</div>';
+            logEl.scrollTop = logEl.scrollHeight;
+          } else if (msg.type === 'done') {
+            status.textContent = '✅ ' + msg.message;
+            status.style.color = 'var(--green)';
+          } else if (msg.type === 'error') {
+            status.textContent = '❌ ' + msg.message;
+            status.style.color = 'var(--red)';
+          }
+        } catch(e) {}
+      }
+    }
+    /* Reload screening data */
+    const r2 = await fetch('/api/screening');
+    if (r2.ok) { screeningData = await r2.json(); }
+  } catch(err) {
+    status.textContent = '❌ ' + err.message;
+    status.style.color = 'var(--red)';
+  }
+  btn.disabled = false;
+  btn.textContent = '🔍 スクリーニング実行';
+});
+
+/* Memo feature - localStorage per stock code */
+function getMemo(code) { return localStorage.getItem('memo_' + code) || ''; }
+function saveMemo(code, text) {
+  if (text.trim()) localStorage.setItem('memo_' + code, text.trim());
+  else localStorage.removeItem('memo_' + code);
+}
+
+/* ===== Data Loading ===== */
+async function loadData() {
+  try {
+    if (IS_STATIC) {
+      // Static mode: load from localStorage first, then fallback to stocks.json
+      const localData = loadPortfolioFromLocal();
+      if (localData && localData.length > 0) {
+        stocks = localData;
+        console.log('[Static] localStorageからポートフォリオ読み込み:', stocks.length + '銘柄');
+      } else {
+        const resp = await fetch('./stocks.json');
+        if (resp.ok) {
+          const data = await resp.json();
+          stocks = Array.isArray(data) ? data : (data.stocks || []);
+          if (stocks.length > 0) savePortfolioToLocal();
+        }
+        if (stocks.length === 0) {
+          console.log('[Static] ポートフォリオが空です。設定画面からJSONをインポートしてください。');
+        }
+      }
+    } else {
+      // Server mode: fetch from API
+      const resp = await fetch('/api/stocks');
+      if (resp.ok) {
+        const data = await resp.json();
+        stocks = Array.isArray(data) ? data : (data.stocks || []);
+      } else {
+        console.warn('API応答エラー:', resp.status, '- サンプルデータを使用します');
+        stocks = getSampleData();
+      }
+    }
+  } catch(err) {
+    console.warn('データ読み込み失敗:', err.message);
+    if (IS_STATIC) {
+      const localData = loadPortfolioFromLocal();
+      stocks = localData || [];
+    } else {
+      stocks = getSampleData();
+    }
+  }
+  document.getElementById('loadingScreen').style.display = 'none';
+  switchTab('dashboard');
+}
+
+function getSampleData() {
+  return [
+    {code:"8591",name:"オリックス",shares:100,buy_price:2400,cur_price:2850,annual_div:94,mid_div:47,mid_month:6,end_month:12,nisa:true,sector:"その他金融"},
+    {code:"9433",name:"KDDI",shares:100,buy_price:4200,cur_price:4650,annual_div:140,mid_div:70,mid_month:6,end_month:12,nisa:false,sector:"通信"},
+    {code:"8306",name:"三菱UFJ",shares:300,buy_price:980,cur_price:1350,annual_div:41,mid_div:20.5,mid_month:6,end_month:12,nisa:true,sector:"銀行"},
+    {code:"2914",name:"JT",shares:100,buy_price:2800,cur_price:3150,annual_div:194,mid_div:97,mid_month:6,end_month:12,nisa:false,sector:"食品"},
+    {code:"5020",name:"ENEOS",shares:500,buy_price:480,cur_price:520,annual_div:22,mid_div:11,mid_month:6,end_month:12,nisa:false,sector:"エネルギー"},
+    {code:"1928",name:"積水ハウス",shares:100,buy_price:2700,cur_price:3050,annual_div:118,mid_div:59,mid_month:9,end_month:3,nisa:true,sector:"建設"},
+    {code:"8766",name:"東京海上",shares:100,buy_price:3200,cur_price:3800,annual_div:121,mid_div:60.5,mid_month:9,end_month:3,nisa:false,sector:"保険"},
+    {code:"4502",name:"武田薬品",shares:100,buy_price:3900,cur_price:4100,annual_div:188,mid_div:94,mid_month:9,end_month:3,nisa:false,sector:"医薬品"},
+    {code:"9434",name:"ソフトバンク",shares:200,buy_price:1500,cur_price:1650,annual_div:86,mid_div:43,mid_month:9,end_month:3,nisa:true,sector:"通信"},
+    {code:"7267",name:"ホンダ",shares:100,buy_price:3400,cur_price:3100,annual_div:68,mid_div:34,mid_month:6,end_month:12,nisa:false,sector:"自動車"}
+  ];
+}
+
+/* ===== Zoom ===== */
+function setZoom(z) {
+  const main = document.querySelector('main');
+  if (z === 1) {
+    main.style.transform = '';
+    main.style.transformOrigin = '';
+    main.style.width = '';
+    main.style.height = '';
+  } else {
+    main.style.transform = 'scale(' + z + ')';
+    main.style.transformOrigin = 'top left';
+    main.style.width = (100 / z) + '%';
+    main.style.height = 'auto';
+  }
+  document.querySelectorAll('.zoom-btn').forEach(b => b.classList.toggle('active', parseFloat(b.textContent)/100 === z));
+  localStorage.setItem('dashZoom', z);
+}
+const savedZoom = localStorage.getItem('dashZoom');
+if (savedZoom && parseFloat(savedZoom) !== 1) setZoom(parseFloat(savedZoom));
+
+/* ===== Init ===== */
+buildNav();
+loadData();
+/* Fetch screening data */
+fetch(IS_LOCAL ? '/api/screening' : './screening_data.json').then(r=>r.json()).then(d => { screeningData = d || {}; if(document.querySelector('[data-tab="dashboard"].active, .tab-btn.active')) switchTab('dashboard'); }).catch(()=>{});
+/* Fetch all listed stocks for checklist search */
+fetch(IS_LOCAL ? '/api/all_stocks' : './all_stocks.json').then(r=>r.json()).then(d => { allListedStocks = d || []; console.log('上場全銘柄: ' + allListedStocks.length + '件'); }).catch(()=>{});
+
+/* ===== PWA: Service Worker & Offline Detection ===== */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register(IS_LOCAL ? '/sw.js' : './sw.js')
+    .then(reg => console.log('[PWA] SW registered:', reg.scope))
+    .catch(err => console.log('[PWA] SW error:', err));
+}
+
+(function initOfflineDetection() {
+  const banner = document.getElementById('offlineBanner');
+  const textEl = document.getElementById('offlineText');
+  let lastCacheTimestamp = '';
+
+  function formatDate(isoStr) {
+    if (!isoStr) return '不明';
+    const d = new Date(isoStr);
+    const pad = n => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function showOffline() {
+    const ts = lastCacheTimestamp || localStorage.getItem('lastDataUpdate') || '';
+    textEl.textContent = '\uD83D\uDCE1 \u30AA\u30D5\u30E9\u30A4\u30F3 \u2014 \u30AD\u30E3\u30C3\u30B7\u30E5\u30C7\u30FC\u30BF\u3092\u8868\u793A\u4E2D (\u6700\u7D42\u66F4\u65B0: ' + formatDate(ts) + ')';
+    banner.style.display = 'block';
+  }
+
+  function hideOffline() {
+    banner.style.display = 'none';
+  }
+
+  // Track cache timestamps from API responses
+  const origFetch = window.fetch;
+  window.fetch = function() {
+    return origFetch.apply(this, arguments).then(response => {
+      const fromCache = response.headers.get('X-From-Cache');
+      const cacheTs = response.headers.get('X-Cache-Timestamp');
+      if (fromCache === 'true') {
+        lastCacheTimestamp = cacheTs || '';
+        showOffline();
+      } else if (fromCache === 'false' && cacheTs) {
+        localStorage.setItem('lastDataUpdate', cacheTs);
+      }
+      return response;
+    });
+  };
+
+  window.addEventListener('online', hideOffline);
+  window.addEventListener('offline', showOffline);
+  if (!navigator.onLine) showOffline();
+})();
+</script>
+</body>
+</html>
