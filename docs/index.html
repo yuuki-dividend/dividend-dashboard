@@ -256,6 +256,7 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
     <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
       <input type="text" id="portfolioSearch" placeholder="コード or 銘柄名で検索..." style="flex:1;min-width:200px;padding:8px 14px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:10px;font-size:.88em">
       <select id="portfolioSectorFilter" style="padding:8px 12px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:10px;font-size:.88em"><option value="">全セクター</option></select>
+      <button id="btnToggleCols" class="btn btn-outline" style="padding:6px 14px;font-size:.82em;white-space:nowrap">詳細列を表示</button>
     </div>
     <div class="card table-wrap" id="portfolioTableWrap"></div>
   </div>
@@ -1289,26 +1290,28 @@ function renderSectors() {
 
 /* ===== Tab 2: Portfolio ===== */
 let sortCol = null, sortAsc = true;
+let showExtraCols = false;
 function renderPortfolio() {
   const cols = [
-    {key:'code',label:'証券コード',get:s=>s.code},
-    {key:'name',label:'銘柄名',get:s=>s.name},
-    {key:'shares',label:'保有株数',get:s=>s.shares||0},
-    {key:'buy_price',label:'取得単価',get:s=>s.buy_price||0},
+    {key:'code',label:'証券コード',get:s=>s.code,core:true},
+    {key:'name',label:'銘柄名',get:s=>s.name,core:true},
+    {key:'shares',label:'保有株数',get:s=>s.shares||0,core:true},
+    {key:'buy_price',label:'取得単価',get:s=>s.buy_price||0,core:true},
     {key:'cost',label:'取得総額',get:s=>getCost(s)},
-    {key:'cur_price',label:'現在値',get:s=>getPrice(s)},
+    {key:'cur_price',label:'現在値',get:s=>getPrice(s),core:true},
     {key:'market',label:'評価額',get:s=>getMarketVal(s)},
-    {key:'pl',label:'含み損益',get:s=>getPL(s)},
-    {key:'plr',label:'含み損益率%',get:s=>getPLRate(s)},
+    {key:'pl',label:'含み損益',get:s=>getPL(s),core:true},
+    {key:'plr',label:'含み損益率%',get:s=>getPLRate(s),core:true},
     {key:'div_per',label:'年間配当/株',get:s=>s.annual_div||0},
-    {key:'book_yield',label:'簿価利回り%',get:s=>getBookYield(s)},
-    {key:'cur_yield',label:'現在利回り%',get:s=>getCurYield(s)},
+    {key:'book_yield',label:'簿価利回り%',get:s=>getBookYield(s),core:true},
+    {key:'cur_yield',label:'現在利回り%',get:s=>getCurYield(s),core:true},
     {key:'per',label:'PER',get:s=>s.per||0},
     {key:'pbr',label:'PBR',get:s=>s.pbr||0},
     {key:'mix_coef',label:'ミックス係数',get:s=>s.mix_coef||0},
     {key:'valuation',label:'割安度',get:s=>{const m=s.mix_coef||0;return m<=0?99:m}},
     {key:'sector',label:'セクター',get:s=>getSector(s)}
   ];
+  const visibleCols = showExtraCols ? cols : cols.filter(c => c.core);
 
   /* Populate sector filter dropdown */
   const sectorFilterEl = document.getElementById('portfolioSectorFilter');
@@ -1337,45 +1340,65 @@ function renderPortfolio() {
   }
 
   const wrap = document.getElementById('portfolioTableWrap');
+
+  /* Cell data builder */
+  const cellMap = (s) => {
+    const pl = getPL(s);
+    const plCls = pl >= 0 ? 'text-green' : 'text-red';
+    const hasMemo = getMemo(s.code);
+    return {
+      code: `${s.code||''}${s.nisa==='NISA'?' <span class="nisa-badge">NISA</span>':''}`,
+      name: `${s.name||''}${hasMemo?' <span title="メモあり" style="font-size:.7em;opacity:.6">📝</span>':''}`,
+      shares: fmt(s.shares||0), buy_price: fmtYen(s.buy_price||0),
+      cost: fmtYen(Math.round(getCost(s))), cur_price: fmtYen(getPrice(s)),
+      market: fmtYen(Math.round(getMarketVal(s))),
+      pl: `<span class="${plCls}">${fmtYen(Math.round(pl))}</span>`,
+      plr: `<span class="${plCls}">${fmtPct(getPLRate(s))}</span>`,
+      div_per: fmtYen(s.annual_div||0), book_yield: fmtPct(getBookYield(s)),
+      cur_yield: fmtPct(getCurYield(s)),
+      per: s.per ? s.per.toFixed(1) : '-', pbr: s.pbr ? s.pbr.toFixed(2) : '-',
+      mix_coef: s.mix_coef ? s.mix_coef.toFixed(2) : '-',
+      valuation: `<span style="${getValuationColor(s.mix_coef)};padding:4px 8px;border-radius:4px;font-weight:600;font-size:.78rem">${getValuationLabel(s.mix_coef)}</span>`,
+      sector: getSector(s)
+    };
+  };
+
   let html = '<table><thead><tr>';
-  cols.forEach(c => {
+  visibleCols.forEach(c => {
     const arrow = sortCol === c.key ? (sortAsc ? ' \u25B2' : ' \u25BC') : '';
     html += `<th data-sort="${c.key}">${c.label}<span class="sort-arrow">${arrow}</span></th>`;
   });
-  /* Totals row in thead so it sticks with header */
+
+  /* Totals row */
   const tc = stocks.reduce((a,s)=>a+getCost(s),0);
   const tm = stocks.reduce((a,s)=>a+getMarketVal(s),0);
   const tp = tm - tc;
   const tpr = safeDiv(tp,tc)*100;
   const td = stocks.reduce((a,s)=>a+getAnnualDiv(s),0);
-  html += `</tr><tr class="totals-row"><th colspan="2" style="text-align:left">合計 (${stocks.length}銘柄)</th><th>${fmt(stocks.reduce((a,s)=>a+(s.shares||0),0))}</th><th>-</th><th>${fmtYen(Math.round(tc))}</th><th>-</th><th>${fmtYen(Math.round(tm))}</th><th class="${tp>=0?'text-green':'text-red'}">${fmtYen(Math.round(tp))}</th><th class="${tp>=0?'text-green':'text-red'}">${fmtPct(tpr)}</th><th>-</th><th>${fmtPct(safeDiv(td,tc)*100)}</th><th>${fmtPct(safeDiv(td,tm)*100)}</th><th>-</th><th>-</th><th>-</th><th>-</th><th>-</th></tr></thead><tbody>`;
+  const totalCells = {
+    code: `合計 (${stocks.length}銘柄)`, name: '', shares: fmt(stocks.reduce((a,s)=>a+(s.shares||0),0)),
+    buy_price: '-', cost: fmtYen(Math.round(tc)), cur_price: '-', market: fmtYen(Math.round(tm)),
+    pl: `<span class="${tp>=0?'text-green':'text-red'}">${fmtYen(Math.round(tp))}</span>`,
+    plr: `<span class="${tp>=0?'text-green':'text-red'}">${fmtPct(tpr)}</span>`,
+    div_per: '-', book_yield: fmtPct(safeDiv(td,tc)*100), cur_yield: fmtPct(safeDiv(td,tm)*100),
+    per: '-', pbr: '-', mix_coef: '-', valuation: '-', sector: '-'
+  };
+  html += '</tr><tr class="totals-row">';
+  visibleCols.forEach((c, i) => {
+    const align = i <= 1 ? 'text-align:left' : '';
+    html += `<th style="${align}">${i === 1 ? '' : totalCells[c.key]}</th>`;
+  });
+  html += '</tr></thead><tbody>';
 
   sorted.forEach((s, i) => {
     const pl = getPL(s);
     const cls = pl > 0 ? 'row-positive' : pl < 0 ? 'row-negative' : '';
+    const cells = cellMap(s);
     html += `<tr class="${cls}" data-idx="${i}" style="cursor:pointer">`;
-    const hasMemo = getMemo(s.code);
-    html += `<td>${s.code||''}${s.nisa==='NISA'?' <span class="nisa-badge">NISA</span>':''}</td>`;
-    html += `<td>${s.name||''}${hasMemo?' <span title="メモあり" style="font-size:.7em;opacity:.6">📝</span>':''}</td>`;
-    html += `<td>${fmt(s.shares||0)}</td>`;
-    html += `<td>${fmtYen(s.buy_price||0)}</td>`;
-    html += `<td>${fmtYen(Math.round(getCost(s)))}</td>`;
-    html += `<td>${fmtYen(getPrice(s))}</td>`;
-    html += `<td>${fmtYen(Math.round(getMarketVal(s)))}</td>`;
-    html += `<td class="${pl>=0?'text-green':'text-red'}">${fmtYen(Math.round(pl))}</td>`;
-    html += `<td class="${pl>=0?'text-green':'text-red'}">${fmtPct(getPLRate(s))}</td>`;
-    html += `<td>${fmtYen(s.annual_div||0)}</td>`;
-    html += `<td>${fmtPct(getBookYield(s))}</td>`;
-    html += `<td>${fmtPct(getCurYield(s))}</td>`;
-    html += `<td>${s.per ? s.per.toFixed(1) : '-'}</td>`;
-    html += `<td>${s.pbr ? s.pbr.toFixed(2) : '-'}</td>`;
-    html += `<td>${s.mix_coef ? s.mix_coef.toFixed(2) : '-'}</td>`;
-    html += `<td style="${getValuationColor(s.mix_coef)};padding:4px 8px;border-radius:4px;font-weight:600;font-size:.78rem">${getValuationLabel(s.mix_coef)}</td>`;
-    html += `<td>${getSector(s)}</td>`;
+    visibleCols.forEach(c => { html += `<td>${cells[c.key]}</td>`; });
     html += '</tr>';
   });
 
-  /* Totals row already rendered at top */
   html += '</tbody></table>';
   wrap.innerHTML = html;
 
@@ -1396,6 +1419,11 @@ function renderPortfolio() {
 /* Portfolio search & filter event listeners */
 document.getElementById('portfolioSearch').addEventListener('input', () => renderPortfolio());
 document.getElementById('portfolioSectorFilter').addEventListener('change', () => renderPortfolio());
+document.getElementById('btnToggleCols').addEventListener('click', () => {
+  showExtraCols = !showExtraCols;
+  document.getElementById('btnToggleCols').textContent = showExtraCols ? '詳細列を隠す' : '詳細列を表示';
+  renderPortfolio();
+});
 
 function showDetail(s) {
   if (!s) return;
