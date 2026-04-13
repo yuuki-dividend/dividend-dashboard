@@ -480,7 +480,7 @@ def fetch_stock_detail(code):
     if sector:
         info["sector"] = sector
 
-    time.sleep(0.3)
+    time.sleep(0.1)
 
     # --- kabutan 決算ページ: 財務履歴（業績テーブルはkabutan固有） ---
     fin = fetch_financial_history(code)
@@ -509,7 +509,7 @@ def fetch_stock_detail(code):
         info["_cf_positive_ratio"] = positive_years / total_years if total_years > 0 else 0
         info["_cf_years"] = total_years
 
-    time.sleep(0.5)
+    time.sleep(0.1)
 
     # --- minkabu: 配当利回り, 配当性向, 増配実績 ---
     try:
@@ -794,13 +794,13 @@ def run_screening():
         log("❌ 候補銘柄が取得できませんでした")
         return None
 
-    # 2. 各銘柄の詳細データ取得（財務履歴を含む）
-    log(f"[2/4] {len(candidates)}銘柄の詳細データ取得中...")
+    # 2. 各銘柄の詳細データ取得（財務履歴を含む）— 5並列
+    log(f"[2/4] {len(candidates)}銘柄の詳細データ取得中（5並列）...")
     log(f"  （1銘柄あたり株価+決算+CF+配当の4ページ取得）")
-    detailed = []
-    for i, cand in enumerate(candidates):
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def _fetch_detail_worker(cand):
         code = cand["code"]
-        log(f"  ({i+1}/{len(candidates)}) {code} {cand['name']}...")
         detail = fetch_stock_detail(code)
         detail["name"] = cand["name"]
         if "yield" not in detail:
@@ -809,22 +809,38 @@ def run_screening():
             detail["price"] = cand["price"]
         if cand.get("div_trend") and not detail.get("div_trend"):
             detail["div_trend"] = cand["div_trend"]
-        detailed.append(detail)
+        return detail
 
-        # 進捗ログ（取得できたデータの概要）
-        parts = []
-        if detail.get("_rev_trend"):
-            parts.append(f"売上{detail['_rev_trend']['desc']}")
-        if detail.get("_eps_trend"):
-            parts.append(f"EPS{detail['_eps_trend']['desc']}")
-        if detail.get("equity_ratio"):
-            parts.append(f"自己資本{detail['equity_ratio']:.0f}%")
-        if detail.get("op_margin"):
-            parts.append(f"営業利益率{detail['op_margin']:.0f}%")
-        if parts:
-            log(f"    → {', '.join(parts)}")
+    detailed = [None] * len(candidates)
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_idx = {executor.submit(_fetch_detail_worker, cand): i for i, cand in enumerate(candidates)}
+        done_count = 0
+        for future in as_completed(future_to_idx):
+            idx = future_to_idx[future]
+            done_count += 1
+            try:
+                detail = future.result()
+                detailed[idx] = detail
+                code = detail["code"]
+                name = detail["name"]
+                parts = []
+                if detail.get("_rev_trend"):
+                    parts.append(f"売上{detail['_rev_trend']['desc']}")
+                if detail.get("_eps_trend"):
+                    parts.append(f"EPS{detail['_eps_trend']['desc']}")
+                if detail.get("equity_ratio"):
+                    parts.append(f"自己資本{detail['equity_ratio']:.0f}%")
+                if detail.get("op_margin"):
+                    parts.append(f"営業利益率{detail['op_margin']:.0f}%")
+                summary = ', '.join(parts) if parts else ''
+                log(f"  ({done_count}/{len(candidates)}) {code} {name}... {summary}")
+            except Exception as e:
+                cand = candidates[idx]
+                log(f"  ({done_count}/{len(candidates)}) {cand['code']} {cand['name']}... エラー: {e}")
+                detailed[idx] = {"code": cand["code"], "name": cand["name"], "yield": cand.get("yield", 0)}
 
-        time.sleep(1)  # rate limit
+    # None除去（念のため）
+    detailed = [d for d in detailed if d is not None]
 
     # 3. スコアリングとフィルタリング
     log("[3/4] リベ大基準でスコアリング...")
@@ -1236,19 +1252,30 @@ def run_growth_potential(detailed_stocks=None):
 
     log(f"  対象: {len(candidates)}銘柄")
 
-    # IRバンクからデータ取得 & 計算
+    # IRバンクからデータ取得 & 計算（5並列）
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def _growth_worker(args):
+        code, name, price, yld = args
+        return calc_dividend_growth_potential(code, name, price, yld)
+
     results = []
-    for i, (code, name, price, yld) in enumerate(candidates):
-        log(f"  ({i+1}/{len(candidates)}) {code} {name}...")
-        gp = calc_dividend_growth_potential(code, name, price, yld)
-        if gp:
-            log(f"    → CAGR{gp['cagr_used']}%/年, "
-                f"5年後利回り{gp['future_yield_5y']}%, "
-                f"減配{gp['decrease_count']}回/{gp['data_years']}年")
-            results.append(gp)
-        else:
-            log(f"    → データ不足")
-        time.sleep(0.8)
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_info = {executor.submit(_growth_worker, c): c for c in candidates}
+        done_count = 0
+        for future in as_completed(future_to_info):
+            done_count += 1
+            code, name, price, yld = future_to_info[future]
+            try:
+                gp = future.result()
+                if gp:
+                    log(f"  ({done_count}/{len(candidates)}) {code} {name}... "
+                        f"CAGR{gp['cagr_used']}%/年, 5年後利回り{gp['future_yield_5y']}%")
+                    results.append(gp)
+                else:
+                    log(f"  ({done_count}/{len(candidates)}) {code} {name}... データ不足")
+            except Exception as e:
+                log(f"  ({done_count}/{len(candidates)}) {code} {name}... エラー: {e}")
 
     # 5年後の予想利回りでソート
     results.sort(key=lambda x: x["future_yield_5y"], reverse=True)

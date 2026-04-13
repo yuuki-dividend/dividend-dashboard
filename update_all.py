@@ -20,6 +20,7 @@ import sys
 import time
 import urllib.request
 import urllib.error
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -72,6 +73,61 @@ def save_json(path, data):
 # ============================================================
 # Phase 1: stocks.json 更新
 # ============================================================
+def _fetch_one_stock(stock):
+    """1銘柄のデータを取得（並列実行用）"""
+    code = stock["code"]
+    is_etf = code in ETF_CODES
+    result = {"code": code, "errors": []}
+
+    # --- 株価取得 (minkabu JSON-LD) ---
+    main_html = fetch_url(f"https://minkabu.jp/stock/{code}")
+    price = None
+    per = None
+    pbr = None
+
+    if main_html:
+        m = re.search(r'"offers":\s*\{[^}]*"price":\s*"?([\d,.]+)', main_html)
+        if m:
+            price = float(m.group(1).replace(",", ""))
+            result["cur_price"] = price
+
+        main_text = strip_html(main_html)
+        m_per = re.search(r'PER\|[^倍]*?([\d,.]+)\s*倍', main_text)
+        if m_per:
+            per = float(m_per.group(1).replace(",", ""))
+            result["per"] = per
+
+        m_pbr = re.search(r'PBR\|[^倍]*?([\d,.]+)\s*倍', main_text)
+        if m_pbr:
+            pbr = float(m_pbr.group(1).replace(",", ""))
+            result["pbr"] = pbr
+
+        if per and pbr:
+            result["mix_coef"] = round(per * pbr, 2)
+    else:
+        result["errors"].append(f"{code}: メインページ取得失敗")
+
+    # --- 配当利回り取得 (ETFはスキップ) ---
+    if not is_etf:
+        div_html = fetch_url(f"https://minkabu.jp/stock/{code}/dividend")
+        if div_html:
+            div_text = strip_html(div_html)
+            m_yield = re.search(r'配当利回り\|[^|]*?\|?\s*([\d.]+)\s*%', div_text)
+            if m_yield and price:
+                yld = float(m_yield.group(1))
+                annual_div = round(price * yld / 100, 1)
+                result["annual_div"] = annual_div
+                result["mid_div"] = round(annual_div / 2, 1)
+            elif not m_yield:
+                result["errors"].append(f"{code}: 配当利回りパース失敗")
+            elif not price:
+                result["errors"].append(f"{code}: 株価なしのため配当額計算スキップ")
+        else:
+            result["errors"].append(f"{code}: 配当ページ取得失敗")
+
+    return result
+
+
 def update_stocks():
     print(f"\n{'='*60}")
     print(f"  Phase 1: stocks.json 更新 ({ts()})")
@@ -83,74 +139,58 @@ def update_stocks():
     updated_div = 0
     errors = []
 
-    for i, stock in enumerate(stocks):
+    # 並列でデータ取得（5並列）
+    print(f"  [{ts()}] {total}銘柄を5並列で取得開始...")
+    stock_map = {s["code"]: s for s in stocks}
+    results = {}
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(_fetch_one_stock, s): s["code"] for s in stocks}
+        done_count = 0
+        for future in as_completed(futures):
+            done_count += 1
+            code = futures[future]
+            try:
+                res = future.result()
+                results[code] = res
+            except Exception as e:
+                results[code] = {"code": code, "errors": [f"{code}: 例外 {e}"]}
+            # 10銘柄ごとに進捗表示
+            if done_count % 10 == 0 or done_count == total:
+                print(f"  [{ts()}] {done_count}/{total} 完了")
+
+    # 結果をstocksに反映
+    for stock in stocks:
         code = stock["code"]
-        name = stock["name"]
+        res = results.get(code, {})
         is_etf = code in ETF_CODES
-        label = f"[{i+1}/{total}] {code} {name}"
-        print(f"  [{ts()}] {label}", end="", flush=True)
 
-        # --- 株価取得 (minkabu JSON-LD) ---
-        main_html = fetch_url(f"https://minkabu.jp/stock/{code}")
-        price = None
-        per = None
-        pbr = None
+        if "cur_price" in res:
+            stock["cur_price"] = res["cur_price"]
+            updated_price += 1
+        if "per" in res:
+            stock["per"] = res["per"]
+        if "pbr" in res:
+            stock["pbr"] = res["pbr"]
+        if "mix_coef" in res:
+            stock["mix_coef"] = res["mix_coef"]
+        if "annual_div" in res:
+            stock["annual_div"] = res["annual_div"]
+            stock["mid_div"] = res["mid_div"]
+            updated_div += 1
 
-        if main_html:
-            m = re.search(r'"offers":\s*\{[^}]*"price":\s*"?([\d,.]+)', main_html)
-            if m:
-                price = float(m.group(1).replace(",", ""))
-                stock["cur_price"] = price
-                updated_price += 1
+        errors.extend(res.get("errors", []))
 
-            # PER/PBR (テキスト化して取得)
-            main_text = strip_html(main_html)
-            m_per = re.search(r'PER\|[^倍]*?([\d,.]+)\s*倍', main_text)
-            if m_per:
-                per = float(m_per.group(1).replace(",", ""))
-                stock["per"] = per
-
-            m_pbr = re.search(r'PBR\|[^倍]*?([\d,.]+)\s*倍', main_text)
-            if m_pbr:
-                pbr = float(m_pbr.group(1).replace(",", ""))
-                stock["pbr"] = pbr
-
-            # mix_coef 更新
-            if per and pbr:
-                stock["mix_coef"] = round(per * pbr, 2)
-        else:
-            errors.append(f"{code}: メインページ取得失敗")
-
-        # --- 配当利回り取得 (ETFはスキップ) ---
-        if not is_etf:
-            div_html = fetch_url(f"https://minkabu.jp/stock/{code}/dividend")
-            if div_html:
-                div_text = strip_html(div_html)
-                m_yield = re.search(r'配当利回り\|[^|]*?\|?\s*([\d.]+)\s*%', div_text)
-                if m_yield and price:
-                    yld = float(m_yield.group(1))
-                    annual_div = round(price * yld / 100, 1)
-                    stock["annual_div"] = annual_div
-                    stock["mid_div"] = round(annual_div / 2, 1)
-                    updated_div += 1
-                elif not m_yield:
-                    errors.append(f"{code}: 配当利回りパース失敗")
-                elif not price:
-                    errors.append(f"{code}: 株価なしのため配当額計算スキップ")
-            else:
-                errors.append(f"{code}: 配当ページ取得失敗")
-
-        status_parts = []
-        if price:
-            status_parts.append(f"¥{price:,.0f}")
-        if not is_etf and "annual_div" in stock and stock["annual_div"] > 0 and price:
-            yld_calc = stock["annual_div"] / price * 100
-            status_parts.append(f"配当{stock['annual_div']}円({yld_calc:.2f}%)")
-        if per:
-            status_parts.append(f"PER{per}")
-        print(f" -> {', '.join(status_parts) if status_parts else 'SKIP'}")
-
-        time.sleep(0.5)
+        # ログ出力
+        parts = []
+        if "cur_price" in res:
+            parts.append(f"¥{res['cur_price']:,.0f}")
+        if not is_etf and "annual_div" in res and res["cur_price"]:
+            yld_calc = res["annual_div"] / res["cur_price"] * 100
+            parts.append(f"配当{res['annual_div']}円({yld_calc:.2f}%)")
+        if "per" in res:
+            parts.append(f"PER{res['per']}")
+        print(f"  {code} {stock['name']} -> {', '.join(parts) if parts else 'SKIP'}")
 
     save_json(STOCKS_FILE, stocks)
 
