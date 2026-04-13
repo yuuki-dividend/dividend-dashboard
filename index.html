@@ -927,12 +927,12 @@ function renderDashboard() {
     data:{
       labels: simYears.map(y => y === 0 ? '現在' : y + '年後'),
       datasets:[
-        {label:'増配5%+再投資', data:simBoth, borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,.1)', fill:true, tension:.3, pointRadius:2, borderWidth:2.5},
-        {label:'増配5%のみ', data:simGrowth, borderColor:'#06b6d4', backgroundColor:'transparent', fill:false, tension:.3, pointRadius:2, borderWidth:2},
-        {label:'現状維持', data:simBase, borderColor:'#94a3b8', backgroundColor:'transparent', fill:false, tension:0, pointRadius:0, borderWidth:1.5, borderDash:[5,3]}
+        {label:'増配5%+再投資', data:simBoth, borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,.1)', fill:true, tension:.3, pointRadius:3, pointHitRadius:20, borderWidth:2.5},
+        {label:'増配5%のみ', data:simGrowth, borderColor:'#06b6d4', backgroundColor:'transparent', fill:false, tension:.3, pointRadius:3, pointHitRadius:20, borderWidth:2},
+        {label:'現状維持', data:simBase, borderColor:'#94a3b8', backgroundColor:'transparent', fill:false, tension:0, pointRadius:0, pointHitRadius:20, borderWidth:1.5, borderDash:[5,3]}
       ]
     },
-    options:{responsive:true,plugins:{legend:{labels:{color:txtColor,boxWidth:12,font:{size:9}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)+'円/年'}}},scales:{x:{ticks:{color:mutedColor,font:{size:9}},grid:{display:false}},y:{ticks:{color:mutedColor,callback:v=>fmt(v)+'円'},grid:{color:'rgba(100,116,139,.15)'}}}}
+    options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:txtColor,boxWidth:12,font:{size:9}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)+'円/年'}}},scales:{x:{ticks:{color:mutedColor,font:{size:9}},grid:{display:false}},y:{ticks:{color:mutedColor,callback:v=>fmt(v)+'円'},grid:{color:'rgba(100,116,139,.15)'}}}}
   });
 
   /* === 損益ヒートマップ（ツリーマップ風） === */
