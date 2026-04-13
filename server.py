@@ -12,7 +12,7 @@ import time
 import urllib.request
 import urllib.error
 
-PORT = 8080
+PORT = int(os.environ.get("PORT", 8080))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STOCKS_FILE = os.path.join(BASE_DIR, "stocks.json")
 SCREENING_FILE = os.path.join(BASE_DIR, "screening_data.json")
@@ -575,6 +575,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", f"{content_type}; charset=utf-8")
             self.send_header("Content-Length", len(data))
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
             self.end_headers()
             self.wfile.write(data)
         else:

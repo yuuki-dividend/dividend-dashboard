@@ -65,9 +65,9 @@ body{font-family:var(--font);background:var(--bg-primary);color:var(--text-prima
 .summary-card:nth-child(7)::before{background:linear-gradient(90deg,#a78bfa,#c4b5fd)}
 .summary-card:nth-child(8)::before{background:linear-gradient(90deg,#06b6d4,#34d399)}
 .summary-card:nth-child(9)::before{background:linear-gradient(90deg,#f472b6,#fbbf24)}
-.summary-card .label{font-size:.72rem;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.summary-card .label{font-size:.8rem;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
 .summary-card .value{font-size:1.3rem;font-weight:800;letter-spacing:-.5px}
-.summary-card .sub{font-size:.75rem;color:var(--text-muted);margin-top:2px}
+.summary-card .sub{font-size:.78rem;color:var(--text-muted);margin-top:2px}
 
 /* Charts */
 .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
@@ -161,6 +161,9 @@ tr.totals-row{font-weight:700;background:var(--bg-secondary) !important;border-t
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* Responsive */
+@media(max-width:1366px){
+  .sector-grid-auto{grid-template-columns:1fr !important}
+}
 @media(max-width:768px){
   .sidebar{transform:translateX(-100%)}
   .main{margin-left:0;padding:16px;padding-bottom:80px}
@@ -1143,16 +1146,15 @@ function renderSectors() {
     h += `</div>`;
 
     // セクターグリッド
-    h += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;align-items:start">';
+    h += '<div class="sector-grid-auto" style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;align-items:start">';
     sectors.sort().forEach(sec => {
       const list = recs[sec];
       if (!list || list.length === 0) return;
       h += `<div class="card" style="padding:12px 14px">
         <h4 style="margin:0 0 8px;color:var(--accent);text-align:center;font-size:.9em">${sec}</h4>
-        <table style="width:100%;font-size:0.75em;border-collapse:collapse;table-layout:fixed">
-        <colgroup><col style="width:28px"><col style="width:42px"><col><col style="width:40px"><col style="width:38px"><col style="width:68px"><col style="width:48px"><col style="width:44px"><col style="width:44px"><col style="width:44px"><col style="width:36px"></colgroup>
-        <tr style="color:var(--text-muted);border-bottom:2px solid var(--border);font-size:.9em">
-          <th style="text-align:center;padding:4px 2px">Rank</th><th style="text-align:left;padding:4px 2px">コード</th><th style="text-align:left;padding:4px 2px">銘柄名</th><th style="text-align:right;padding:4px 2px">利回り</th><th style="text-align:right;padding:4px 2px">性向</th><th style="text-align:center;padding:4px 2px">増配実績</th><th style="text-align:center;padding:4px 2px">割安度</th><th style="text-align:center;padding:4px 2px">売上</th><th style="text-align:center;padding:4px 2px">EPS</th><th style="text-align:center;padding:4px 2px">自己資本</th><th style="text-align:center;padding:4px 2px">保有</th>
+        <table style="width:100%;font-size:0.88em;border-collapse:collapse">
+        <tr style="color:var(--text-muted);border-bottom:2px solid var(--border)">
+          <th style="text-align:center;padding:6px 5px">Rank</th><th style="text-align:left;padding:6px 5px">コード</th><th style="text-align:left;padding:6px 5px">銘柄名</th><th style="text-align:right;padding:6px 5px">利回り</th><th style="text-align:right;padding:6px 5px">性向</th><th style="text-align:center;padding:6px 5px">増配実績</th><th style="text-align:center;padding:6px 5px">割安度</th><th style="text-align:center;padding:6px 5px">売上</th><th style="text-align:center;padding:6px 5px">EPS</th><th style="text-align:center;padding:6px 5px">自己資本</th><th style="text-align:center;padding:6px 5px">保有</th>
         </tr>`;
       list.forEach(st => {
         const own = ownCodes.has(st.code);
@@ -1170,17 +1172,17 @@ function renderSectors() {
         // トレンドの色
         const trendColor = (t) => t.includes('↑') ? '#22c55e' : t.includes('↓') ? '#ef4444' : 'var(--text-muted)';
         h += `<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="goToChecklist(${st.code})" title="クリックでチェックリストへ&#10;${st.reason||''}">
-          <td style="text-align:center;padding:4px 2px"><span style="background:${rb};color:${rc};padding:1px 5px;border-radius:4px;font-weight:bold;font-size:.85em">${rank}</span></td>
-          <td style="padding:4px 2px;font-weight:bold">${st.code}</td>
-          <td style="padding:4px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st.name}</td>
-          <td style="text-align:right;padding:4px 2px;color:#22c55e;font-weight:bold">${st.yield}%</td>
-          <td style="text-align:right;padding:4px 2px">${payoutDisplay}</td>
-          <td style="text-align:center;padding:4px 2px"><span style="display:inline-block;background:${st.div_trend&&st.div_trend.includes('連続増配')?'#22c55e':st.div_trend&&st.div_trend.includes('非減配')?'#93c5fd':'var(--border)'};color:${st.div_trend&&st.div_trend.includes('連続増配')?'#000':st.div_trend&&st.div_trend.includes('非減配')?'#1e3a5f':'var(--text-secondary)'};padding:1px 4px;border-radius:8px;font-size:0.82em;white-space:nowrap">${st.div_trend||'-'}</span></td>
-          <td style="text-align:center;padding:4px 2px"><span style="${valColor};padding:1px 5px;border-radius:6px;font-size:0.78em;font-weight:600">${valLabel}</span></td>
-          <td style="text-align:center;padding:4px 2px;color:${trendColor(revTrend)};font-size:.82em">${revTrend.includes('右肩上がり')?'◎↑':revTrend.includes('成長')?'○↑':revTrend.includes('右肩下がり')?'×↓':revTrend.includes('縮小')?'△↓':revTrend.includes('不安定')?'↕':revTrend.includes('横ばい')?'→':revTrend}</td>
-          <td style="text-align:center;padding:4px 2px;color:${trendColor(epsTrend)};font-size:.82em">${epsTrend.includes('右肩上がり')?'◎↑':epsTrend.includes('成長')?'○↑':epsTrend.includes('右肩下がり')?'×↓':epsTrend.includes('縮小')?'△↓':epsTrend.includes('不安定')?'↕':epsTrend.includes('横ばい')?'→':epsTrend}</td>
-          <td style="text-align:center;padding:4px 2px;font-size:.82em">${eqRatio}</td>
-          <td style="text-align:center;padding:4px 2px">${own?'<span style="color:#f59e0b">保有</span>':''}</td>
+          <td style="text-align:center;padding:6px 5px"><span style="background:${rb};color:${rc};padding:2px 6px;border-radius:4px;font-weight:bold">${rank}</span></td>
+          <td style="padding:6px 5px;font-weight:bold">${st.code}</td>
+          <td style="padding:6px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st.name}</td>
+          <td style="text-align:right;padding:6px 5px;color:#22c55e;font-weight:bold">${st.yield}%</td>
+          <td style="text-align:right;padding:6px 5px">${payoutDisplay}</td>
+          <td style="text-align:center;padding:6px 5px"><span style="display:inline-block;background:${st.div_trend&&st.div_trend.includes('連続増配')?'#22c55e':st.div_trend&&st.div_trend.includes('非減配')?'#93c5fd':'var(--border)'};color:${st.div_trend&&st.div_trend.includes('連続増配')?'#000':st.div_trend&&st.div_trend.includes('非減配')?'#1e3a5f':'var(--text-secondary)'};padding:2px 6px;border-radius:8px;white-space:nowrap">${st.div_trend||'-'}</span></td>
+          <td style="text-align:center;padding:6px 5px"><span style="${valColor};padding:2px 6px;border-radius:6px;font-weight:600">${valLabel}</span></td>
+          <td style="text-align:center;padding:6px 5px;color:${trendColor(revTrend)}">${revTrend.includes('右肩上がり')?'◎↑':revTrend.includes('成長')?'○↑':revTrend.includes('右肩下がり')?'×↓':revTrend.includes('縮小')?'△↓':revTrend.includes('不安定')?'↕':revTrend.includes('横ばい')?'→':revTrend}</td>
+          <td style="text-align:center;padding:6px 5px;color:${trendColor(epsTrend)}">${epsTrend.includes('右肩上がり')?'◎↑':epsTrend.includes('成長')?'○↑':epsTrend.includes('右肩下がり')?'×↓':epsTrend.includes('縮小')?'△↓':epsTrend.includes('不安定')?'↕':epsTrend.includes('横ばい')?'→':epsTrend}</td>
+          <td style="text-align:center;padding:6px 5px">${eqRatio}</td>
+          <td style="text-align:center;padding:6px 5px">${own?'<span style="color:#f59e0b">保有</span>':''}</td>
         </tr>`;
       });
       h += '</table></div>';
@@ -1191,9 +1193,9 @@ function renderSectors() {
     const buyTiming = screeningData.buy_timing_ranking || [];
     if (buyTiming.length > 0) {
       h += `<h3 style="margin:24px 0 12px;color:var(--text-secondary)">今が買い時？ 割安 × 好業績ランキング</h3>`;
-      h += `<div class="card" style="padding:14px;overflow-x:auto"><table style="width:100%;font-size:0.72em;border-collapse:collapse;white-space:nowrap">
+      h += `<div class="card" style="padding:14px;overflow-x:auto"><table style="width:100%;font-size:0.85em;border-collapse:collapse;white-space:nowrap">
         <tr style="color:var(--text-muted);border-bottom:2px solid var(--border)">
-          <th style="text-align:center;padding:4px 3px">R</th><th style="text-align:left;padding:4px 3px">コード</th><th style="text-align:left;padding:4px 3px">銘柄名</th><th style="text-align:left;padding:4px 3px">業種</th><th style="text-align:right;padding:4px 3px">利回り</th><th style="text-align:right;padding:4px 3px">ﾐｯｸｽ</th><th style="text-align:right;padding:4px 3px">性向</th><th style="text-align:center;padding:4px 3px">増配</th><th style="text-align:center;padding:4px 3px">売上</th><th style="text-align:center;padding:4px 3px">EPS</th><th style="text-align:right;padding:4px 3px">利益率</th><th style="text-align:right;padding:4px 3px">自己資本</th><th style="text-align:center;padding:4px 3px">CF</th><th style="text-align:center;padding:4px 3px">保有</th>
+          <th style="text-align:center;padding:6px 5px">R</th><th style="text-align:left;padding:6px 5px">コード</th><th style="text-align:left;padding:6px 5px">銘柄名</th><th style="text-align:left;padding:6px 5px">業種</th><th style="text-align:right;padding:6px 5px">利回り</th><th style="text-align:right;padding:6px 5px">ﾐｯｸｽ</th><th style="text-align:right;padding:6px 5px">性向</th><th style="text-align:center;padding:6px 5px">増配</th><th style="text-align:center;padding:6px 5px">売上</th><th style="text-align:center;padding:6px 5px">EPS</th><th style="text-align:right;padding:6px 5px">利益率</th><th style="text-align:right;padding:6px 5px">自己資本</th><th style="text-align:center;padding:6px 5px">CF</th><th style="text-align:center;padding:6px 5px">保有</th>
         </tr>`;
       // トレンドを短縮表示するヘルパー
       const shortTrend = (t) => {
@@ -1222,20 +1224,20 @@ function renderSectors() {
         const epsShort = shortTrend(epsTrend);
         const zebraBg = idx % 2 === 1 ? 'background:rgba(255,255,255,0.03);' : '';
         h += `<tr style="${zebraBg}border-bottom:1px solid var(--border);cursor:pointer" onclick="goToChecklist(${st.code})" title="クリックでチェックリストへ&#10;${st.reason||''}">
-          <td style="text-align:center;padding:4px 3px"><span style="background:${rb};color:${rc};padding:1px 5px;border-radius:4px;font-weight:bold">${rank}</span></td>
-          <td style="padding:4px 3px;font-weight:bold">${st.code}</td>
-          <td style="padding:4px 3px;max-width:120px;overflow:hidden;text-overflow:ellipsis">${st.name}</td>
-          <td style="padding:4px 3px;color:var(--text-muted)">${st.sector||''}</td>
-          <td style="text-align:right;padding:4px 3px;color:#22c55e;font-weight:bold">${st.yield}%</td>
-          <td style="text-align:right;padding:4px 3px;font-weight:bold">${st.mix_coef}</td>
-          <td style="text-align:right;padding:4px 3px">${payoutDisplay}</td>
-          <td style="text-align:center;padding:4px 3px">${st.div_trend||'-'}</td>
-          <td style="text-align:center;padding:4px 3px;color:${trendColor(revShort)}">${revShort}</td>
-          <td style="text-align:center;padding:4px 3px;color:${trendColor(epsShort)}">${epsShort}</td>
-          <td style="text-align:right;padding:4px 3px">${opMargin}</td>
-          <td style="text-align:right;padding:4px 3px">${eqRatio}</td>
-          <td style="text-align:center;padding:4px 3px">${cfInfo}</td>
-          <td style="text-align:center;padding:4px 3px">${own?'<span style="color:#f59e0b">保有</span>':''}</td>
+          <td style="text-align:center;padding:6px 5px"><span style="background:${rb};color:${rc};padding:2px 6px;border-radius:4px;font-weight:bold">${rank}</span></td>
+          <td style="padding:6px 5px;font-weight:bold">${st.code}</td>
+          <td style="padding:6px 5px;max-width:140px;overflow:hidden;text-overflow:ellipsis">${st.name}</td>
+          <td style="padding:6px 5px;color:var(--text-muted)">${st.sector||''}</td>
+          <td style="text-align:right;padding:6px 5px;color:#22c55e;font-weight:bold">${st.yield}%</td>
+          <td style="text-align:right;padding:6px 5px;font-weight:bold">${st.mix_coef}</td>
+          <td style="text-align:right;padding:6px 5px">${payoutDisplay}</td>
+          <td style="text-align:center;padding:6px 5px">${st.div_trend||'-'}</td>
+          <td style="text-align:center;padding:6px 5px;color:${trendColor(revShort)}">${revShort}</td>
+          <td style="text-align:center;padding:6px 5px;color:${trendColor(epsShort)}">${epsShort}</td>
+          <td style="text-align:right;padding:6px 5px">${opMargin}</td>
+          <td style="text-align:right;padding:6px 5px">${eqRatio}</td>
+          <td style="text-align:center;padding:6px 5px">${cfInfo}</td>
+          <td style="text-align:center;padding:6px 5px">${own?'<span style="color:#f59e0b">保有</span>':''}</td>
         </tr>`;
       });
       h += '</table></div>';
@@ -1247,9 +1249,9 @@ function renderSectors() {
       const growthNote = screeningData.growth_note || '';
       h += `<h3 style="margin:24px 0 8px;color:var(--text-secondary)">🌱 配当成長ポテンシャル（5年後の予想簿価利回り）</h3>`;
       if (growthNote) h += `<div style="font-size:.7em;color:var(--text-muted);margin-bottom:10px">⚠️ ${growthNote}</div>`;
-      h += `<div class="card" style="padding:14px;overflow-x:auto"><table style="width:100%;font-size:0.75em;border-collapse:collapse;white-space:nowrap">
+      h += `<div class="card" style="padding:14px;overflow-x:auto"><table style="width:100%;font-size:0.88em;border-collapse:collapse;white-space:nowrap">
         <tr style="color:var(--text-muted);border-bottom:2px solid var(--border)">
-          <th style="text-align:left;padding:5px 4px">コード</th><th style="text-align:left;padding:5px 4px">銘柄名</th><th style="text-align:right;padding:5px 4px">現在利回り</th><th style="text-align:center;padding:5px 4px">→</th><th style="text-align:right;padding:5px 4px">5年後予想</th><th style="text-align:right;padding:5px 4px">CAGR</th><th style="text-align:right;padding:5px 4px">実績年数</th><th style="text-align:center;padding:5px 4px">増配</th><th style="text-align:center;padding:5px 4px">連続増配</th><th style="text-align:center;padding:5px 4px">減配</th><th style="text-align:center;padding:5px 4px">安定性</th><th style="text-align:center;padding:5px 4px">保有</th>
+          <th style="text-align:left;padding:6px 5px">コード</th><th style="text-align:left;padding:6px 5px">銘柄名</th><th style="text-align:right;padding:6px 5px">現在利回り</th><th style="text-align:center;padding:6px 5px">→</th><th style="text-align:right;padding:6px 5px">5年後予想</th><th style="text-align:right;padding:6px 5px">CAGR</th><th style="text-align:right;padding:6px 5px">実績年数</th><th style="text-align:center;padding:6px 5px">増配</th><th style="text-align:center;padding:6px 5px">連続増配</th><th style="text-align:center;padding:6px 5px">減配</th><th style="text-align:center;padding:6px 5px">安定性</th><th style="text-align:center;padding:6px 5px">保有</th>
         </tr>`;
       growthRanking.forEach((g, idx) => {
         const own = ownCodes.has(g.code);
@@ -1263,18 +1265,18 @@ function renderSectors() {
         const stabColor = g.stability === '安定' ? '#22c55e' : '#f59e0b';
         const zebraBg = idx % 2 === 1 ? 'background:rgba(255,255,255,0.03);' : '';
         h += `<tr style="${zebraBg}border-bottom:1px solid var(--border);cursor:pointer" onclick="goToChecklist(${g.code})" title="クリックでチェックリストへ">
-          <td style="padding:5px 4px;font-weight:bold">${g.code}</td>
-          <td style="padding:5px 4px">${g.name}</td>
-          <td style="text-align:right;padding:5px 4px">${g.current_yield}%</td>
-          <td style="text-align:center;padding:5px 4px;color:var(--text-muted)">→</td>
-          <td style="text-align:right;padding:5px 4px;color:${futureColor};font-weight:bold;font-size:1.05em">${g.future_yield_5y}%</td>
-          <td style="text-align:right;padding:5px 4px;color:${cagrColor};font-weight:bold">${g.cagr_used}%/年</td>
-          <td style="text-align:right;padding:5px 4px">${g.data_years}年</td>
-          <td style="text-align:center;padding:5px 4px;color:${incColor}">${incCount}回</td>
-          <td style="text-align:center;padding:5px 4px;color:${consColor};font-weight:${consInc>=5?'bold':'normal'}">${consInc > 0 ? consInc + '期' : '-'}</td>
-          <td style="text-align:center;padding:5px 4px;color:${decColor}">${g.decrease_count === 0 ? '✅0回' : g.decrease_count + '回'}</td>
-          <td style="text-align:center;padding:5px 4px;color:${stabColor}">${g.stability}</td>
-          <td style="text-align:center;padding:5px 4px">${own?'<span style="color:#f59e0b">保有</span>':''}</td>
+          <td style="padding:6px 5px;font-weight:bold">${g.code}</td>
+          <td style="padding:6px 5px">${g.name}</td>
+          <td style="text-align:right;padding:6px 5px">${g.current_yield}%</td>
+          <td style="text-align:center;padding:6px 5px;color:var(--text-muted)">→</td>
+          <td style="text-align:right;padding:6px 5px;color:${futureColor};font-weight:bold;font-size:1.05em">${g.future_yield_5y}%</td>
+          <td style="text-align:right;padding:6px 5px;color:${cagrColor};font-weight:bold">${g.cagr_used}%/年</td>
+          <td style="text-align:right;padding:6px 5px">${g.data_years}年</td>
+          <td style="text-align:center;padding:6px 5px;color:${incColor}">${incCount}回</td>
+          <td style="text-align:center;padding:6px 5px;color:${consColor};font-weight:${consInc>=5?'bold':'normal'}">${consInc > 0 ? consInc + '期' : '-'}</td>
+          <td style="text-align:center;padding:6px 5px;color:${decColor}">${g.decrease_count === 0 ? '✅0回' : g.decrease_count + '回'}</td>
+          <td style="text-align:center;padding:6px 5px;color:${stabColor}">${g.stability}</td>
+          <td style="text-align:center;padding:6px 5px">${own?'<span style="color:#f59e0b">保有</span>':''}</td>
         </tr>`;
       });
       h += '</table></div>';
@@ -1677,40 +1679,52 @@ function calcBuyTiming() {
     const near = ranked.filter(s => s.gap >= 0);
     const over = ranked.filter(s => s.curY >= targetYield);
 
+    const aboveTarget = ranked.filter(s => s.curY >= targetYield);
+    const nearTarget = ranked.filter(s => s.curY < targetYield && s.curY >= 3.0);
+    const belowTarget = ranked.filter(s => s.curY < 3.0);
+
+    const renderRows = (list) => list.map(s => {
+      const isBuy = s.curY >= targetYield;
+      const isNear = !isBuy && s.gapPct > -10;
+      const badge = isBuy ? '<span style="background:#22c55e;color:#000;padding:2px 8px;border-radius:12px;font-size:0.85em;font-weight:bold">買い時</span>' :
+        isNear ? '<span style="background:#f59e0b;color:#000;padding:2px 8px;border-radius:12px;font-size:0.85em">もう少し</span>' :
+        '<span style="color:var(--text-muted);font-size:0.85em">待ち</span>';
+      return `<tr style="border-bottom:1px solid var(--card-border)${isBuy ? ';background:rgba(34,197,94,0.08)':''}">
+        <td style="padding:7px 6px">${s.code}</td>
+        <td style="padding:7px 6px">${s.name}</td>
+        <td style="text-align:right;padding:7px 6px;font-weight:bold;color:${isBuy?'#22c55e':s.curY>=targetYield*0.8?'#f59e0b':'var(--text-primary)'}">${s.curY.toFixed(2)}%</td>
+        <td style="text-align:right;padding:7px 6px">${fmtYen(Math.round(getPrice(s)))}</td>
+        <td style="text-align:right;padding:7px 6px">${fmtYen(Math.round(s.targetPrice))}</td>
+        <td style="text-align:right;padding:7px 6px;color:${s.gap>=0?'#22c55e':'var(--text-muted)'}">${s.gap>=0?'↓'+fmtYen(Math.abs(Math.round(s.gap)))+'余裕':'あと↓'+fmtYen(Math.abs(Math.round(s.gap)))+'待ち'}</td>
+        <td style="text-align:center;padding:7px 6px">${badge}</td>
+      </tr>`;
+    }).join('');
+
+    const tableHead = `<tr style="color:var(--text-muted);text-align:left;border-bottom:2px solid var(--card-border)">
+      <th style="padding:8px 6px">コード</th><th style="padding:8px 6px">銘柄</th><th style="text-align:right;padding:8px 6px">現在利回り</th><th style="text-align:right;padding:8px 6px">現在値</th><th style="text-align:right;padding:8px 6px">${targetYield}%になる株価</th><th style="text-align:right;padding:8px 6px">目標との差</th><th style="text-align:center;padding:8px 6px">判定</th>
+    </tr>`;
+
     res.innerHTML = `
-      <div class="card sim-box" style="margin-bottom:16px">
-        <h4 style="color:#22c55e">利回り${targetYield}%以上の銘柄（${over.length}銘柄）</h4>
-        ${over.length === 0 ? '<p style="color:var(--text-muted)">該当なし</p>' : over.map(s => `
-          <div class="sim-row" style="padding:8px 0;border-bottom:1px solid var(--card-border)">
-            <span><strong>${s.code}</strong> ${s.name}</span>
-            <span><span class="text-green" style="font-size:1.1em;font-weight:bold">${s.curY.toFixed(2)}%</span> 現在値${fmtYen(Math.round(getPrice(s)))}</span>
-          </div>`).join('')}
-      </div>
       <div class="card sim-box">
-        <h4>全銘柄 利回りランキング</h4>
+        <h4 style="margin-bottom:4px">全銘柄 利回りランキング</h4>
+        <p style="font-size:0.82em;color:var(--text-muted);margin:0 0 12px">目標利回り ${targetYield}% に対する各銘柄の状況（${aboveTarget.length}銘柄が達成中）</p>
         <div style="overflow-x:auto">
-        <table style="width:100%;font-size:0.85em;border-collapse:collapse">
-          <tr style="color:var(--text-muted);text-align:left;border-bottom:2px solid var(--card-border)">
-            <th style="padding:8px 4px">コード</th><th>銘柄</th><th style="text-align:right">現在利回り</th><th style="text-align:right">現在値</th><th style="text-align:right">${targetYield}%になる株価</th><th style="text-align:right">あといくら</th><th style="text-align:right">判定</th>
-          </tr>
-          ${ranked.map(s => {
-            const isBuy = s.curY >= targetYield;
-            const isNear = !isBuy && s.gapPct > -10;
-            const badge = isBuy ? '<span style="background:#22c55e;color:#000;padding:2px 8px;border-radius:12px;font-size:0.8em;font-weight:bold">買い時</span>' :
-              isNear ? '<span style="background:#f59e0b;color:#000;padding:2px 8px;border-radius:12px;font-size:0.8em">もう少し</span>' :
-              '<span style="color:var(--text-muted);font-size:0.8em">待ち</span>';
-            return `<tr style="border-bottom:1px solid var(--card-border)${isBuy ? ';background:rgba(34,197,94,0.08)':''}">
-              <td style="padding:6px 4px">${s.code}</td>
-              <td>${s.name}</td>
-              <td style="text-align:right;font-weight:bold;color:${isBuy?'#22c55e':s.curY>=targetYield*0.8?'#f59e0b':'var(--text-primary)'}">${s.curY.toFixed(2)}%</td>
-              <td style="text-align:right">${fmtYen(Math.round(getPrice(s)))}</td>
-              <td style="text-align:right">${fmtYen(Math.round(s.targetPrice))}</td>
-              <td style="text-align:right;color:${s.gap>=0?'#22c55e':'var(--text-muted)'}">${s.gap>=0?'↓':'↑'}${fmtYen(Math.abs(Math.round(s.gap)))}</td>
-              <td style="text-align:right">${badge}</td>
-            </tr>`;
-          }).join('')}
+        <table style="width:100%;font-size:0.88em;border-collapse:collapse">
+          ${tableHead}
+          ${renderRows(aboveTarget)}
+          ${renderRows(nearTarget)}
         </table>
         </div>
+        ${belowTarget.length > 0 ? `
+        <details style="margin-top:12px">
+          <summary style="cursor:pointer;color:var(--text-muted);font-size:0.85em;padding:8px 0">利回り3%未満の銘柄を表示（${belowTarget.length}銘柄）</summary>
+          <div style="overflow-x:auto">
+          <table style="width:100%;font-size:0.88em;border-collapse:collapse">
+            ${tableHead}
+            ${renderRows(belowTarget)}
+          </table>
+          </div>
+        </details>` : ''}
       </div>`;
     return;
   }
@@ -1750,7 +1764,7 @@ function calcBuyTiming() {
       <div class="sim-row"><span>年間配当 (1株)</span><span style="font-weight:bold">${fmtYen(annDiv)}</span></div>
       <div class="sim-row"><span>現在値</span><span>${fmtYen(Math.round(curPrice))}</span></div>
       <div class="sim-row"><span>目標利回り ${targetYield}% になる株価</span><span style="font-weight:bold;color:#f59e0b">${fmtYen(Math.round(targetPrice))}</span></div>
-      <div class="sim-row"><span>${isBuy ? '現在値との差額' : 'あといくら下がれば買い時か'}</span><span style="color:${priceDiff>=0?'#22c55e':'#f59e0b'}">${priceDiff>=0?'すでに達成！ ':''}${priceDiff<0?'↓'+fmtYen(Math.abs(Math.round(priceDiff)))+' ('+Math.abs(priceDiffPct).toFixed(1)+'%下落待ち)':'↓'+fmtYen(Math.round(priceDiff))+'の余裕あり'}</span></div>
+      <div class="sim-row"><span>${isBuy ? '目標株価との差' : '目標株価まであといくら？'}</span><span style="color:${priceDiff>=0?'#22c55e':'#f59e0b'}">${priceDiff>=0?'すでに達成！ '+fmtYen(Math.round(priceDiff))+'の余裕あり':'あと↓'+fmtYen(Math.abs(Math.round(priceDiff)))+' ('+Math.abs(priceDiffPct).toFixed(1)+'%下落待ち)'}</span></div>
       <div class="sim-row"><span>月々の配当収入 (税引後)</span><span style="font-weight:bold;color:#22c55e">${fmtYen(monthlyDivAfterTax)}/月</span></div>
     </div>
 
