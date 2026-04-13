@@ -1,6 +1,6 @@
 {
-  "name": "高配当株ダッシュボード",
-  "short_name": "配当DB",
+  "name": "配当ちゃん",
+  "short_name": "配当ちゃん",
   "description": "高配当株ポートフォリオ管理ダッシュボード",
   "start_url": "./",
   "display": "standalone",
