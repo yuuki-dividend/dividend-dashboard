@@ -79,7 +79,7 @@ body{font-family:var(--font);background:var(--bg-primary);color:var(--text-prima
 .chart-full canvas{max-height:160px}
 
 /* Table */
-.table-wrap{overflow-x:auto;overflow-y:auto;max-height:75vh;-webkit-overflow-scrolling:touch}
+.table-wrap{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 120px);-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse;font-size:.88rem;white-space:nowrap}
 th{position:sticky;top:0;z-index:10;background:var(--bg-secondary);color:var(--text-muted);font-weight:600;text-transform:none;padding:10px 12px;border-bottom:2px solid var(--border);cursor:pointer;user-select:none;text-align:right}
 th:first-child,th:nth-child(2){text-align:left}
@@ -90,7 +90,7 @@ td:first-child,td:nth-child(2){text-align:left}
 tr.row-positive{background:var(--green-bg)}
 tr.row-negative{background:var(--red-bg)}
 tr:hover{background:var(--accent-light)}
-tr.totals-row{font-weight:700;background:var(--bg-secondary) !important;border-top:2px solid var(--accent)}
+tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top:2px solid var(--accent);color:var(--text-primary);cursor:default;top:39px}
 .text-green{color:var(--green)}
 .text-red{color:var(--red)}
 
@@ -1342,7 +1342,13 @@ function renderPortfolio() {
     const arrow = sortCol === c.key ? (sortAsc ? ' \u25B2' : ' \u25BC') : '';
     html += `<th data-sort="${c.key}">${c.label}<span class="sort-arrow">${arrow}</span></th>`;
   });
-  html += '</tr></thead><tbody>';
+  /* Totals row in thead so it sticks with header */
+  const tc = stocks.reduce((a,s)=>a+getCost(s),0);
+  const tm = stocks.reduce((a,s)=>a+getMarketVal(s),0);
+  const tp = tm - tc;
+  const tpr = safeDiv(tp,tc)*100;
+  const td = stocks.reduce((a,s)=>a+getAnnualDiv(s),0);
+  html += `</tr><tr class="totals-row"><th colspan="2" style="text-align:left">合計 (${stocks.length}銘柄)</th><th>${fmt(stocks.reduce((a,s)=>a+(s.shares||0),0))}</th><th>-</th><th>${fmtYen(Math.round(tc))}</th><th>-</th><th>${fmtYen(Math.round(tm))}</th><th class="${tp>=0?'text-green':'text-red'}">${fmtYen(Math.round(tp))}</th><th class="${tp>=0?'text-green':'text-red'}">${fmtPct(tpr)}</th><th>-</th><th>${fmtPct(safeDiv(td,tc)*100)}</th><th>${fmtPct(safeDiv(td,tm)*100)}</th><th>-</th><th>-</th><th>-</th><th>-</th><th>-</th></tr></thead><tbody>`;
 
   sorted.forEach((s, i) => {
     const pl = getPL(s);
@@ -1369,13 +1375,7 @@ function renderPortfolio() {
     html += '</tr>';
   });
 
-  /* Totals row */
-  const tc = stocks.reduce((a,s)=>a+getCost(s),0);
-  const tm = stocks.reduce((a,s)=>a+getMarketVal(s),0);
-  const tp = tm - tc;
-  const tpr = safeDiv(tp,tc)*100;
-  const td = stocks.reduce((a,s)=>a+getAnnualDiv(s),0);
-  html += `<tr class="totals-row"><td colspan="2">合計</td><td>${fmt(stocks.reduce((a,s)=>a+(s.shares||0),0))}</td><td>-</td><td>${fmtYen(Math.round(tc))}</td><td>-</td><td>${fmtYen(Math.round(tm))}</td><td class="${tp>=0?'text-green':'text-red'}">${fmtYen(Math.round(tp))}</td><td class="${tp>=0?'text-green':'text-red'}">${fmtPct(tpr)}</td><td>-</td><td>${fmtPct(safeDiv(td,tc)*100)}</td><td>${fmtPct(safeDiv(td,tm)*100)}</td><td>-</td><td>-</td><td>-</td><td>-</td><td>${stocks.length}銘柄</td></tr>`;
+  /* Totals row already rendered at top */
   html += '</tbody></table>';
   wrap.innerHTML = html;
 
