@@ -1,9 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
-  <rect width="192" height="192" rx="24" fill="#1e293b"/>
-  <text x="96" y="108" text-anchor="middle" dominant-baseline="central" font-family="system-ui, sans-serif" font-size="90" font-weight="800" fill="#f472b6">&yen;</text>
-  <rect x="30" y="140" width="20" height="28" rx="3" fill="#06b6d4" opacity="0.8"/>
-  <rect x="56" y="130" width="20" height="38" rx="3" fill="#34d399" opacity="0.8"/>
-  <rect x="82" y="120" width="20" height="48" rx="3" fill="#fbbf24" opacity="0.8"/>
-  <rect x="108" y="125" width="20" height="43" rx="3" fill="#06b6d4" opacity="0.8"/>
-  <rect x="134" y="115" width="20" height="53" rx="3" fill="#34d399" opacity="0.8"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e3a5f"/>
+    </linearGradient>
+    <linearGradient id="coinGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="graphGrad" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="192" height="192" rx="38" fill="url(#bg)"/>
+  <!-- Coin -->
+  <circle cx="72" cy="72" r="40" fill="url(#coinGrad)" opacity="0.95"/>
+  <circle cx="72" cy="72" r="33" fill="none" stroke="#fde68a" stroke-width="2.5" opacity="0.6"/>
+  <text x="72" y="73" text-anchor="middle" dominant-baseline="central" font-family="system-ui, -apple-system, sans-serif" font-size="40" font-weight="800" fill="#78350f">¥</text>
+  <!-- Growth chart bars -->
+  <rect x="112" y="128" width="14" height="22" rx="3" fill="url(#graphGrad)" opacity="0.7"/>
+  <rect x="130" y="116" width="14" height="34" rx="3" fill="url(#graphGrad)" opacity="0.8"/>
+  <rect x="148" y="100" width="14" height="50" rx="3" fill="url(#graphGrad)" opacity="0.9"/>
+  <rect x="166" y="82" width="14" height="68" rx="3" fill="url(#graphGrad)" opacity="1"/>
+  <!-- Growth arrow -->
+  <polyline points="118,124 136,112 154,96 172,78" fill="none" stroke="#34d399" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="172,78 172,88 162,78" fill="#34d399"/>
+  <!-- Small coins (dividends falling) -->
+  <circle cx="28" cy="140" r="10" fill="url(#coinGrad)" opacity="0.5"/>
+  <text x="28" y="141" text-anchor="middle" dominant-baseline="central" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#78350f">¥</text>
+  <circle cx="52" cy="158" r="8" fill="url(#coinGrad)" opacity="0.4"/>
+  <text x="52" y="159" text-anchor="middle" dominant-baseline="central" font-family="system-ui, sans-serif" font-size="9" font-weight="700" fill="#78350f">¥</text>
+  <circle cx="80" cy="148" r="9" fill="url(#coinGrad)" opacity="0.45"/>
+  <text x="80" y="149" text-anchor="middle" dominant-baseline="central" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#78350f">¥</text>
 </svg>
