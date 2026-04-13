@@ -127,6 +127,7 @@ tr.totals-row{font-weight:700;background:var(--bg-secondary) !important;border-t
 .sim-field select,.sim-field input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-primary);color:var(--text-primary);font-size:.9rem;font-family:var(--font)}
 .sim-field select:focus,.sim-field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
 .sim-results{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.sim-results-full{display:block}
 .sim-box{padding:20px}
 .sim-box h4{font-size:.85rem;color:var(--text-muted);margin-bottom:12px}
 .sim-row{display:flex;justify-content:space-between;padding:6px 0;font-size:.88rem;border-bottom:1px solid var(--border)}
@@ -1704,6 +1705,7 @@ function calcBuyTiming() {
       <th style="padding:8px 6px">コード</th><th style="padding:8px 6px">銘柄</th><th style="text-align:right;padding:8px 6px">現在利回り</th><th style="text-align:right;padding:8px 6px">現在値</th><th style="text-align:right;padding:8px 6px">${targetYield}%になる株価</th><th style="text-align:right;padding:8px 6px">目標との差</th><th style="text-align:center;padding:8px 6px">判定</th>
     </tr>`;
 
+    res.className = 'sim-results-full';
     res.innerHTML = `
       <div class="card sim-box">
         <h4 style="margin-bottom:4px">全銘柄 利回りランキング</h4>
@@ -1729,6 +1731,7 @@ function calcBuyTiming() {
     return;
   }
 
+  res.className = 'sim-results';
   const curPrice = getPrice(s);
   const annDiv = s.annual_div || 0;
   const bookYield = getBookYield(s);
