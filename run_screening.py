@@ -113,7 +113,7 @@ def analyze_trend(values):
 # ============================================================
 
 def fetch_from_yahoo_finance():
-    """Yahoo!ファイナンス 高配当利回りランキングから取得"""
+    """Yahoo!ファイナンス 高配当利回りランキングから取得（__PRELOADED_STATE__ JSON解析版）"""
     stocks = []
     for page in range(1, 4):
         try:
@@ -122,35 +122,32 @@ def fetch_from_yahoo_finance():
             with urllib.request.urlopen(req, timeout=20) as resp:
                 html = resp.read().decode("utf-8", errors="ignore")
 
-            codes = re.findall(r'/stocks/(\d{4})\.T', html)
-            yields_pct = re.findall(r'\+?([\d.]+)%', html)
-
-            text = re.sub(r'<[^>]+>', '|', html)
-            text = re.sub(r'\s+', ' ', text)
-
-            name_matches = re.findall(r'(\d{4})\|[^|]*?\|([^|]{2,30}?)\|', text)
-            name_map = {}
-            for code_str, name in name_matches:
-                name = name.strip()
-                if name and not name.startswith('+') and not name.startswith('-') and not name.endswith('%'):
-                    name_map[code_str] = name
-
             count = 0
-            for i, code_str in enumerate(codes):
-                code = int(code_str)
-                if code < 1000:
-                    continue
-                yld = 0
-                if i < len(yields_pct):
-                    try:
-                        yld = float(yields_pct[i])
-                    except ValueError:
-                        pass
-                if yld < 3.0:
-                    continue
-                name = name_map.get(code_str, f"銘柄{code_str}")
-                stocks.append({"code": code, "name": name, "yield": yld})
-                count += 1
+            state_m = re.search(r'window\.__PRELOADED_STATE__\s*=\s*(\{.*?\});?\s*</script>', html, re.DOTALL)
+            if state_m:
+                try:
+                    state = json.loads(state_m.group(1))
+                    items = state.get("mainRankingList", {}).get("results", [])
+                    for item in items:
+                        code_str = item.get("stockCode", "")
+                        if not code_str.isdigit() or int(code_str) < 1000:
+                            continue
+                        name = item.get("stockName", f"銘柄{code_str}")
+                        # (株) などを除去
+                        name = re.sub(r'^\(株\)', '', name).strip()
+                        yld = 0
+                        div_info = item.get("rankingResult", {}).get("shareDividendYield", {})
+                        if div_info:
+                            try:
+                                yld = float(str(div_info.get("shareDividendYield", "0")).replace("+", ""))
+                            except (ValueError, TypeError):
+                                pass
+                        if yld < 3.0:
+                            continue
+                        stocks.append({"code": int(code_str), "name": name, "yield": yld})
+                        count += 1
+                except (json.JSONDecodeError, KeyError, TypeError) as e:
+                    log(f"  Yahoo JSON解析エラー: {e}")
 
             log(f"  Yahoo!ファイナンス ページ{page}: {count}銘柄")
             time.sleep(1)
