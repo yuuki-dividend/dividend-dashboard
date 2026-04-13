@@ -295,9 +295,16 @@ def validate():
         gpr_fy_zero = sum(1 for s in gpr if s.get("future_yield_5y", 0) == 0)
         gpr_price_zero = sum(1 for s in gpr if s.get("price", 0) == 0)
 
+        # 成長ポテンシャル: 現在利回り・5年後予想の異常値チェック
+        gpr_yield_over20 = [s for s in gpr if s.get("current_yield", 0) > 20]
+        gpr_future_over50 = [s for s in gpr if s.get("future_yield_5y", 0) > 50]
+        gpr_yield_zero = [s for s in gpr if s.get("current_yield", 0) <= 0]
+        gpr_future_negative = [s for s in gpr if s.get("future_yield_5y", 0) < 0]
+
         print(f"\nscreening_data.json:")
         print(f"  注目銘柄: {len(hdr)} stocks, PER: {len(hdr)-hdr_per_zero}/{len(hdr)}, mix_coef: {len(hdr)-hdr_mix_zero}/{len(hdr)}")
         print(f"  成長ポテンシャル: {len(gpr)} stocks, future_yield_0%: {gpr_fy_zero}, price_0: {gpr_price_zero}")
+        print(f"  成長ポテンシャル: 現在利回り異常(>20%): {len(gpr_yield_over20)}, 5年後予想異常(>50%): {len(gpr_future_over50)}")
 
         if hdr_per_zero > len(hdr) * 0.3:
             issues.append(f"注目銘柄: {hdr_per_zero}/{len(hdr)} stocks with PER=0")
@@ -305,6 +312,18 @@ def validate():
             issues.append(f"注目銘柄: {hdr_mix_zero}/{len(hdr)} stocks with mix_coef=0")
         if gpr_fy_zero > len(gpr) * 0.3:
             issues.append(f"成長ポテンシャル: {gpr_fy_zero}/{len(gpr)} stocks with future_yield_5y=0")
+        if gpr_yield_over20:
+            names = ', '.join(f"{s['code']}" for s in gpr_yield_over20[:5])
+            issues.append(f"成長ポテンシャル: 現在利回り>20%が{len(gpr_yield_over20)}件 ({names})")
+        if gpr_future_over50:
+            names = ', '.join(f"{s['code']}" for s in gpr_future_over50[:5])
+            issues.append(f"成長ポテンシャル: 5年後予想>50%が{len(gpr_future_over50)}件 ({names})")
+        if gpr_yield_zero:
+            names = ', '.join(f"{s['code']}" for s in gpr_yield_zero[:5])
+            issues.append(f"成長ポテンシャル: 現在利回り0%以下が{len(gpr_yield_zero)}件 ({names})")
+        if gpr_future_negative:
+            names = ', '.join(f"{s['code']}" for s in gpr_future_negative[:5])
+            issues.append(f"成長ポテンシャル: 5年後予想がマイナスが{len(gpr_future_negative)}件 ({names})")
     else:
         print(f"\nscreening_data.json: ファイルなし (--skip-screening時は正常)")
 
