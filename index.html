@@ -74,6 +74,8 @@ body{font-family:var(--font);background:var(--bg-primary);color:var(--text-prima
 .chart-card{padding:12px}
 .chart-card h3{font-size:.85rem;margin-bottom:6px;color:var(--text-secondary)}
 .chart-card canvas{max-height:180px}
+.chart-card-lg{padding:16px}
+.chart-card-lg canvas{max-height:260px}
 .chart-full{margin-top:12px;padding:14px}
 .chart-full h3{font-size:.85rem;margin-bottom:6px;color:var(--text-secondary)}
 .chart-full canvas{max-height:160px}
@@ -224,8 +226,8 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
     <div id="dataTimestamps"></div>
     <div class="chart-full card" id="barChartWrap"><h3>月別配当金</h3><canvas id="monthlyBarChart"></canvas></div>
     <div class="chart-row">
-      <div class="card chart-card"><h3>セクター別時価評価額</h3><canvas id="sectorValueChart"></canvas></div>
-      <div class="card chart-card"><h3>セクター別配当総額</h3><canvas id="sectorDivChart"></canvas></div>
+      <div class="card chart-card chart-card-lg"><h3>セクター別時価評価額</h3><canvas id="sectorValueChart"></canvas></div>
+      <div class="card chart-card chart-card-lg"><h3>セクター別配当総額</h3><canvas id="sectorDivChart"></canvas></div>
     </div>
     <div class="chart-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
       <div class="card chart-card"><h3>時価評価額（守/攻）</h3><canvas id="defCycValChart"></canvas></div>
@@ -235,8 +237,6 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
       <div class="card chart-card"><h3>利回り分布</h3><canvas id="yieldDistChart"></canvas></div>
       <div class="card chart-card"><h3>配当成長シミュレーション</h3><canvas id="divGrowthChart"></canvas></div>
     </div>
-    <div class="card" style="margin-top:12px" id="yieldAlertWrap"></div>
-    <div class="card" style="margin-top:12px" id="nisaPanel"></div>
     <div class="card" style="margin-top:12px"><h3>配当再投資シミュレーション (DRIP)</h3><canvas id="dripChart" style="max-height:220px"></canvas></div>
     <div class="card" style="margin-top:12px" id="heatmapWrap"><h3>損益ヒートマップ</h3><div id="heatmapArea" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:10px"></div></div>
     <div class="card" style="margin-top:12px" id="scorecardWrap"><h3>配当スコアカード</h3><div id="scorecardArea"></div></div>
@@ -921,77 +921,9 @@ function renderDashboard() {
     options:{responsive:true,plugins:{legend:{labels:{color:getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(),boxWidth:12,font:{size:10}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)+'円'}}},scales:{x:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim()},grid:{display:false}},y:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim(),callback:v=>fmt(v)+'円'},grid:{color:'rgba(100,116,139,.15)'}}}}
   });
 
-  /* === Yield Alert === */
-  const threshold = parseFloat(document.getElementById('thresholdInput').value) || 3.5;
-  const alertStocks = stocks.filter(s => getCurYield(s) < threshold && getCurYield(s) > 0).sort((a,b) => getCurYield(a) - getCurYield(b));
-  const alertWrap = document.getElementById('yieldAlertWrap');
-  if (alertStocks.length > 0) {
-    alertWrap.innerHTML = `<h3 style="margin-bottom:10px;color:var(--red)">利回り ${threshold}% 未満の銘柄 (${alertStocks.length})</h3>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">${alertStocks.map(s => {
-        const y = getCurYield(s);
-        return `<div style="padding:8px 14px;background:var(--red-bg);border:1px solid rgba(251,113,133,.2);border-radius:12px;font-size:.82em;display:flex;gap:8px;align-items:center">
-          <span style="font-weight:700">${s.code}</span>
-          <span style="color:var(--text-secondary)">${s.name}</span>
-          <span style="color:var(--red);font-weight:700">${y.toFixed(2)}%</span>
-        </div>`;
-      }).join('')}</div>`;
-  } else {
-    alertWrap.innerHTML = '<h3 style="color:var(--green)">全銘柄が利回り閾値 ' + threshold + '% を達成しています</h3>';
-  }
+  /* === DRIP follows below === */
 
-  /* === NISA枠管理パネル === */
-  const nisaStocks = stocks.filter(s => s.nisa === 'NISA');
-  const nisaCost = nisaStocks.reduce((a,s) => a + getCost(s), 0);
-  const nisaMarket = nisaStocks.reduce((a,s) => a + getMarketVal(s), 0);
-  const nisaDiv = nisaStocks.reduce((a,s) => a + getAnnualDiv(s), 0);
-  const nisaYearLimit = 2400000;
-  const nisaLifetimeLimit = 12000000;
-  const nisaYearUsed = nisaCost; // simplified: total cost as proxy
-  const nisaYearPct = Math.min(nisaYearUsed / nisaYearLimit * 100, 100);
-  const nisaLifePct = Math.min(nisaCost / nisaLifetimeLimit * 100, 100);
-  const nisaPanel = document.getElementById('nisaPanel');
-  nisaPanel.innerHTML = `<h3 style="margin-bottom:12px">NISA枠管理</h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px">
-      <div style="text-align:center;padding:10px;background:var(--bg-primary);border-radius:10px">
-        <div style="font-size:.65em;color:var(--text-muted)">NISA銘柄数</div>
-        <div style="font-size:1.2em;font-weight:800;color:#22c55e">${nisaStocks.length}銘柄</div>
-      </div>
-      <div style="text-align:center;padding:10px;background:var(--bg-primary);border-radius:10px">
-        <div style="font-size:.65em;color:var(--text-muted)">NISA取得額</div>
-        <div style="font-size:1.2em;font-weight:800">${fmtYen(Math.round(nisaCost))}</div>
-      </div>
-      <div style="text-align:center;padding:10px;background:var(--bg-primary);border-radius:10px">
-        <div style="font-size:.65em;color:var(--text-muted)">NISA評価額</div>
-        <div style="font-size:1.2em;font-weight:800;color:#06b6d4">${fmtYen(Math.round(nisaMarket))}</div>
-      </div>
-      <div style="text-align:center;padding:10px;background:var(--bg-primary);border-radius:10px">
-        <div style="font-size:.65em;color:var(--text-muted)">NISA配当(非課税)</div>
-        <div style="font-size:1.2em;font-weight:800;color:#34d399">${fmtYen(Math.round(nisaDiv))}</div>
-      </div>
-    </div>
-    <div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;font-size:.78em;margin-bottom:4px">
-        <span style="color:var(--text-muted)">成長投資枠（年間240万円）</span>
-        <span style="color:${nisaYearPct>=90?'var(--red)':'var(--text-secondary)'}">${fmtYen(Math.round(nisaYearUsed))} / ${fmtYen(nisaYearLimit)} (${nisaYearPct.toFixed(1)}%)</span>
-      </div>
-      <div style="background:var(--border);border-radius:6px;height:14px;overflow:hidden">
-        <div style="width:${nisaYearPct}%;height:100%;background:linear-gradient(90deg,#22c55e,${nisaYearPct>=90?'#ef4444':'#06b6d4'});border-radius:6px;transition:width .5s"></div>
-      </div>
-      <div style="font-size:.7em;color:var(--text-muted);margin-top:3px">残り ${fmtYen(Math.max(0,nisaYearLimit - nisaYearUsed))}</div>
-    </div>
-    <div>
-      <div style="display:flex;justify-content:space-between;font-size:.78em;margin-bottom:4px">
-        <span style="color:var(--text-muted)">生涯投資枠（1,200万円）</span>
-        <span style="color:${nisaLifePct>=90?'var(--red)':'var(--text-secondary)'}">${fmtYen(Math.round(nisaCost))} / ${fmtYen(nisaLifetimeLimit)} (${nisaLifePct.toFixed(1)}%)</span>
-      </div>
-      <div style="background:var(--border);border-radius:6px;height:14px;overflow:hidden">
-        <div style="width:${nisaLifePct}%;height:100%;background:linear-gradient(90deg,#fbbf24,${nisaLifePct>=90?'#ef4444':'#fb923c'});border-radius:6px;transition:width .5s"></div>
-      </div>
-      <div style="font-size:.7em;color:var(--text-muted);margin-top:3px">残り ${fmtYen(Math.max(0,nisaLifetimeLimit - nisaCost))}</div>
-    </div>
-    <div style="margin-top:10px;padding:8px 12px;background:var(--accent-light);border-radius:8px;font-size:.75em;color:var(--text-secondary)">
-      NISA配当は非課税のため年間 <strong style="color:#34d399">${fmtYen(Math.round(nisaDiv * TAX_RATE))}</strong> の節税効果があります
-    </div>`;
+  /* (Yield Alert and NISA panel removed — info available in buy timing tab) */
 
   /* === DRIP（配当再投資）シミュレーション === */
   const dripYears = Array.from({length:21},(_,i)=>i);
