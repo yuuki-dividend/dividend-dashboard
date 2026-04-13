@@ -235,9 +235,8 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
     </div>
     <div class="chart-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
       <div class="card chart-card"><h3>利回り分布</h3><canvas id="yieldDistChart"></canvas></div>
-      <div class="card chart-card"><h3>配当成長シミュレーション</h3><canvas id="divGrowthChart"></canvas></div>
+      <div class="card chart-card"><h3>配当シミュレーション（20年）</h3><canvas id="divSimChart"></canvas></div>
     </div>
-    <div class="card" style="margin-top:12px"><h3>配当再投資シミュレーション (DRIP)</h3><canvas id="dripChart" style="max-height:220px"></canvas></div>
     <div class="card" style="margin-top:12px" id="heatmapWrap"><h3>損益ヒートマップ</h3><div id="heatmapArea" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:10px"></div></div>
     <div class="card" style="margin-top:12px" id="scorecardWrap"><h3>配当スコアカード</h3><div id="scorecardArea"></div></div>
     <div class="card" style="margin-top:12px">
@@ -901,54 +900,39 @@ function renderDashboard() {
     options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+'銘柄'}}},scales:{x:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim()},grid:{display:false}},y:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim(),stepSize:1},grid:{color:'rgba(100,116,139,.15)'}}}}
   });
 
-  /* === Dividend Growth Simulation === */
+  /* === 配当シミュレーション（統合: 増配 + 再投資） === */
+  const simYears = Array.from({length:21}, (_,i)=>i);
   const curAnnualDiv = totalDivPre;
-  const growthRates = [0.03, 0.05, 0.07];
-  const years = Array.from({length:11}, (_,i)=>i);
-  const growthDatasets = growthRates.map((rate,ri) => ({
-    label: (rate*100)+'%成長',
-    data: years.map(y => Math.round(curAnnualDiv * Math.pow(1+rate, y))),
-    borderColor: ['#06b6d4','#34d399','#fbbf24'][ri],
-    backgroundColor: ['rgba(6,182,212,.1)','rgba(52,211,153,.1)','rgba(251,191,36,.1)'][ri],
-    fill: ri === 0,
-    tension: 0.3,
-    pointRadius: 3,
-    borderWidth: 2
-  }));
-  createChart('divGrowthChart', {
-    type:'line',
-    data:{labels:years.map(y=>y===0?'現在':y+'年後'), datasets:growthDatasets},
-    options:{responsive:true,plugins:{legend:{labels:{color:getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(),boxWidth:12,font:{size:10}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)+'円'}}},scales:{x:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim()},grid:{display:false}},y:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim(),callback:v=>fmt(v)+'円'},grid:{color:'rgba(100,116,139,.15)'}}}}
-  });
-
-  /* === DRIP follows below === */
-
-  /* (Yield Alert and NISA panel removed — info available in buy timing tab) */
-
-  /* === DRIP（配当再投資）シミュレーション === */
-  const dripYears = Array.from({length:21},(_,i)=>i);
   const avgYield = totalMarket > 0 ? totalDivPre / totalMarket : 0.04;
-  const dripWithData = dripYears.map(y => {
-    let val = totalMarket;
-    for(let i=0;i<y;i++) val += val * avgYield;
-    return Math.round(val * avgYield);
+  const growthRate = 0.05;
+  /* 1. 現状維持（増配なし・再投資なし） */
+  const simBase = simYears.map(() => Math.round(curAnnualDiv));
+  /* 2. 増配5%のみ（再投資なし） */
+  const simGrowth = simYears.map(y => Math.round(curAnnualDiv * Math.pow(1 + growthRate, y)));
+  /* 3. 増配5% + 再投資（複利効果最大） */
+  const simBoth = simYears.map(y => {
+    let portfolio = totalMarket;
+    let divRate = avgYield;
+    for (let i = 0; i < y; i++) {
+      const annualDiv = portfolio * divRate;
+      portfolio += annualDiv;
+      divRate *= (1 + growthRate);
+    }
+    return Math.round(portfolio * divRate);
   });
-  const dripWithoutData = dripYears.map(y => Math.round(totalDivPre));
-  const dripTotalWith = dripYears.map(y => {
-    let val = totalMarket;
-    for(let i=0;i<y;i++) val += val * avgYield;
-    return Math.round(val);
-  });
-  createChart('dripChart', {
+  const txtColor = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim();
+  const mutedColor = getComputedStyle(document.body).getPropertyValue('--text-muted').trim();
+  createChart('divSimChart', {
     type:'line',
     data:{
-      labels:dripYears.map(y=>y===0?'現在':y+'年後'),
+      labels: simYears.map(y => y === 0 ? '現在' : y + '年後'),
       datasets:[
-        {label:'再投資あり 年間配当',data:dripWithData,borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,.1)',fill:true,tension:.3,pointRadius:2,borderWidth:2},
-        {label:'再投資なし 年間配当',data:dripWithoutData,borderColor:'#94a3b8',backgroundColor:'rgba(148,163,184,.05)',fill:false,tension:0,pointRadius:0,borderWidth:1.5,borderDash:[5,3]}
+        {label:'増配5%+再投資', data:simBoth, borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,.1)', fill:true, tension:.3, pointRadius:2, borderWidth:2.5},
+        {label:'増配5%のみ', data:simGrowth, borderColor:'#06b6d4', backgroundColor:'transparent', fill:false, tension:.3, pointRadius:2, borderWidth:2},
+        {label:'現状維持', data:simBase, borderColor:'#94a3b8', backgroundColor:'transparent', fill:false, tension:0, pointRadius:0, borderWidth:1.5, borderDash:[5,3]}
       ]
     },
-    options:{responsive:true,plugins:{legend:{labels:{color:getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(),boxWidth:12,font:{size:10}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)+'円'}}},scales:{x:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim()},grid:{display:false}},y:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-muted').trim(),callback:v=>fmt(v)+'円'},grid:{color:'rgba(100,116,139,.15)'}}}}
+    options:{responsive:true,plugins:{legend:{labels:{color:txtColor,boxWidth:12,font:{size:9}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)+'円/年'}}},scales:{x:{ticks:{color:mutedColor,font:{size:9}},grid:{display:false}},y:{ticks:{color:mutedColor,callback:v=>fmt(v)+'円'},grid:{color:'rgba(100,116,139,.15)'}}}}
   });
 
   /* === 損益ヒートマップ（ツリーマップ風） === */
