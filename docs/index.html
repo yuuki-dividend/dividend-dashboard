@@ -2563,29 +2563,115 @@ function handleCsvFile(file) {
   reader.readAsText(file, 'UTF-8');
 }
 
-/* === クライアント側CSVパース === */
+/* === クライアント側CSVパース（柔軟版） === */
 function parsePortfolioCsv(text) {
-  const cleanNum = s => parseFloat((s || '0').replace(/[,，円株\s]/g, '')) || 0;
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  /* 全角→半角変換 */
+  const zen2han = s => s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/，/g, ',').replace(/．/g, '.').replace(/　/g, ' ');
+  const cleanNum = s => {
+    const n = zen2han(s || '0').replace(/[,円株口%％\s]/g, '');
+    const v = parseFloat(n);
+    return isNaN(v) ? 0 : v;
+  };
+
+  /* CSV正しくパース（引用符対応） */
+  function parseCsvLine(line, delim) {
+    const cols = []; let cur = ''; let inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (inQuote) {
+        if (c === '"' && line[i+1] === '"') { cur += '"'; i++; }
+        else if (c === '"') inQuote = false;
+        else cur += c;
+      } else {
+        if (c === '"') inQuote = true;
+        else if (c === delim) { cols.push(cur.trim()); cur = ''; }
+        else cur += c;
+      }
+    }
+    cols.push(cur.trim());
+    return cols;
+  }
+
+  const rawText = zen2han(text);
+  const lines = rawText.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length === 0) return [];
+
+  /* 区切り文字の自動検出（全体で判断） */
+  const tabCount = (rawText.match(/\t/g) || []).length;
+  const commaCount = (rawText.match(/,/g) || []).length;
+  const delim = tabCount > commaCount * 0.3 ? '\t' : ',';
+
+  /* ヘッダー行から列マッピングを検出 */
+  let codeCol = -1, nameCol = -1, sharesCol = -1, buyCol = -1, curCol = -1;
+  const headerKeywords = {
+    code: ['コード', 'code', '銘柄コード', '証券コード', 'ティッカー', 'ticker'],
+    name: ['銘柄名', '銘柄', 'name', '名称', '会社名'],
+    shares: ['保有数', '株数', '数量', 'shares', '保有株数', '口数', '保有'],
+    buy: ['取得単価', '取得価格', '平均取得', '買付単価', '取得額', 'buy', '取得', '簿価'],
+    cur: ['現在値', '時価', '現在価格', '評価単価', 'price', '株価', '現在']
+  };
+  const firstLine = parseCsvLine(lines[0], delim);
+  let headerFound = false;
+  firstLine.forEach((h, i) => {
+    const hl = h.toLowerCase().replace(/[\s"]/g, '');
+    if (headerKeywords.code.some(k => hl.includes(k))) { codeCol = i; headerFound = true; }
+    if (headerKeywords.name.some(k => hl.includes(k))) { nameCol = i; headerFound = true; }
+    if (headerKeywords.shares.some(k => hl.includes(k))) { sharesCol = i; headerFound = true; }
+    if (headerKeywords.buy.some(k => hl.includes(k))) { buyCol = i; headerFound = true; }
+    if (headerKeywords.cur.some(k => hl.includes(k))) { curCol = i; headerFound = true; }
+  });
+
+  /* ヘッダーが見つからなければ、4桁数字がある列をコード列として自動検出 */
+  if (!headerFound) {
+    for (const line of lines.slice(0, 5)) {
+      const cols = parseCsvLine(line, delim);
+      for (let i = 0; i < cols.length; i++) {
+        const v = cols[i].replace(/[^\d]/g, '');
+        if (/^\d{4,5}$/.test(v)) { codeCol = i; break; }
+      }
+      if (codeCol >= 0) break;
+    }
+  }
+
+  /* デフォルト列配置（コード列の後ろに名前,株数,取得単価,現在値と仮定） */
+  const base = codeCol >= 0 ? codeCol : 0;
+  if (nameCol < 0) nameCol = base + 1;
+  if (sharesCol < 0) sharesCol = base + 2;
+  if (buyCol < 0) buyCol = base + 3;
+  if (curCol < 0) curCol = base + 4;
+
   const result = [];
-  for (const line of lines) {
-    const delim = line.includes('\t') ? '\t' : ',';
-    const cols = line.split(delim).map(c => c.trim().replace(/^"|"$/g, ''));
-    if (cols.length < 5) continue;
-    const codeStr = cols[0].replace(/[^\d]/g, '');
+  const startLine = headerFound ? 1 : 0;
+  let skipped = 0;
+
+  for (let li = startLine; li < lines.length; li++) {
+    const cols = parseCsvLine(lines[li], delim);
+    const maxCol = Math.max(codeCol, nameCol, sharesCol, buyCol, curCol);
+    if (cols.length <= maxCol) { skipped++; continue; }
+
+    const codeStr = (cols[codeCol] || '').replace(/[^\d]/g, '');
     const code = parseInt(codeStr);
-    if (isNaN(code) || code < 1000 || code > 99999) continue; // ヘッダー行や無効行をスキップ
-    const name = cols[1];
-    const shares = Math.round(cleanNum(cols[2]));
-    const buyPrice = cleanNum(cols[3]);
-    const curPrice = cleanNum(cols[4]);
-    if (shares === 0 && buyPrice === 0) continue;
+    if (isNaN(code) || code < 1000 || code > 99999) { skipped++; continue; }
+
+    const name = (cols[nameCol] || '').replace(/^"|"$/g, '');
+    const shares = Math.round(cleanNum(cols[sharesCol]));
+    const buyPrice = cleanNum(cols[buyCol]);
+    const curPrice = cleanNum(cols[curCol]);
+
+    /* 株数0でも取得単価があればOK、両方0ならスキップ */
+    if (shares === 0 && buyPrice === 0 && curPrice === 0) { skipped++; continue; }
+
     result.push({
-      code, name, shares, buy_price: buyPrice, cur_price: curPrice,
+      code, name, shares,
+      buy_price: buyPrice || curPrice, /* 取得単価がなければ現在値で代替 */
+      cur_price: curPrice || buyPrice,
       annual_div: 0, mid_div: 0, mid_month: 12, end_month: 6,
       nisa: '課税', sector: ''
     });
   }
+
+  console.log(`[CSV Parse] ${result.length}銘柄取り込み, ${skipped}行スキップ, 区切り:${delim === '\t' ? 'TAB' : 'COMMA'}, ヘッダー:${headerFound ? 'あり' : 'なし'}, コード列:${codeCol}`);
   return result;
 }
 
@@ -2650,7 +2736,8 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
     try {
       const imported = parsePortfolioCsv(text);
       if (imported.length === 0) {
-        status.textContent = '❌ 有効なデータが見つかりません（5列以上: コード,銘柄名,株数,取得単価,現在値）';
+        const lineCount = text.split(/\r?\n/).filter(l => l.trim()).length;
+        status.textContent = `❌ 有効なデータが見つかりません（${lineCount}行読み込み）。4〜5桁の銘柄コード・銘柄名・株数・単価を含むCSVを使ってください`;
         status.style.color = 'var(--red)';
       } else {
         stocks = mergeImportedStocks(imported);
