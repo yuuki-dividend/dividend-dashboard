@@ -323,10 +323,12 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
         </div>
         <div id="csvFileName" style="font-size:.78em;color:var(--accent2);margin-top:6px;display:none"></div>
       </div>
-      <div style="display:flex;gap:10px;margin-top:12px;align-items:center">
+      <div style="display:flex;gap:10px;margin-top:12px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-primary" id="btnImportPaste" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">🔄 取り込み</button>
+        <button class="btn btn-outline" id="btnPreviewParse" style="font-size:.8em">👁 プレビュー（取り込み前確認）</button>
         <span id="pasteImportStatus" style="font-size:.8em;color:var(--text-muted)"></span>
       </div>
+      <div id="parsePreview" style="display:none;margin-top:10px;max-height:250px;overflow:auto;font-size:.75em;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:monospace;line-height:1.6"></div>
       <details style="margin-top:12px">
         <summary style="font-size:.75em;color:var(--text-muted);cursor:pointer">CSVのフォーマットについて</summary>
         <div style="font-size:.72em;color:var(--text-muted);margin-top:6px;padding:8px 12px;background:var(--bg-primary);border-radius:8px;line-height:1.7">
@@ -2671,8 +2673,71 @@ function parsePortfolioCsv(text) {
     });
   }
 
+  /* もし結果が0件なら、全列を走査して4-5桁数字を探すフォールバック */
+  if (result.length === 0 && lines.length > 0) {
+    console.log('[CSV Parse] 標準パース失敗、フォールバック: 全列から銘柄コード検索');
+    for (let li = 0; li < lines.length; li++) {
+      const cols = parseCsvLine(lines[li], delim);
+      /* 各列をスキャンして4-5桁数字を探す */
+      for (let ci = 0; ci < cols.length; ci++) {
+        const v = cols[ci].replace(/[^\d]/g, '');
+        if (/^\d{4,5}$/.test(v)) {
+          const code = parseInt(v);
+          /* コード列の後ろから名前・数値を取得 */
+          const remaining = cols.filter((_, j) => j !== ci);
+          const nameCandidate = remaining.find(c => c && !/^[\d,.\-+%]+$/.test(c.replace(/[\s円株口]/g, '')));
+          const nums = remaining.filter(c => {
+            const n = parseFloat(c.replace(/[,円株口%\s]/g, ''));
+            return !isNaN(n) && n > 0;
+          }).map(c => parseFloat(c.replace(/[,円株口%\s]/g, '')));
+          if (nums.length >= 1) {
+            result.push({
+              code, name: nameCandidate || ('銘柄' + code),
+              shares: nums.length >= 3 ? Math.round(nums[0]) : (nums.length >= 1 ? Math.round(nums[0]) : 0),
+              buy_price: nums.length >= 3 ? nums[1] : (nums.length >= 2 ? nums[1] : nums[0]),
+              cur_price: nums.length >= 3 ? nums[2] : (nums.length >= 2 ? nums[1] : nums[0]),
+              annual_div: 0, mid_div: 0, mid_month: 12, end_month: 6,
+              nisa: '課税', sector: ''
+            });
+          }
+          break; /* この行では最初に見つかったコードのみ */
+        }
+      }
+    }
+  }
+
   console.log(`[CSV Parse] ${result.length}銘柄取り込み, ${skipped}行スキップ, 区切り:${delim === '\t' ? 'TAB' : 'COMMA'}, ヘッダー:${headerFound ? 'あり' : 'なし'}, コード列:${codeCol}`);
   return result;
+}
+
+/* === パースプレビュー === */
+function previewParse(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim()).slice(0, 10);
+  const tabCount = (text.match(/\t/g) || []).length;
+  const commaCount = (text.match(/,/g) || []).length;
+  const delim = tabCount > commaCount * 0.3 ? 'TAB' : 'COMMA';
+
+  let html = `<div style="margin-bottom:8px;color:var(--accent)"><b>生データ確認</b>（先頭10行）区切り文字: <b>${delim}</b></div>`;
+  lines.forEach((line, i) => {
+    const escaped = line.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const highlighted = escaped.replace(/\t/g, '<span style="background:#f472b640;padding:0 2px">⇥</span>');
+    html += `<div style="border-bottom:1px solid var(--border);padding:2px 0"><span style="color:var(--text-muted);width:20px;display:inline-block">${i+1}</span> ${highlighted}</div>`;
+  });
+
+  const parsed = parsePortfolioCsv(text);
+  html += `<div style="margin-top:10px;color:var(--green)"><b>パース結果: ${parsed.length}銘柄検出</b></div>`;
+  if (parsed.length > 0) {
+    html += '<table style="width:100%;margin-top:6px;font-size:.9em"><tr style="color:var(--accent)"><th>コード</th><th>銘柄名</th><th>株数</th><th>取得単価</th><th>現在値</th></tr>';
+    parsed.slice(0, 15).forEach(s => {
+      html += `<tr><td>${s.code}</td><td>${s.name}</td><td>${s.shares}</td><td>${s.buy_price}</td><td>${s.cur_price}</td></tr>`;
+    });
+    if (parsed.length > 15) html += `<tr><td colspan="5" style="color:var(--text-muted)">...他${parsed.length-15}銘柄</td></tr>`;
+    html += '</table>';
+  } else {
+    html += '<div style="color:var(--red);margin-top:4px">⚠ 銘柄が検出できません。データの形式を確認してください。</div>';
+    html += '<div style="color:var(--text-muted);margin-top:4px;font-size:.9em">必要な情報: 4〜5桁の銘柄コード + 何らかの数値（株数・単価等）</div>';
+  }
+  return html;
 }
 
 function mergeImportedStocks(imported) {
@@ -2690,6 +2755,21 @@ function mergeImportedStocks(imported) {
   });
   return Object.values(existingMap);
 }
+
+/* === プレビューボタン === */
+document.getElementById('btnPreviewParse').addEventListener('click', () => {
+  const text = importMode === 'paste'
+    ? document.getElementById('mfPasteArea').value.trim()
+    : pendingCsvText.trim();
+  const preview = document.getElementById('parsePreview');
+  if (!text) {
+    preview.style.display = '';
+    preview.innerHTML = '<span style="color:var(--red)">データがありません。貼り付けまたはCSVファイルを選択してください。</span>';
+    return;
+  }
+  preview.style.display = '';
+  preview.innerHTML = previewParse(text);
+});
 
 /* === MFデータ貼り付け / CSV取り込み === */
 document.getElementById('btnImportPaste').addEventListener('click', async () => {
