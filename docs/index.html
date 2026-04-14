@@ -1136,7 +1136,7 @@ function renderSectors() {
         const epsTrend = st.eps_trend || '-';
         const eqRatio = st.equity_ratio != null ? st.equity_ratio.toFixed(0)+'%' : '-';
         const opMargin = st.op_margin != null ? st.op_margin.toFixed(0)+'%' : '-';
-        const cfInfo = st.cf_positive_years ? st.cf_positive_years.replace('年黒字','') : '-';
+        const cfInfo = (() => { if (!st.cf_positive_years) return '-'; const m = st.cf_positive_years.match(/(\d+)\/(\d+)/); if (!m) return '-'; const ratio = parseInt(m[1]) / parseInt(m[2]); return ratio >= 1 ? '◎' : ratio >= 0.67 ? '○' : ratio >= 0.34 ? '△' : '×'; })();
         const trendColor = (t) => (t.includes('↑') || t.includes('◎') || t.includes('○')) ? '#22c55e' : (t.includes('↓') || t.includes('×')) ? '#ef4444' : 'var(--text-muted)';
         const revShort = shortTrend(revTrend);
         const epsShort = shortTrend(epsTrend);
@@ -1154,7 +1154,7 @@ function renderSectors() {
           <td style="text-align:center;padding:6px 5px;color:${trendColor(epsShort)}">${epsShort}</td>
           <td style="text-align:right;padding:6px 5px">${opMargin}</td>
           <td style="text-align:right;padding:6px 5px">${eqRatio}</td>
-          <td style="text-align:center;padding:6px 5px">${cfInfo}</td>
+          <td style="text-align:center;padding:6px 5px;color:${cfInfo==='◎'?'#22c55e':cfInfo==='○'?'#3b82f6':cfInfo==='△'?'#f59e0b':'#ef4444'}">${cfInfo}</td>
           <td style="text-align:center;padding:6px 5px">${own?'<span style="color:#f59e0b">保有</span>':''}</td>
         </tr>`;
       });
@@ -1169,7 +1169,7 @@ function renderSectors() {
       if (growthNote) h += `<div style="font-size:.7em;color:var(--text-muted);margin-bottom:10px">⚠️ ${growthNote}</div>`;
       h += `<div class="card" style="padding:14px;overflow-x:auto"><table style="width:100%;font-size:0.88em;border-collapse:collapse;white-space:nowrap">
         <tr style="color:var(--text-muted);border-bottom:2px solid var(--border)">
-          <th style="text-align:left;padding:6px 5px">コード</th><th style="text-align:left;padding:6px 5px">銘柄名</th><th style="text-align:right;padding:6px 5px">現在利回り</th><th style="text-align:center;padding:6px 5px">→</th><th style="text-align:right;padding:6px 5px">5年後予想</th><th style="text-align:right;padding:6px 5px">CAGR</th><th style="text-align:right;padding:6px 5px">実績年数</th><th style="text-align:center;padding:6px 5px">増配</th><th style="text-align:center;padding:6px 5px">連続増配</th><th style="text-align:center;padding:6px 5px">減配</th><th style="text-align:center;padding:6px 5px">安定性</th><th style="text-align:center;padding:6px 5px">保有</th>
+          <th style="text-align:left;padding:6px 5px">コード</th><th style="text-align:left;padding:6px 5px">銘柄名</th><th style="text-align:right;padding:6px 5px">現在利回り</th><th style="text-align:center;padding:6px 5px">→</th><th style="text-align:right;padding:6px 5px">5年後予想</th><th style="text-align:right;padding:6px 5px">CAGR</th><th style="text-align:right;padding:6px 5px">実績年数</th><th style="text-align:center;padding:6px 5px">増配</th><th style="text-align:center;padding:6px 5px">連続増配</th><th style="text-align:center;padding:6px 5px">減配</th><th style="text-align:center;padding:6px 5px">保有</th>
         </tr>`;
       growthRanking.forEach((g, idx) => {
         const own = ownCodes.has(g.code);
@@ -1180,7 +1180,6 @@ function renderSectors() {
         const incColor = incCount >= 10 ? '#22c55e' : incCount >= 5 ? '#3b82f6' : 'var(--text-secondary)';
         const consColor = consInc >= 10 ? '#f59e0b' : consInc >= 5 ? '#22c55e' : consInc >= 3 ? '#3b82f6' : 'var(--text-secondary)';
         const decColor = g.decrease_count === 0 ? '#22c55e' : g.decrease_count <= 2 ? '#f59e0b' : '#ef4444';
-        const stabColor = g.stability === '安定' ? '#22c55e' : '#f59e0b';
         const zebraBg = idx % 2 === 1 ? 'background:rgba(255,255,255,0.03);' : '';
         h += `<tr style="${zebraBg}border-bottom:1px solid var(--border);cursor:pointer" onclick="goToChecklist(${g.code})" title="クリックでチェックリストへ">
           <td style="padding:6px 5px;font-weight:bold">${g.code}</td>
@@ -1193,7 +1192,6 @@ function renderSectors() {
           <td style="text-align:center;padding:6px 5px;color:${incColor}">${incCount}回</td>
           <td style="text-align:center;padding:6px 5px;color:${consColor};font-weight:${consInc>=5?'bold':'normal'}">${consInc > 0 ? consInc + '期' : '-'}</td>
           <td style="text-align:center;padding:6px 5px;color:${decColor}">${g.decrease_count === 0 ? '✅0回' : g.decrease_count + '回'}</td>
-          <td style="text-align:center;padding:6px 5px;color:${stabColor}">${g.stability}</td>
           <td style="text-align:center;padding:6px 5px">${own?'<span style="color:#f59e0b">保有</span>':''}</td>
         </tr>`;
       });

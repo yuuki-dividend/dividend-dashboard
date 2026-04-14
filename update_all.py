@@ -16,6 +16,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import time
 import urllib.request
@@ -30,6 +31,31 @@ DOCS_DIR = os.path.join(BASE_DIR, "docs")
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 ETF_CODES = {1343, 1489}
+
+def send_notification(title, message):
+    """OS通知を送信（Mac / Windows 両対応）"""
+    try:
+        if sys.platform == "darwin":
+            # macOS
+            script = f'display notification "{message}" with title "{title}" sound name "Sosumi"'
+            subprocess.run(["osascript", "-e", script], timeout=5)
+        elif sys.platform == "win32":
+            # Windows（PowerShell経由）
+            ps = (
+                f"[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null; "
+                f"$n = New-Object System.Windows.Forms.NotifyIcon; "
+                f"$n.Icon = [System.Drawing.SystemIcons]::Warning; "
+                f"$n.Visible = $true; "
+                f"$n.ShowBalloonTip(10000, '{title}', '{message}', 'Warning'); "
+                f"Start-Sleep -Seconds 3; $n.Dispose()"
+            )
+            subprocess.run(["powershell", "-Command", ps], timeout=10)
+        else:
+            # Linux等
+            subprocess.run(["notify-send", title, message], timeout=5)
+        print(f"  [通知] デスクトップ通知を送信しました")
+    except Exception as e:
+        print(f"  [通知ERROR] 送信失敗: {e}")
 
 
 def ts():
@@ -337,6 +363,11 @@ def validate():
         for issue in issues:
             print(f"  - {issue}")
         print(f"  Fix these before using the dashboard!")
+
+        # Mac通知
+        msg = f"{len(issues)}件の異常: {issues[0][:40]}" if issues else "データ異常"
+        send_notification("配当ちゃん データ異常", msg)
+
         return False
     else:
         print(f"  ALL CHECKS PASSED")
