@@ -299,15 +299,43 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
 
   <!-- Tab 5: Settings -->
   <div class="tab-content" id="tab-settings">
-    <!-- MFデータ貼り付け -->
+    <!-- データ取り込み -->
     <div class="card settings-section">
-      <h3>📋 MFデータ貼り付け</h3>
-      <p style="font-size:.78em;color:var(--text-muted);margin-bottom:10px">マネーフォワードの保有資産一覧をコピーして貼り付けてください（ヘッダー行含む）</p>
-      <textarea id="mfPasteArea" rows="6" placeholder="銘柄コード&#9;銘柄名&#9;保有数&#9;平均取得単価&#9;現在値&#10;1343&#9;NFJ-REIT&#9;25&#9;1,908&#9;2,065&#10;..." style="width:100%;padding:10px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;font-size:.8em;font-family:monospace;resize:vertical"></textarea>
-      <div style="display:flex;gap:10px;margin-top:10px;align-items:center">
+      <h3>📋 ポートフォリオ取り込み</h3>
+      <p style="font-size:.78em;color:var(--text-muted);margin-bottom:12px">マネーフォワードMEの保有資産一覧を貼り付け、またはCSVファイルをドロップして取り込めます</p>
+      <!-- タブ切替 -->
+      <div style="display:flex;gap:0;margin-bottom:12px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+        <button id="importTabPaste" onclick="switchImportTab('paste')" style="flex:1;padding:8px;border:none;cursor:pointer;font-weight:600;font-size:.82em;font-family:var(--font);background:var(--accent);color:#fff;transition:all .2s">📋 貼り付け</button>
+        <button id="importTabFile" onclick="switchImportTab('file')" style="flex:1;padding:8px;border:none;cursor:pointer;font-weight:600;font-size:.82em;font-family:var(--font);background:var(--bg-primary);color:var(--text-secondary);transition:all .2s">📁 CSVファイル</button>
+      </div>
+      <!-- 貼り付けモード -->
+      <div id="importPasteMode">
+        <textarea id="mfPasteArea" rows="6" placeholder="銘柄コード&#9;銘柄名&#9;保有数&#9;平均取得単価&#9;現在値&#10;1343&#9;NFJ-REIT&#9;25&#9;1,908&#9;2,065&#10;..." style="width:100%;padding:10px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;font-size:.8em;font-family:monospace;resize:vertical"></textarea>
+      </div>
+      <!-- CSVファイルモード -->
+      <div id="importFileMode" style="display:none">
+        <div id="csvDropZone" style="border:2px dashed var(--border);border-radius:12px;padding:32px 16px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg-primary)">
+          <div style="font-size:2.5em;margin-bottom:8px">📁</div>
+          <div style="font-size:.88em;font-weight:600;color:var(--text-primary)">CSVファイルをドラッグ&ドロップ</div>
+          <div style="font-size:.75em;color:var(--text-muted);margin-top:4px">またはクリックしてファイルを選択</div>
+          <div style="font-size:.68em;color:var(--text-muted);margin-top:8px">対応形式: CSV（カンマ区切り）, TSV（タブ区切り）</div>
+          <input type="file" id="csvFileInput" accept=".csv,.tsv,.txt" hidden>
+        </div>
+        <div id="csvFileName" style="font-size:.78em;color:var(--accent2);margin-top:6px;display:none"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px;align-items:center">
         <button class="btn btn-primary" id="btnImportPaste" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">🔄 取り込み</button>
         <span id="pasteImportStatus" style="font-size:.8em;color:var(--text-muted)"></span>
       </div>
+      <details style="margin-top:12px">
+        <summary style="font-size:.75em;color:var(--text-muted);cursor:pointer">CSVのフォーマットについて</summary>
+        <div style="font-size:.72em;color:var(--text-muted);margin-top:6px;padding:8px 12px;background:var(--bg-primary);border-radius:8px;line-height:1.7">
+          <b>必須列（5列以上）:</b> 銘柄コード, 銘柄名, 保有株数, 取得単価, 現在値<br>
+          <b>区切り:</b> カンマ(,) またはタブ を自動判定<br>
+          <b>ヘッダー行:</b> あってもなくてもOK（数字以外で始まる行は無視）<br>
+          <b>例:</b> <code>1343,NFJ-REIT,25,1908,2065</code>
+        </div>
+      </details>
     </div>
     <!-- データ更新 -->
     <div class="card settings-section">
@@ -342,7 +370,7 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
       <h3>データ管理</h3>
       <div class="settings-row"><button class="btn btn-primary" id="btnDownload">stocks.json をダウンロード</button></div>
       <div class="settings-row"><label class="btn btn-outline">stocks.json をアップロード<input type="file" id="fileUpload" accept=".json" hidden></label></div>
-      <div class="settings-row"><label class="btn btn-outline">MF CSV をアップロード<input type="file" id="csvUpload" accept=".csv" hidden></label></div>
+      <!-- CSV取り込みは上のポートフォリオ取り込みセクションに統合 -->
       <div class="settings-row">
         <button class="btn btn-primary" id="btnUpdatePrices" style="background:linear-gradient(135deg,#06b6d4,#34d399)">株価を更新</button>
         <span id="priceUpdateStatus" style="font-size:.8em;color:var(--text-muted)"></span>
@@ -2360,21 +2388,7 @@ document.getElementById('fileUpload').addEventListener('change', e => {
   reader.readAsText(file);
 });
 
-document.getElementById('csvUpload').addEventListener('change', async e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  if (IS_STATIC) {
-    alert('オフライン版ではCSVアップロードは利用できません。JSONインポートをお使いください。');
-    return;
-  }
-  const formData = new FormData();
-  formData.append('file', file);
-  try {
-    const resp = await fetch('/api/import-csv', {method:'POST', body:formData});
-    if (resp.ok) { const data = await resp.json(); stocks = data; switchTab('dashboard'); alert('CSVを取り込みました'); }
-    else alert('CSVアップロードに失敗しました: ' + resp.statusText);
-  } catch(err) { alert('CSVアップロードに失敗しました: ' + err.message); }
-});
+/* csvUpload は新しいポートフォリオ取り込みセクションに統合済み */
 
 /* Theme toggle */
 const toggle = document.getElementById('themeToggle');
@@ -2437,41 +2451,146 @@ document.getElementById('btnUpdatePrices').addEventListener('click', async () =>
   btn.textContent = '株価を更新';
 });
 
-/* === MFデータ貼り付け取り込み === */
-document.getElementById('btnImportPaste').addEventListener('click', async () => {
-  const text = document.getElementById('mfPasteArea').value.trim();
-  const status = document.getElementById('pasteImportStatus');
-  if (IS_STATIC) {
-    status.textContent = 'オフライン版ではMFデータ取り込みは利用できません。JSONインポートをお使いください。';
-    status.style.color = 'var(--text-muted)';
-    return;
+/* === インポートタブ切替 === */
+let importMode = 'paste';
+let pendingCsvText = '';
+function switchImportTab(mode) {
+  importMode = mode;
+  document.getElementById('importPasteMode').style.display = mode === 'paste' ? '' : 'none';
+  document.getElementById('importFileMode').style.display = mode === 'file' ? '' : 'none';
+  const pBtn = document.getElementById('importTabPaste');
+  const fBtn = document.getElementById('importTabFile');
+  pBtn.style.background = mode === 'paste' ? 'var(--accent)' : 'var(--bg-primary)';
+  pBtn.style.color = mode === 'paste' ? '#fff' : 'var(--text-secondary)';
+  fBtn.style.background = mode === 'file' ? 'var(--accent)' : 'var(--bg-primary)';
+  fBtn.style.color = mode === 'file' ? '#fff' : 'var(--text-secondary)';
+}
+
+/* === CSVドロップゾーン === */
+const dropZone = document.getElementById('csvDropZone');
+const csvFileInput = document.getElementById('csvFileInput');
+dropZone.addEventListener('click', () => csvFileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; dropZone.style.background = 'var(--accent-light)'; });
+dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = 'var(--border)'; dropZone.style.background = 'var(--bg-primary)'; });
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.style.borderColor = 'var(--border)'; dropZone.style.background = 'var(--bg-primary)';
+  const file = e.dataTransfer.files[0];
+  if (file) handleCsvFile(file);
+});
+csvFileInput.addEventListener('change', e => { if (e.target.files[0]) handleCsvFile(e.target.files[0]); });
+function handleCsvFile(file) {
+  const nameEl = document.getElementById('csvFileName');
+  nameEl.style.display = '';
+  nameEl.textContent = '📄 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + 'KB)';
+  const reader = new FileReader();
+  reader.onload = e => { pendingCsvText = e.target.result; };
+  reader.readAsText(file, 'UTF-8');
+}
+
+/* === クライアント側CSVパース === */
+function parsePortfolioCsv(text) {
+  const cleanNum = s => parseFloat((s || '0').replace(/[,，円株\s]/g, '')) || 0;
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const result = [];
+  for (const line of lines) {
+    const delim = line.includes('\t') ? '\t' : ',';
+    const cols = line.split(delim).map(c => c.trim().replace(/^"|"$/g, ''));
+    if (cols.length < 5) continue;
+    const codeStr = cols[0].replace(/[^\d]/g, '');
+    const code = parseInt(codeStr);
+    if (isNaN(code) || code < 1000 || code > 99999) continue; // ヘッダー行や無効行をスキップ
+    const name = cols[1];
+    const shares = Math.round(cleanNum(cols[2]));
+    const buyPrice = cleanNum(cols[3]);
+    const curPrice = cleanNum(cols[4]);
+    if (shares === 0 && buyPrice === 0) continue;
+    result.push({
+      code, name, shares, buy_price: buyPrice, cur_price: curPrice,
+      annual_div: 0, mid_div: 0, mid_month: 12, end_month: 6,
+      nisa: '課税', sector: ''
+    });
   }
-  if (!text) { status.textContent = 'データを貼り付けてください'; status.style.color = 'var(--red)'; return; }
+  return result;
+}
+
+function mergeImportedStocks(imported) {
+  const existingMap = {};
+  stocks.forEach(s => { existingMap[s.code] = Object.assign({}, s); });
+  imported.forEach(s => {
+    if (existingMap[s.code]) {
+      existingMap[s.code].shares = s.shares;
+      existingMap[s.code].buy_price = s.buy_price;
+      existingMap[s.code].cur_price = s.cur_price;
+      existingMap[s.code].name = s.name;
+    } else {
+      existingMap[s.code] = s;
+    }
+  });
+  return Object.values(existingMap);
+}
+
+/* === MFデータ貼り付け / CSV取り込み === */
+document.getElementById('btnImportPaste').addEventListener('click', async () => {
+  const text = importMode === 'paste'
+    ? document.getElementById('mfPasteArea').value.trim()
+    : pendingCsvText.trim();
+  const status = document.getElementById('pasteImportStatus');
+  if (!text) {
+    status.textContent = importMode === 'paste' ? 'データを貼り付けてください' : 'CSVファイルを選択してください';
+    status.style.color = 'var(--red)'; return;
+  }
   const btn = document.getElementById('btnImportPaste');
   btn.disabled = true; btn.textContent = '取り込み中...';
   status.textContent = ''; status.style.color = 'var(--text-muted)';
-  try {
-    const resp = await fetch('/api/import-paste', {
-      method: 'POST',
-      headers: {'Content-Type': 'text/plain; charset=utf-8'},
-      body: text
-    });
-    const result = await resp.json();
-    if (resp.ok && result.ok) {
-      status.textContent = `✅ ${result.imported}銘柄を取り込み（合計${result.total}銘柄）`;
-      status.style.color = 'var(--green)';
-      document.getElementById('mfPasteArea').value = '';
-      const r2 = await fetch('/api/stocks');
-      if (r2.ok) { stocks = await r2.json(); if (!Array.isArray(stocks)) stocks = stocks.stocks || []; }
-      const activeTab = document.querySelector('.nav-btn.active');
-      if (activeTab) switchTab(activeTab.dataset.tab);
-    } else {
-      status.textContent = '❌ ' + (result.error || 'エラー');
+
+  /* サーバーモードならAPIを使う、静的モードならクライアント側パース */
+  if (!IS_STATIC) {
+    try {
+      const resp = await fetch('/api/import-paste', {
+        method: 'POST',
+        headers: {'Content-Type': 'text/plain; charset=utf-8'},
+        body: text
+      });
+      const result = await resp.json();
+      if (resp.ok && result.ok) {
+        status.textContent = `✅ ${result.imported}銘柄を取り込み（合計${result.total}銘柄）`;
+        status.style.color = 'var(--green)';
+        if (importMode === 'paste') document.getElementById('mfPasteArea').value = '';
+        else { pendingCsvText = ''; document.getElementById('csvFileName').style.display = 'none'; }
+        const r2 = await fetch('/api/stocks');
+        if (r2.ok) { stocks = await r2.json(); if (!Array.isArray(stocks)) stocks = stocks.stocks || []; }
+        const activeTab = document.querySelector('.nav-btn.active');
+        if (activeTab) switchTab(activeTab.dataset.tab);
+      } else {
+        status.textContent = '❌ ' + (result.error || 'エラー');
+        status.style.color = 'var(--red)';
+      }
+    } catch(err) {
+      status.textContent = '❌ ' + err.message;
       status.style.color = 'var(--red)';
     }
-  } catch(err) {
-    status.textContent = '❌ ' + err.message;
-    status.style.color = 'var(--red)';
+  } else {
+    /* クライアント側パース（GitHub Pages版） */
+    try {
+      const imported = parsePortfolioCsv(text);
+      if (imported.length === 0) {
+        status.textContent = '❌ 有効なデータが見つかりません（5列以上: コード,銘柄名,株数,取得単価,現在値）';
+        status.style.color = 'var(--red)';
+      } else {
+        stocks = mergeImportedStocks(imported);
+        savePortfolioToLocal();
+        status.textContent = `✅ ${imported.length}銘柄を取り込みました（合計${stocks.length}銘柄）`;
+        status.style.color = 'var(--green)';
+        if (importMode === 'paste') document.getElementById('mfPasteArea').value = '';
+        else { pendingCsvText = ''; document.getElementById('csvFileName').style.display = 'none'; }
+        const activeTab = document.querySelector('.nav-btn.active');
+        if (activeTab) switchTab(activeTab.dataset.tab);
+      }
+    } catch(err) {
+      status.textContent = '❌ パースエラー: ' + err.message;
+      status.style.color = 'var(--red)';
+    }
   }
   btn.disabled = false; btn.textContent = '🔄 取り込み';
 });
