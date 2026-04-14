@@ -2038,15 +2038,32 @@ function addToChecklist() {
 
 async function fetchAndUpdateChecklistItem(code) {
   if (IS_STATIC) {
+    /* クライアント側でデータ取得 */
     const card = document.querySelector(`[data-checklist-code="${code}"]`);
     if (card) {
       const badge = document.createElement('div');
-      badge.style.cssText = 'position:absolute;top:8px;left:50%;transform:translateX(-50%);background:var(--text-muted);color:#fff;padding:4px 14px;border-radius:20px;font-size:0.7em;font-weight:600;z-index:10';
-      badge.textContent = 'オフライン版ではデータ自動取得は利用できません';
+      badge.style.cssText = 'position:absolute;top:8px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:4px 14px;border-radius:20px;font-size:0.7em;font-weight:600;z-index:10';
+      badge.textContent = '📡 データ取得中...';
       badge.id = 'fetchBadge-' + code;
       card.appendChild(badge);
-      setTimeout(() => { const b = document.getElementById('fetchBadge-' + code); if (b) b.remove(); }, 4000);
     }
+    try {
+      const info = await enrichStockClient(code);
+      const item = checklistItems.find(c => c.code == code);
+      if (item && Object.keys(info).length > 0) {
+        if (info.cur_price > 0) item.price = info.cur_price;
+        if (info.yield > 0) item.yield = info.yield;
+        if (info.per > 0) item.per = info.per;
+        if (info.pbr > 0) item.pbr = info.pbr;
+        if (info.mix_coef > 0) item.mix_coef = info.mix_coef;
+        if (info.payout_ratio > 0) item.payout_ratio = info.payout_ratio;
+        if (info.annual_div > 0) item.annual_div = info.annual_div;
+        localStorage.setItem('checklistItems', JSON.stringify(checklistItems));
+        renderChecklist();
+      }
+    } catch(e) {}
+    const b = document.getElementById('fetchBadge-' + code);
+    if (b) b.remove();
     return;
   }
   try {
@@ -2415,37 +2432,95 @@ document.getElementById('thresholdInput').addEventListener('change', e => {
 const savedThreshold = localStorage.getItem('threshold');
 if (savedThreshold) document.getElementById('thresholdInput').value = savedThreshold;
 
+/* === クライアント側 株価取得 === */
+async function fetchPriceClient(code) {
+  /* 1. Yahoo Finance API (直接) */
+  try {
+    const resp = await fetch(`https://query2.finance.yahoo.co.jp/v8/finance/chart/${code}.T?interval=1d&range=1d`);
+    if (resp.ok) {
+      const data = await resp.json();
+      const price = data.chart?.result?.[0]?.meta?.regularMarketPrice;
+      if (price && price > 0) return price;
+    }
+  } catch(e) {}
+  /* 2. CORSプロキシ経由でYahoo Finance */
+  try {
+    const url = encodeURIComponent(`https://finance.yahoo.co.jp/quote/${code}.T`);
+    const resp = await fetch(`https://api.allorigins.win/raw?url=${url}`, {signal: AbortSignal.timeout(10000)});
+    if (resp.ok) {
+      const html = await resp.text();
+      const m = html.match(/"price":\s*"?([\d,.]+)/);
+      if (m) { const p = parseFloat(m[1].replace(/,/g, '')); if (p > 0 && p < 500000) return p; }
+    }
+  } catch(e) {}
+  return null;
+}
+
+async function updatePricesClient(statusEl, barEl) {
+  if (!stocks.length) return {updated: 0, failed: 0};
+  let updated = 0, failed = 0;
+  for (let i = 0; i < stocks.length; i++) {
+    const s = stocks[i];
+    statusEl.textContent = `${i+1}/${stocks.length}: ${s.code} ${s.name||''} 取得中...`;
+    if (barEl) barEl.style.width = Math.round((i+1)/stocks.length*100) + '%';
+    const price = await fetchPriceClient(s.code);
+    if (price) {
+      s.cur_price = price;
+      updated++;
+    } else {
+      failed++;
+    }
+    /* レート制限対策: 少し待つ */
+    if (i < stocks.length - 1) await new Promise(r => setTimeout(r, 300));
+  }
+  if (IS_STATIC) savePortfolioToLocal();
+  return {updated, failed};
+}
+
 /* Stock price update button */
 document.getElementById('btnUpdatePrices').addEventListener('click', async () => {
   const btn = document.getElementById('btnUpdatePrices');
   const status = document.getElementById('priceUpdateStatus');
-  if (IS_STATIC) {
-    status.textContent = 'オフライン版では株価の自動更新は利用できません。ローカルサーバー版をお使いください。';
-    status.style.color = 'var(--text-muted)';
-    return;
-  }
   btn.disabled = true;
   btn.textContent = '更新中...';
-  status.textContent = 'サーバーで株価を取得中（数分かかります）...';
-  status.style.color = 'var(--accent2)';
-  try {
-    const resp = await fetch('/api/update-prices', {method:'POST'});
-    if (resp.ok) {
-      const result = await resp.json();
-      status.textContent = '更新完了: ' + (result.updated || 0) + '件成功, ' + (result.failed || 0) + '件失敗';
-      status.style.color = 'var(--green)';
-      /* Reload stocks */
-      const r2 = await fetch('/api/stocks');
-      if (r2.ok) { stocks = await r2.json(); if (!Array.isArray(stocks)) stocks = stocks.stocks || []; }
+
+  if (IS_STATIC) {
+    /* クライアント側で株価取得 */
+    status.textContent = '株価を取得中...';
+    status.style.color = 'var(--accent2)';
+    try {
+      const result = await updatePricesClient(status, null);
+      status.textContent = `✅ 更新完了: ${result.updated}件成功, ${result.failed}件失敗`;
+      status.style.color = result.failed === 0 ? 'var(--green)' : 'var(--accent4)';
+      localStorage.setItem('lastPriceUpdate', new Date().toLocaleString('ja-JP'));
       const activeTab = document.querySelector('.nav-btn.active');
       if (activeTab) switchTab(activeTab.dataset.tab);
-    } else {
-      status.textContent = '更新失敗: ' + resp.statusText;
+    } catch(err) {
+      status.textContent = '❌ 更新失敗: ' + err.message;
       status.style.color = 'var(--red)';
     }
-  } catch(err) {
-    status.textContent = '更新失敗: ' + err.message;
-    status.style.color = 'var(--red)';
+  } else {
+    /* サーバー経由 */
+    status.textContent = 'サーバーで株価を取得中（数分かかります）...';
+    status.style.color = 'var(--accent2)';
+    try {
+      const resp = await fetch('/api/update-prices', {method:'POST'});
+      if (resp.ok) {
+        const result = await resp.json();
+        status.textContent = '更新完了: ' + (result.updated || 0) + '件成功, ' + (result.failed || 0) + '件失敗';
+        status.style.color = 'var(--green)';
+        const r2 = await fetch('/api/stocks');
+        if (r2.ok) { stocks = await r2.json(); if (!Array.isArray(stocks)) stocks = stocks.stocks || []; }
+        const activeTab = document.querySelector('.nav-btn.active');
+        if (activeTab) switchTab(activeTab.dataset.tab);
+      } else {
+        status.textContent = '更新失敗: ' + resp.statusText;
+        status.style.color = 'var(--red)';
+      }
+    } catch(err) {
+      status.textContent = '更新失敗: ' + err.message;
+      status.style.color = 'var(--red)';
+    }
   }
   btn.disabled = false;
   btn.textContent = '株価を更新';
@@ -2596,6 +2671,41 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
 });
 
 /* === 銘柄データ更新（IR BANK / バフェットコード等） === */
+/* === クライアント側 銘柄データ取得（minkabu / Yahoo Finance） === */
+async function enrichStockClient(code) {
+  const info = {};
+  /* minkabu 配当ページから配当・PER・PBR取得 */
+  try {
+    const url = encodeURIComponent(`https://minkabu.jp/stock/${code}/dividend`);
+    const resp = await fetch(`https://api.allorigins.win/raw?url=${url}`, {signal: AbortSignal.timeout(12000)});
+    if (resp.ok) {
+      const html = await resp.text();
+      /* 配当利回り */
+      const yldM = html.match(/配当利回り[^%]*?([\d.]+)\s*%/);
+      if (yldM) info.yield = parseFloat(yldM[1]);
+      /* PER */
+      const perM = html.match(/PER[^<]*?([\d.]+)\s*倍/);
+      if (perM) info.per = parseFloat(perM[1]);
+      /* PBR */
+      const pbrM = html.match(/PBR[^<]*?([\d.]+)\s*倍/);
+      if (pbrM) info.pbr = parseFloat(pbrM[1]);
+      /* 配当性向 */
+      const prM = html.match(/配当性向[^%]*?([\d.]+)\s*%/);
+      if (prM) info.payout_ratio = parseFloat(prM[1]);
+    }
+  } catch(e) {}
+  /* 株価取得 */
+  const price = await fetchPriceClient(code);
+  if (price) info.cur_price = price;
+  /* 配当額を株価×利回りで算出 */
+  if (info.yield && (info.cur_price || 0) > 0) {
+    info.annual_div = Math.round((info.cur_price || 0) * info.yield / 100 * 10) / 10;
+  }
+  /* ミックス係数 */
+  if (info.per && info.pbr) info.mix_coef = Math.round(info.per * info.pbr * 100) / 100;
+  return info;
+}
+
 async function enrichStocks(onlyMissing) {
   const btn1 = document.getElementById('btnEnrichAll');
   const btn2 = document.getElementById('btnEnrichMissing');
@@ -2603,60 +2713,95 @@ async function enrichStocks(onlyMissing) {
   const progress = document.getElementById('enrichProgress');
   const bar = document.getElementById('enrichBar');
   const detail = document.getElementById('enrichDetail');
-  if (IS_STATIC) {
-    status.textContent = 'オフライン版では銘柄データの自動更新は利用できません。ローカルサーバー版をお使いください。';
-    status.style.color = 'var(--text-muted)';
-    return;
-  }
   btn1.disabled = btn2.disabled = true;
   progress.style.display = 'block';
   bar.style.width = '0%';
   status.textContent = '更新開始...';
   status.style.color = 'var(--accent2)';
-  try {
-    const resp = await fetch('/api/enrich-stocks', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ only_missing: onlyMissing })
-    });
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    while (true) {
-      const {value, done} = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, {stream: true});
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        try {
-          const msg = JSON.parse(line);
-          if (msg.type === 'progress') {
-            bar.style.width = msg.pct + '%';
-            detail.textContent = `${msg.current}/${msg.total}: ${msg.code} ${msg.name} - ${msg.result}`;
-          } else if (msg.type === 'done') {
-            status.textContent = `✅ ${msg.updated}銘柄を更新完了`;
-            status.style.color = 'var(--green)';
-            bar.style.width = '100%';
-          } else if (msg.type === 'error') {
-            status.textContent = '❌ ' + msg.message;
-            status.style.color = 'var(--red)';
-          }
-        } catch(e) {}
+
+  if (IS_STATIC) {
+    /* クライアント側で銘柄データ取得 */
+    try {
+      const targets = onlyMissing
+        ? stocks.filter(s => !s.annual_div || !s.sector)
+        : [...stocks];
+      let updated = 0;
+      for (let i = 0; i < targets.length; i++) {
+        const s = targets[i];
+        const pct = Math.round((i+1)/targets.length*100);
+        bar.style.width = pct + '%';
+        detail.textContent = `${i+1}/${targets.length}: ${s.code} ${s.name||''} 取得中...`;
+        const info = await enrichStockClient(s.code);
+        if (Object.keys(info).length > 0) {
+          if (info.cur_price) s.cur_price = info.cur_price;
+          if (info.annual_div) s.annual_div = info.annual_div;
+          if (info.per) s.per = info.per;
+          if (info.pbr) s.pbr = info.pbr;
+          if (info.mix_coef) s.mix_coef = info.mix_coef;
+          if (info.payout_ratio) s.payout_ratio = info.payout_ratio;
+          updated++;
+          detail.textContent = `${i+1}/${targets.length}: ${s.code} ${s.name||''} ✅`;
+        } else {
+          detail.textContent = `${i+1}/${targets.length}: ${s.code} ${s.name||''} ⚠ 取得失敗`;
+        }
+        if (i < targets.length - 1) await new Promise(r => setTimeout(r, 500));
       }
+      savePortfolioToLocal();
+      bar.style.width = '100%';
+      status.textContent = `✅ ${updated}/${targets.length}銘柄を更新完了`;
+      status.style.color = 'var(--green)';
+      localStorage.setItem('lastPriceUpdate', new Date().toLocaleString('ja-JP'));
+      const activeTab = document.querySelector('.nav-btn.active');
+      if (activeTab) switchTab(activeTab.dataset.tab);
+    } catch(err) {
+      status.textContent = '❌ ' + err.message;
+      status.style.color = 'var(--red)';
     }
-    /* Reload stocks */
-    const r2 = await fetch('/api/stocks');
-    if (r2.ok) { stocks = await r2.json(); if (!Array.isArray(stocks)) stocks = stocks.stocks || []; }
-    /* 株価更新日時を記録 */
-    const nowStr = new Date().toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
-    localStorage.setItem('lastPriceUpdate', nowStr);
-    const activeTab = document.querySelector('.nav-btn.active');
-    if (activeTab) switchTab(activeTab.dataset.tab);
-  } catch(err) {
-    status.textContent = '❌ ' + err.message;
-    status.style.color = 'var(--red)';
+  } else {
+    /* サーバー経由 */
+    try {
+      const resp = await fetch('/api/enrich-stocks', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ only_missing: onlyMissing })
+      });
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const {value, done} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream: true});
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const msg = JSON.parse(line);
+            if (msg.type === 'progress') {
+              bar.style.width = msg.pct + '%';
+              detail.textContent = `${msg.current}/${msg.total}: ${msg.code} ${msg.name} - ${msg.result}`;
+            } else if (msg.type === 'done') {
+              status.textContent = `✅ ${msg.updated}銘柄を更新完了`;
+              status.style.color = 'var(--green)';
+              bar.style.width = '100%';
+            } else if (msg.type === 'error') {
+              status.textContent = '❌ ' + msg.message;
+              status.style.color = 'var(--red)';
+            }
+          } catch(e) {}
+        }
+      }
+      const r2 = await fetch('/api/stocks');
+      if (r2.ok) { stocks = await r2.json(); if (!Array.isArray(stocks)) stocks = stocks.stocks || []; }
+      const nowStr = new Date().toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+      localStorage.setItem('lastPriceUpdate', nowStr);
+      const activeTab = document.querySelector('.nav-btn.active');
+      if (activeTab) switchTab(activeTab.dataset.tab);
+    } catch(err) {
+      status.textContent = '❌ ' + err.message;
+      status.style.color = 'var(--red)';
+    }
   }
   btn1.disabled = btn2.disabled = false;
   setTimeout(() => { progress.style.display = 'none'; }, 5000);
