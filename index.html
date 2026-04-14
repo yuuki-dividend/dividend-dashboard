@@ -2577,9 +2577,28 @@ function handleCsvFile(file) {
   const nameEl = document.getElementById('csvFileName');
   nameEl.style.display = '';
   nameEl.textContent = '📄 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + 'KB)';
-  const reader = new FileReader();
-  reader.onload = e => { pendingCsvText = e.target.result; };
-  reader.readAsText(file, 'UTF-8');
+  /* 証券会社CSVはShift-JISが多いので、両方試す */
+  const tryRead = (encoding) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const text = e.target.result;
+      /* Shift-JISをUTF-8で読むと文字化け（�）が出る。UTF-8をShift-JISで読むと空や短い結果になる */
+      if (encoding === 'UTF-8' && text.includes('\ufffd')) {
+        /* 文字化け検出 → Shift-JISで再読み込み */
+        tryRead('Shift_JIS');
+        return;
+      }
+      if (encoding === 'UTF-8' && !/[ぁ-んァ-ヶ亜-熙a-zA-Z0-9]/.test(text) && file.size > 50) {
+        /* 日本語が一切ない → Shift-JISで再読み込み */
+        tryRead('Shift_JIS');
+        return;
+      }
+      pendingCsvText = text;
+      nameEl.textContent = '📄 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + 'KB) [' + encoding + ']';
+    };
+    reader.readAsText(file, encoding);
+  };
+  tryRead('UTF-8');
 }
 
 /* === クライアント側CSVパース（柔軟版） === */
