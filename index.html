@@ -2781,7 +2781,22 @@ function mergeImportedStocks(imported) {
       existingMap[s.code] = s;
     }
   });
+  /* allListedStocks からセクターを自動補完 */
+  fillSectorsFromJpx(Object.values(existingMap));
   return Object.values(existingMap);
+}
+
+/* 上場全銘柄データ(all_stocks.json)からセクター情報を補完 */
+function fillSectorsFromJpx(list) {
+  if (!allListedStocks || allListedStocks.length === 0) return;
+  const jpxMap = {};
+  allListedStocks.forEach(s => { jpxMap[s.code] = s; });
+  list.forEach(s => {
+    if (!s.sector || s.sector === '' || s.sector === '未分類') {
+      const jpx = jpxMap[s.code];
+      if (jpx && jpx.sector && jpx.sector !== '-') s.sector = jpx.sector;
+    }
+  });
 }
 
 /* === プレビューボタン === */
@@ -2813,8 +2828,9 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
   btn.disabled = true; btn.textContent = '取り込み中...';
   status.textContent = ''; status.style.color = 'var(--text-muted)';
 
-  /* サーバーモードならAPIを使う、静的モードならクライアント側パース */
-  if (!IS_STATIC) {
+  /* CSVファイルモードは常にクライアント側の柔軟パーサーを使う。
+     MF貼り付けモード×ローカル版のみサーバーAPIを使う */
+  if (!IS_STATIC && importMode === 'paste') {
     try {
       const resp = await fetch('/api/import-paste', {
         method: 'POST',
@@ -2825,10 +2841,11 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
       if (resp.ok && result.ok) {
         status.textContent = `✅ ${result.imported}銘柄を取り込み（合計${result.total}銘柄）`;
         status.style.color = 'var(--green)';
-        if (importMode === 'paste') document.getElementById('mfPasteArea').value = '';
-        else { pendingCsvText = ''; document.getElementById('csvFileName').style.display = 'none'; }
+        document.getElementById('mfPasteArea').value = '';
         const r2 = await fetch('/api/stocks');
         if (r2.ok) { stocks = await r2.json(); if (!Array.isArray(stocks)) stocks = stocks.stocks || []; }
+        /* セクター補完 */
+        fillSectorsFromJpx(stocks);
         const activeTab = document.querySelector('.nav-btn.active');
         if (activeTab) switchTab(activeTab.dataset.tab);
       } else {
@@ -2840,7 +2857,7 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
       status.style.color = 'var(--red)';
     }
   } else {
-    /* クライアント側パース（GitHub Pages版） */
+    /* クライアント側パース（CSVファイル / GitHub Pages版） */
     try {
       const imported = parsePortfolioCsv(text);
       if (imported.length === 0) {
@@ -2849,6 +2866,10 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
         status.style.color = 'var(--red)';
       } else {
         stocks = mergeImportedStocks(imported);
+        /* ローカル版ではサーバーにも保存 */
+        if (IS_LOCAL) {
+          try { await fetch('/api/stocks', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(stocks) }); } catch(e) {}
+        }
         savePortfolioToLocal();
         status.textContent = `✅ ${imported.length}銘柄を取り込みました（合計${stocks.length}銘柄）`;
         status.style.color = 'var(--green)';
@@ -3152,7 +3173,7 @@ loadData();
 /* Fetch screening data */
 fetch(IS_LOCAL ? '/api/screening' : './screening_data.json').then(r=>r.json()).then(d => { screeningData = d || {}; if(document.querySelector('[data-tab="dashboard"].active, .tab-btn.active')) switchTab('dashboard'); }).catch(()=>{});
 /* Fetch all listed stocks for checklist search */
-fetch(IS_LOCAL ? '/api/all_stocks' : './all_stocks.json').then(r=>r.json()).then(d => { allListedStocks = d || []; console.log('上場全銘柄: ' + allListedStocks.length + '件'); }).catch(()=>{});
+fetch(IS_LOCAL ? '/api/all_stocks' : './all_stocks.json').then(r=>r.json()).then(d => { allListedStocks = d || []; console.log('上場全銘柄: ' + allListedStocks.length + '件'); fillSectorsFromJpx(stocks); }).catch(()=>{});
 
 /* ===== PWA: Service Worker & Offline Detection ===== */
 if ('serviceWorker' in navigator) {
