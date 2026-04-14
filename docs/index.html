@@ -2436,25 +2436,21 @@ if (savedThreshold) document.getElementById('thresholdInput').value = savedThres
 
 /* === クライアント側 株価取得 === */
 async function fetchPriceClient(code) {
-  /* 1. Yahoo Finance API (直接) */
-  try {
-    const resp = await fetch(`https://query2.finance.yahoo.co.jp/v8/finance/chart/${code}.T?interval=1d&range=1d`);
-    if (resp.ok) {
-      const data = await resp.json();
-      const price = data.chart?.result?.[0]?.meta?.regularMarketPrice;
-      if (price && price > 0) return price;
-    }
-  } catch(e) {}
-  /* 2. CORSプロキシ経由でYahoo Finance */
-  try {
-    const url = encodeURIComponent(`https://finance.yahoo.co.jp/quote/${code}.T`);
-    const resp = await fetch(`https://api.allorigins.win/raw?url=${url}`, {signal: AbortSignal.timeout(10000)});
-    if (resp.ok) {
+  const PROXIES = [
+    url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  ];
+  const targetUrl = `https://finance.yahoo.co.jp/quote/${code}.T`;
+  for (const makeUrl of PROXIES) {
+    try {
+      const resp = await fetch(makeUrl(targetUrl), {signal: AbortSignal.timeout(10000)});
+      if (!resp.ok) continue;
       const html = await resp.text();
+      if (html.length < 100) continue; /* プロキシエラー回避 */
       const m = html.match(/"price":\s*"?([\d,.]+)/);
       if (m) { const p = parseFloat(m[1].replace(/,/g, '')); if (p > 0 && p < 500000) return p; }
-    }
-  } catch(e) {}
+    } catch(e) { continue; }
+  }
   return null;
 }
 
@@ -2606,23 +2602,34 @@ function parsePortfolioCsv(text) {
 
   /* ヘッダー行から列マッピングを検出 */
   let codeCol = -1, nameCol = -1, sharesCol = -1, buyCol = -1, curCol = -1;
+  /* ヘッダーキーワード（長い/具体的なものを先に。「総額」を含む列は除外） */
   const headerKeywords = {
-    code: ['コード', 'code', '銘柄コード', '証券コード', 'ティッカー', 'ticker'],
-    name: ['銘柄名', '銘柄', 'name', '名称', '会社名'],
-    shares: ['保有数', '株数', '数量', 'shares', '保有株数', '口数', '保有'],
-    buy: ['取得単価', '取得価格', '平均取得', '買付単価', '取得額', 'buy', '取得', '簿価'],
-    cur: ['現在値', '時価', '現在価格', '評価単価', 'price', '株価', '現在']
+    code: ['銘柄コード', '証券コード', 'コード', 'code', 'ティッカー', 'ticker'],
+    name: ['銘柄名', '名称', '会社名', 'name'],
+    shares: ['保有数量', '保有株数', '保有数', '株数', '数量', '口数', 'shares'],
+    buy: ['取得単価', '平均取得単価', '取得価格', '平均取得', '買付単価', 'buy', '簿価'],
+    cur: ['現在値', '現在価格', '時価単価', '評価単価', 'price', '株価']
   };
+  /* 除外ワード: これを含む列はbuy/curとして使わない */
+  const excludeWords = ['総額', '評価額', '損益', 'total', '率', '比'];
   const firstLine = parseCsvLine(lines[0], delim);
   let headerFound = false;
   firstLine.forEach((h, i) => {
     const hl = h.toLowerCase().replace(/[\s"]/g, '');
+    const isExcluded = excludeWords.some(w => hl.includes(w));
     if (headerKeywords.code.some(k => hl.includes(k))) { codeCol = i; headerFound = true; }
-    if (headerKeywords.name.some(k => hl.includes(k))) { nameCol = i; headerFound = true; }
-    if (headerKeywords.shares.some(k => hl.includes(k))) { sharesCol = i; headerFound = true; }
-    if (headerKeywords.buy.some(k => hl.includes(k))) { buyCol = i; headerFound = true; }
-    if (headerKeywords.cur.some(k => hl.includes(k))) { curCol = i; headerFound = true; }
+    else if (nameCol < 0 && headerKeywords.name.some(k => hl.includes(k))) { nameCol = i; headerFound = true; }
+    else if (sharesCol < 0 && headerKeywords.shares.some(k => hl.includes(k))) { sharesCol = i; headerFound = true; }
+    else if (buyCol < 0 && !isExcluded && headerKeywords.buy.some(k => hl.includes(k))) { buyCol = i; headerFound = true; }
+    else if (curCol < 0 && !isExcluded && headerKeywords.cur.some(k => hl.includes(k))) { curCol = i; headerFound = true; }
   });
+  /* 「銘柄」だけの列はnameにフォールバック */
+  if (nameCol < 0) {
+    firstLine.forEach((h, i) => {
+      const hl = h.replace(/[\s"]/g, '');
+      if (nameCol < 0 && i !== codeCol && (hl === '銘柄' || hl === '銘柄名称')) nameCol = i;
+    });
+  }
 
   /* ヘッダーが見つからなければ、4桁数字がある列をコード列として自動検出 */
   if (!headerFound) {
@@ -2843,8 +2850,8 @@ async function enrichStockClient(code) {
   const info = {};
   /* minkabu 配当ページから配当・PER・PBR取得 */
   try {
-    const url = encodeURIComponent(`https://minkabu.jp/stock/${code}/dividend`);
-    const resp = await fetch(`https://api.allorigins.win/raw?url=${url}`, {signal: AbortSignal.timeout(12000)});
+    const targetUrl = `https://minkabu.jp/stock/${code}/dividend`;
+    const resp = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`, {signal: AbortSignal.timeout(12000)});
     if (resp.ok) {
       const html = await resp.text();
       /* 配当利回り */
