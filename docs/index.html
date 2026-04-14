@@ -439,7 +439,7 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
 
 <script>
 /* ===== Static/Server Mode Detection ===== */
-const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.port === '8080';
+const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.port === '8080' || location.port === '8081';
 const IS_STATIC = !IS_LOCAL;
 
 /* ===== State ===== */
@@ -1652,6 +1652,15 @@ function renderSimulator() {
       });
     });
   }
+  /* Add all listed stocks (JPX data) for full search */
+  if (allListedStocks && allListedStocks.length > 0) {
+    allListedStocks.forEach(s => {
+      if (!existingCodes.has(s.code)) {
+        allStocks.push({ code: s.code, name: s.name, annual_div: 0, buy_price: 0, cur_price: 0, shares: 0, sector: s.sector || '未分類', _yield: 0 });
+        existingCodes.add(s.code);
+      }
+    });
+  }
   datalist.innerHTML = allStocks.map(s => {
     const y = getCurYield(s) || s._yield || s.yield || 0;
     return `<option value="${s.code} ${s.name}">${s.code} ${s.name} (利回り${(typeof y==='number'?y:0).toFixed(1)}%)</option>`;
@@ -1721,11 +1730,23 @@ function findStockByInput(inputVal) {
   return found;
 }
 
-function calcBuyTiming() {
+async function calcBuyTiming() {
   const inputVal = document.getElementById('simStockInput').value;
   const targetYield = parseFloat(document.getElementById('simTargetYield').value) || 3.8;
   const res = document.getElementById('simResults');
   const s = findStockByInput(inputVal);
+
+  /* Auto-fetch data for stocks with no price (e.g. from JPX all-stocks list) */
+  if (s && s.cur_price === 0 && s.code) {
+    res.innerHTML = '<div class="card sim-box" style="text-align:center;padding:32px"><p>📡 <strong>' + s.code + ' ' + s.name + '</strong> のデータを取得中...</p></div>';
+    try {
+      const info = await enrichStockClient(s.code);
+      if (info.cur_price) { s.cur_price = info.cur_price; s.buy_price = s.buy_price || info.cur_price; }
+      if (info.yield && !s.annual_div) { s.annual_div = Math.round((s.cur_price || 0) * (info.yield / 100)); }
+      if (info.per) s.per = info.per;
+      if (info.pbr) s.pbr = info.pbr;
+    } catch(e) {}
+  }
 
   if (!s) {
     /* Show all stocks ranked by yield gap */
