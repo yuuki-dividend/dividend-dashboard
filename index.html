@@ -106,22 +106,40 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
 .detail-row .dl{color:var(--text-muted)}
 
 /* Calendar */
-.cal-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:auto repeat(3,1fr);gap:10px;height:calc(100vh - 60px)}
-.cal-card{padding:14px;position:relative;cursor:default;display:flex;flex-direction:column;justify-content:center;transition:all .25s}
-.cal-card:hover{transform:scale(1.02);box-shadow:var(--shadow),var(--glow)}
-.cal-card .month-name{font-size:.95rem;font-weight:800;margin-bottom:2px;letter-spacing:-.3px}
-.cal-card .month-total{font-size:1.2rem;font-weight:800;color:#06b6d4;margin-bottom:1px}
-.cal-card .month-after{font-size:.7rem;color:var(--text-muted)}
-.cal-card .month-count{font-size:.7rem;color:var(--text-secondary);margin-top:2px}
-.cal-tooltip{display:none;position:fixed;z-index:9999;background:var(--bg-secondary);border:2px solid #06b6d4;border-radius:14px;padding:0;box-shadow:0 12px 48px rgba(0,0,0,.4),0 0 20px rgba(6,182,212,.15);font-size:.85rem;line-height:1.7;overflow:hidden;flex-direction:column}
-.cal-tooltip .tt-header{padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
-.cal-tooltip .tt-body{padding:6px 16px 14px;overflow-y:auto;flex:1;min-height:0}
+.cal-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:auto repeat(3,1fr);gap:12px;height:calc(100vh - 60px)}
+.cal-card{padding:0;position:relative;cursor:pointer;display:flex;flex-direction:column;transition:all .3s;overflow:hidden;border:none;border-radius:20px;background:var(--bg-card)}
+.cal-card:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 12px 32px rgba(0,0,0,.3),0 0 20px rgba(6,182,212,.12)}
+.cal-card .cal-emoji{position:absolute;right:-4px;bottom:-8px;font-size:4.5rem;opacity:.10;pointer-events:none;line-height:1;transition:all .4s}
+.cal-card:hover .cal-emoji{opacity:.18;transform:scale(1.12) rotate(-5deg)}
+.cal-card .cal-header{padding:14px 18px 4px;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1}
+.cal-card .month-name{font-size:1.3rem;font-weight:900;letter-spacing:-.5px;display:flex;align-items:center;gap:6px}
+.cal-card .month-name .cal-icon{font-size:1.4rem}
+.cal-card .month-badge{font-size:.7rem;padding:3px 10px;border-radius:10px;font-weight:700;white-space:nowrap}
+.cal-card .cal-body{flex:1;padding:4px 18px 12px;display:flex;flex-direction:column;justify-content:center;position:relative;z-index:1}
+.cal-card .month-total{font-size:1.6rem;font-weight:900;letter-spacing:-.5px;line-height:1.2}
+.cal-card .month-after{font-size:.78rem;color:var(--text-muted);margin-top:3px}
+.cal-card .month-count{font-size:.75rem;color:var(--text-secondary);margin-top:5px;display:flex;align-items:center;gap:4px}
+.cal-card .cal-bar{height:4px;border-radius:2px;background:var(--border);margin-top:10px;overflow:hidden}
+.cal-card .cal-bar-fill{height:100%;border-radius:2px;transition:width .6s ease}
+.cal-card.cal-empty{opacity:.7}
+.cal-card.cal-empty .cal-body{align-items:center;text-align:center}
+.cal-card.cal-empty .month-total{font-size:1.1rem;color:var(--text-muted);font-weight:600}
+.cal-card.cal-current{box-shadow:0 0 0 2.5px var(--accent),0 0 16px rgba(244,114,182,.15),var(--shadow)}
+.cal-tooltip{display:none;position:fixed;z-index:9999;background:var(--bg-secondary);border:2px solid #06b6d4;border-radius:16px;padding:0;box-shadow:0 16px 48px rgba(0,0,0,.5),0 0 24px rgba(6,182,212,.15);font-size:.85rem;line-height:1.7;overflow:hidden;flex-direction:column;backdrop-filter:blur(12px)}
+.cal-tooltip .tt-header{padding:16px 18px 12px;border-bottom:1px solid var(--border);flex-shrink:0;background:linear-gradient(135deg,rgba(244,114,182,.05),rgba(6,182,212,.05))}
+.cal-tooltip .tt-body{padding:8px 18px 16px;overflow-y:auto;flex:1;min-height:0}
 /* tooltip display controlled by JS mouseenter/mouseleave */
-.cal-tooltip .stock-item{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)}
-.cal-tooltip .stock-item:last-child{border-bottom:none}
+.cal-tooltip .stock-item{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;margin:2px 0;border-radius:8px;border-bottom:none;cursor:pointer;transition:background .15s}
+.cal-tooltip .stock-item:hover{background:var(--accent-light)}
 .cal-tooltip .stock-item span:first-child{color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%}
 .cal-tooltip .stock-item span:last-child{font-weight:600;white-space:nowrap}
-/* tt-footer removed - totals now in fixed tt-header */
+/* Quick action cards */
+.quick-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:14px 0}
+.quick-action{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:14px;cursor:pointer;transition:all .25s;border:1px solid var(--border);background:var(--bg-card)}
+.quick-action:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--accent)}
+.quick-action .qa-icon{font-size:1.3em;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:10px;flex-shrink:0}
+.quick-action .qa-text{font-size:.82rem;font-weight:600;color:var(--text-primary)}
+.quick-action .qa-sub{font-size:.68rem;color:var(--text-muted);margin-top:1px}
 
 /* Simulator */
 .sim-form{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;align-items:end}
@@ -224,6 +242,7 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
   <div class="tab-content" id="tab-dashboard">
     <div class="summary-grid" id="summaryCards"></div>
     <div id="dataTimestamps"></div>
+    <div id="quickActions"></div>
     <div class="chart-full card" id="barChartWrap"><h3>月別配当金</h3><canvas id="monthlyBarChart"></canvas></div>
     <div class="chart-row">
       <div class="card chart-card chart-card-lg"><h3>セクター別時価評価額</h3><canvas id="sectorValueChart"></canvas></div>
@@ -597,6 +616,17 @@ function goToChecklist(code) {
   }, 200);
 }
 
+/* お気に入り・ポートフォリオから買い時判断へ遷移 */
+function goToSimulator(code) {
+  switchTab('simulator');
+  setTimeout(() => {
+    const input = document.getElementById('simStockInput');
+    const s = findStockByInput(String(code));
+    input.value = s ? s.code + ' ' + s.name : String(code);
+    calcBuyTiming();
+  }, 200);
+}
+
 function switchTab(id) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-btn,.bottom-btn').forEach(el => {
@@ -675,13 +705,34 @@ function renderDashboard() {
   /* データ更新日時バー */
   const scrDate = (screeningData && screeningData.screening_date) || '';
   const priceDate = localStorage.getItem('lastPriceUpdate') || '';
-  let tsHtml = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin:8px 0 4px;font-size:0.7em;color:var(--text-muted)">';
+  let tsHtml = '<div style="display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 6px;font-size:0.82em;color:var(--text-muted);padding:6px 10px;background:var(--bg-card);border-radius:8px;border:1px solid var(--border)">';
   if (scrDate) tsHtml += `<span>📊 スクリーニング: <b style="color:var(--text-secondary)">${scrDate}</b></span>`;
   if (priceDate) tsHtml += `<span>💹 株価更新: <b style="color:var(--text-secondary)">${priceDate}</b></span>`;
-  if (!scrDate && !priceDate) tsHtml += `<span>⚠ データ未取得</span>`;
+  if (!scrDate && !priceDate) tsHtml += `<span>⚠ データ未取得 — 設定タブからデータを取り込んでください</span>`;
   tsHtml += '</div>';
   const tsEl = document.getElementById('dataTimestamps');
   if (tsEl) tsEl.innerHTML = tsHtml;
+
+  /* Quick action guide */
+  const qaEl = document.getElementById('quickActions');
+  if (qaEl) qaEl.innerHTML = `<div class="quick-actions">
+    <div class="quick-action" onclick="switchTab('sectors')">
+      <div class="qa-icon" style="background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(52,211,153,.15))">🔍</div>
+      <div><div class="qa-text">注目銘柄を探す</div><div class="qa-sub">スクリーニング結果を確認</div></div>
+    </div>
+    <div class="quick-action" onclick="switchTab('checklist')">
+      <div class="qa-icon" style="background:linear-gradient(135deg,rgba(244,114,182,.15),rgba(251,191,36,.15))">✓</div>
+      <div><div class="qa-text">銘柄をチェック</div><div class="qa-sub">気になる銘柄を深掘り分析</div></div>
+    </div>
+    <div class="quick-action" onclick="switchTab('simulator')">
+      <div class="qa-icon" style="background:linear-gradient(135deg,rgba(251,191,36,.15),rgba(251,113,133,.15))">⏰</div>
+      <div><div class="qa-text">買い時を判断</div><div class="qa-sub">割安度・業績から総合判断</div></div>
+    </div>
+    <div class="quick-action" onclick="switchTab('calendar')">
+      <div class="qa-icon" style="background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(6,182,212,.15))">📅</div>
+      <div><div class="qa-text">配当カレンダー</div><div class="qa-sub">月別の配当入金を確認</div></div>
+    </div>
+  </div>`;
 
   /* Monthly bar chart */
   const monthLabels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
@@ -1364,8 +1415,13 @@ function showDetail(s) {
   const nisaBtn = `<div style="margin-top:12px;display:flex;gap:8px;align-items:center"><span style="font-size:.85rem;color:var(--text-muted)">口座区分:</span><button onclick="toggleNisa(${s.code})" style="padding:6px 16px;border-radius:20px;border:none;cursor:pointer;font-weight:600;font-size:.85rem;${s.nisa==='NISA'?'background:#22c55e20;color:#22c55e':'background:var(--border);color:var(--text-secondary)'}">${s.nisa==='NISA'?'NISA':'課税'}</button><span style="font-size:.7rem;color:var(--text-muted)">クリックで切替</span></div>`;
   const memoVal = getMemo(s.code);
   const memoHtml = `<div style="margin-top:14px"><div style="font-size:.78rem;color:var(--text-muted);margin-bottom:4px">メモ</div><textarea id="detailMemo" rows="3" style="width:100%;padding:8px 10px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;font-size:.85rem;font-family:var(--font);resize:vertical" placeholder="この銘柄についてのメモ...">${memoVal}</textarea><button onclick="saveMemo('${s.code}',document.getElementById('detailMemo').value);this.textContent='保存しました';setTimeout(()=>this.textContent='メモ保存',1200)" style="margin-top:4px;padding:4px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:.78rem;cursor:pointer">メモ保存</button></div>`;
+  const actionBtns = `<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+    <button onclick="closeDetail();goToChecklist(${s.code})" style="flex:1;padding:10px 16px;border-radius:12px;border:none;cursor:pointer;font-weight:700;font-size:.82rem;background:linear-gradient(135deg,#f472b6,#06b6d4);color:#fff;transition:opacity .2s">✓ チェックリストで分析</button>
+    <button onclick="closeDetail();goToSimulator(${s.code})" style="flex:1;padding:10px 16px;border-radius:12px;border:1px solid var(--accent2);cursor:pointer;font-weight:700;font-size:.82rem;background:none;color:var(--accent2);transition:opacity .2s">⏰ 買い時判断</button>
+    <a href="https://kabutan.jp/stock/news?code=${s.code}" target="_blank" rel="noopener" style="flex:1;padding:10px 16px;border-radius:12px;border:1px solid #e91e63;cursor:pointer;font-weight:700;font-size:.82rem;background:none;color:#e91e63;text-decoration:none;text-align:center;transition:opacity .2s">📰 ニュース</a>
+  </div>`;
   card.innerHTML = `<h2>${s.name||'詳細'}<button class="close-btn" onclick="closeDetail()">&times;</button></h2>` +
-    rows.map(r => `<div class="detail-row"><span class="dl">${r[0]}</span><span>${r[1]}</span></div>`).join('') + nisaBtn + memoHtml;
+    rows.map(r => `<div class="detail-row"><span class="dl">${r[0]}</span><span>${r[1]}</span></div>`).join('') + actionBtns + nisaBtn + memoHtml;
   document.getElementById('detailOverlay').classList.add('show');
 }
 function closeDetail() { document.getElementById('detailOverlay').classList.remove('show'); }
@@ -1383,31 +1439,69 @@ function renderCalendar() {
   const monthly = getMonthlyDividends(stocks);
   const maxVal = Math.max(...monthly.map(m => m.preTax), 1);
   const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const monthEmoji = ['🎍','💝','🌸','🌿','🎏','☂️','🌻','🎆','🍇','🍁','🍠','🎄'];
+  const monthBgEmoji = ['⛩️','💘','🌸','🌱','🎋','🐸','🍉','🏖️','🌾','🎃','🍂','⛄'];
+  /* 季節ごとの色テーマ: [月名色, 金額色, バー色グラデ] */
+  const monthTheme = [
+    ['#93c5fd','#60a5fa','#93c5fd,#3b82f6'],  /* 1月 冬・青 */
+    ['#f9a8d4','#f472b6','#f9a8d4,#ec4899'],  /* 2月 バレンタイン・ピンク */
+    ['#fdba74','#fb923c','#fda4af,#fb7185'],  /* 3月 桜・サーモン */
+    ['#86efac','#34d399','#86efac,#22c55e'],  /* 4月 新緑・緑 */
+    ['#67e8f9','#06b6d4','#67e8f9,#0891b2'],  /* 5月 初夏・シアン */
+    ['#a78bfa','#8b5cf6','#a78bfa,#7c3aed'],  /* 6月 梅雨・紫 */
+    ['#fcd34d','#f59e0b','#fcd34d,#f59e0b'],  /* 7月 夏・黄 */
+    ['#fb923c','#f97316','#fb923c,#ea580c'],  /* 8月 真夏・オレンジ */
+    ['#fca5a5','#ef4444','#fca5a5,#dc2626'],  /* 9月 実り・赤 */
+    ['#fdba74','#f97316','#fdba74,#ea580c'],  /* 10月 秋・橙 */
+    ['#d8b4fe','#a78bfa','#d8b4fe,#8b5cf6'],  /* 11月 晩秋・藤 */
+    ['#93c5fd','#60a5fa','#93c5fd,#2563eb'],  /* 12月 冬・青白 */
+  ];
   const grid = document.getElementById('calGrid');
   const yearTotal = monthly.reduce((a,m) => a + m.preTax, 0);
   const yearAfter = monthly.reduce((a,m) => a + m.afterTax, 0);
   const monthsWith = monthly.filter(m => m.preTax > 0).length;
-  grid.innerHTML = `<div style="grid-column:1/-1;display:flex;justify-content:center;gap:24px;padding:8px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;align-items:baseline">
-    <span style="font-size:.85em;color:var(--text-muted)">年間合計</span>
-    <span style="font-size:1.2em;font-weight:800;color:#06b6d4">${fmtYen(Math.round(yearTotal))}</span>
-    <span style="font-size:.8em;color:var(--text-muted)">税引後 ${fmtYen(Math.round(yearAfter))}</span>
-    <span style="font-size:.75em;color:var(--text-muted)">${monthsWith}ヶ月配当あり</span>
-    <span style="font-size:.75em;color:var(--text-muted)">月平均 ${fmtYen(Math.round(yearTotal/12))}</span>
+  const curMonth = new Date().getMonth();
+
+  /* Summary banner */
+  grid.innerHTML = `<div style="grid-column:1/-1;padding:16px 20px;background:linear-gradient(135deg,rgba(244,114,182,.06),rgba(6,182,212,.06));border:1px solid var(--border);border-radius:16px;display:flex;justify-content:center;gap:20px;align-items:baseline;flex-wrap:wrap">
+    <span style="font-size:.82em;color:var(--text-muted)">年間配当</span>
+    <span style="font-size:1.4em;font-weight:900;background:linear-gradient(135deg,#06b6d4,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent">${fmtYen(Math.round(yearTotal))}</span>
+    <span style="font-size:.78em;color:var(--text-muted)">税引後 <b style="color:var(--text-secondary)">${fmtYen(Math.round(yearAfter))}</b></span>
+    <span style="font-size:.78em;padding:4px 14px;background:linear-gradient(135deg,rgba(244,114,182,.15),rgba(6,182,212,.15));border:1px solid rgba(244,114,182,.25);border-radius:12px;color:var(--accent);font-weight:700">${monthsWith}/12ヶ月 配当あり</span>
+    <span style="font-size:.72em;color:var(--text-muted)">月平均 <b style="color:var(--text-secondary)">${fmtYen(Math.round(yearTotal/12))}</b></span>
   </div>` + monthly.map((m, i) => {
     const intensity = Math.min(m.preTax / maxVal, 1);
-    const bg = `rgba(6,182,212,${0.04 + intensity * 0.15})`;
     const sorted = [...m.items].sort((a,b) => b.amount - a.amount);
     const count = sorted.length;
+    const isCurrent = i === curMonth;
+    const isEmpty = count === 0;
     const tooltip = count > 0
-      ? `<div class="tt-header"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:700;font-size:1.05em">${monthNames[i]} 合計</span><span style="font-weight:800;color:var(--accent);font-size:1.15em">${fmtYen(Math.round(m.preTax))}</span></div><div style="display:flex;justify-content:space-between;font-size:.78em;color:var(--text-muted);margin-top:2px"><span>税引後</span><span>${fmtYen(Math.round(m.afterTax))}</span></div><div style="font-size:.72em;color:var(--text-muted);margin-top:2px">${count}銘柄</div></div><div class="tt-body">` + sorted.map(it =>
-          `<div class="stock-item"><span>${it.code} ${it.name}</span><span>${fmtYen(Math.round(it.amount))}</span></div>`
+      ? `<div class="tt-header"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:700;font-size:1.1em">${monthEmoji[i]} ${monthNames[i]} 合計</span><span style="font-weight:800;color:var(--accent);font-size:1.15em">${fmtYen(Math.round(m.preTax))}</span></div><div style="display:flex;justify-content:space-between;font-size:.78em;color:var(--text-muted);margin-top:2px"><span>税引後</span><span>${fmtYen(Math.round(m.afterTax))}</span></div><div style="font-size:.72em;color:var(--text-muted);margin-top:2px">${count}銘柄</div></div><div class="tt-body">` + sorted.map(it =>
+          `<div class="stock-item" onclick="goToChecklist(${it.code})" title="${it.code} ${it.name} をチェック"><span>${it.code} ${it.name}</span><span>${fmtYen(Math.round(it.amount))}</span></div>`
         ).join('') + '</div>'
-      : '<div style="color:var(--text-muted);text-align:center;padding:8px 0">配当なし</div>';
-    return `<div class="card cal-card" style="border-left:3px solid rgba(6,182,212,${0.3+intensity*0.7});background:${bg}">
-      <div class="month-name">${monthNames[i]}</div>
-      <div class="month-total">${m.preTax > 0 ? fmtYen(Math.round(m.preTax)) : '-'}</div>
-      <div class="month-after">${m.preTax > 0 ? '税引後 ' + fmtYen(Math.round(m.afterTax)) : ''}</div>
-      <div class="month-count">${count > 0 ? count + '銘柄' : '配当なし'}</div>
+      : '<div style="color:var(--text-muted);text-align:center;padding:16px 0;font-size:.9em">配当なし</div>';
+    /* バーは最小20%にして差を緩やかに */
+    const barPct = isEmpty ? 0 : Math.round(20 + intensity * 80);
+    const [mColor, mAmtColor, mBarGrad] = monthTheme[i];
+    const badgeStyle = isEmpty
+      ? 'background:var(--border);color:var(--text-muted)'
+      : isCurrent
+        ? `background:${mColor}30;color:${mColor};border:1px solid ${mColor}50`
+        : `background:${mColor}18;color:${mColor}`;
+    return `<div class="card cal-card${isEmpty?' cal-empty':''}${isCurrent?' cal-current':''}" style="background:linear-gradient(160deg,var(--bg-card),${isEmpty?'var(--bg-card)':`${mColor}08`})">
+      <div class="cal-emoji">${monthBgEmoji[i]}</div>
+      <div class="cal-header">
+        <div class="month-name"><span class="cal-icon">${monthEmoji[i]}</span><span style="color:${mColor}">${monthNames[i]}</span></div>
+        <span class="month-badge" style="${badgeStyle}">${isCurrent?'今月':count>0?count+'銘柄':'−'}</span>
+      </div>
+      <div class="cal-body">
+        ${isEmpty
+          ? `<div class="month-total">おやすみ</div><div class="month-after" style="margin-top:6px">この月は配当入金がありません</div>`
+          : `<div class="month-total" style="color:${mAmtColor}">${fmtYen(Math.round(m.preTax))}</div>
+        <div class="month-after">税引後 ${fmtYen(Math.round(m.afterTax))}</div>
+        <div class="month-count">${sorted.slice(0,2).map(it => it.name).join(', ') + (count > 2 ? ' 他' : '')}</div>
+        <div class="cal-bar"><div class="cal-bar-fill" style="width:${barPct}%;background:linear-gradient(90deg,${mBarGrad})"></div></div>`}
+      </div>
       <div class="cal-tooltip">${tooltip}</div>
     </div>`;
   }).join('');
@@ -2098,9 +2192,10 @@ function renderChecklistTable() {
         <a href="https://irbank.net/${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#1565C0;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600;transition:opacity .2s">IR BANK</a>
         <a href="https://www.buffett-code.com/company/${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#2e7d32;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">バフェット・コード</a>
         <a href="https://kabutan.jp/stock/?code=${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#d32f2f;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">株探</a>
+        <a href="https://kabutan.jp/stock/news?code=${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#e91e63;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">📰 ニュース</a>
         <a href="https://nikkeiyosoku.com/stock/${item.code}/" target="_blank" rel="noopener" style="padding:4px 12px;background:#f57c00;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">投資の森</a>
-        <a href="https://site1.sbisec.co.jp/ETGate/?_ControlID=WPLETsiR001Control&_DataStoreID=DSWPLETsiR001Control&_ActionID=stockDetail&stockCode=${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#0277bd;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">SBI証券</a>
-        <a href="https://monex.ifis.co.jp/index.php?action=tp2&sa=stockDetail&stockCode=${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#6a1b9a;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">銘柄スカウター</a>
+        <a href="https://minkabu.jp/stock/${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#0277bd;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">みんかぶ</a>
+        <a href="https://finance.yahoo.co.jp/quote/${item.code}.T" target="_blank" rel="noopener" style="padding:4px 12px;background:#6a1b9a;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">Yahoo!ファイナンス</a>
         <span style="font-size:0.65em;color:var(--text-muted);margin-left:auto">${item.added}</span>
       </div>
     </div>`;
@@ -2118,18 +2213,46 @@ document.getElementById('checklistInput').addEventListener('keydown', (e) => {
 function renderFavorites() {
   const wrap = document.getElementById('favoritesTableWrap');
   const countEl = document.getElementById('favCount');
-  const favItems = checklistItems.filter(item => isFavorite(item.code));
+  // チェックリストにある＋ない銘柄もstocks/screeningDataから補完
+  const favItems = favoritesCodes.map(code => {
+    const cl = checklistItems.find(c => c.code == code);
+    if (cl) return cl;
+    // チェックリストにない場合、他のデータソースから構築
+    const ps = stocks.find(s => s.code == code);
+    let info = null;
+    if (screeningData) {
+      if (screeningData.high_dividend_ranking) info = screeningData.high_dividend_ranking.find(s => s.code == code);
+      if (!info && screeningData.buy_timing_ranking) info = screeningData.buy_timing_ranking.find(s => s.code == code);
+      if (!info && screeningData.growth_potential_ranking) info = screeningData.growth_potential_ranking.find(s => s.code == code);
+      if (!info && screeningData.sector_recommendations) Object.values(screeningData.sector_recommendations).forEach(list => { if (!info) info = list.find(s => s.code == code); });
+    }
+    return {
+      code: code,
+      name: (info && info.name) || (ps && ps.name) || ('銘柄' + code),
+      price: (info && info.price) || (ps && getPrice(ps)) || 0,
+      yield: (info && info.yield) || (ps && getCurYield(ps)) || (info && info.current_yield) || 0,
+      per: (info && info.per) || (ps && ps.per) || 0,
+      pbr: (info && info.pbr) || (ps && ps.pbr) || 0,
+      mix_coef: (info && info.mix_coef) || (ps && ps.mix_coef) || 0,
+      sector: (info && info.sector) || (ps && (ps.sector || '')) || '',
+      payout_ratio: (info && info.payout_ratio) || (ps && ps.payout_ratio) || '-',
+      div_trend: (info && info.div_trend) || (ps && ps.div_trend) || '-',
+      owned: !!ps,
+      verdict: '-',
+      added: '-',
+    };
+  }).filter(Boolean);
   countEl.textContent = favItems.length + '銘柄';
 
   if (favItems.length === 0) {
-    wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">お気に入り銘柄がありません。チェックリストの★ボタンで追加しましょう。</div>';
+    wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">お気に入り銘柄がありません。注目銘柄やチェックリストから★ボタンで追加できます。</div>';
     return;
   }
 
   let h = '<table><thead><tr>';
   h += '<th style="text-align:left">コード</th><th style="text-align:left">銘柄名</th>';
   h += '<th>セクター</th><th>株価</th><th>利回り</th><th>PER</th><th>PBR</th>';
-  h += '<th>ミックス係数</th><th>割安度</th><th>配当性向</th><th>増配実績</th><th>判定</th><th>追加日</th><th></th>';
+  h += '<th>ミックス係数</th><th>割安度</th><th>配当性向</th><th>増配実績</th><th>判定</th><th>追加日</th><th></th><th></th>';
   h += '</tr></thead><tbody>';
 
   favItems.forEach(item => {
@@ -2138,7 +2261,7 @@ function renderFavorites() {
     const payoutWarn = !isNaN(payoutNum) && payoutNum > 70;
     const verdictColor = item.verdict && item.verdict.includes('優良') ? '#22c55e' : item.verdict && item.verdict.includes('候補') ? '#3b82f6' : item.verdict && item.verdict.includes('確認') ? '#f59e0b' : '#ef4444';
 
-    h += '<tr>';
+    h += `<tr style="cursor:pointer" onclick="goToChecklist(${item.code})" title="クリックでチェックリストへ">`;
     h += `<td style="text-align:left;font-weight:700">${item.code}</td>`;
     h += `<td style="text-align:left;font-weight:600">${item.name}${item.owned ? ' <span class="nisa-badge" style="background:rgba(251,191,36,.15);color:#f59e0b">保有中</span>' : ''}</td>`;
     h += `<td style="font-size:.82em;color:var(--text-secondary)">${item.sector || '-'}</td>`;
@@ -2152,7 +2275,8 @@ function renderFavorites() {
     h += `<td style="font-size:.82em">${item.div_trend || '-'}</td>`;
     h += `<td><span style="color:${verdictColor};font-weight:700;font-size:.88em">${item.verdict || '-'}</span></td>`;
     h += `<td style="font-size:.78em;color:var(--text-muted)">${item.added || '-'}</td>`;
-    h += `<td><button onclick="toggleFavorite(${item.code});renderFavorites()" style="background:none;border:none;color:#fbbf24;cursor:pointer;font-size:1.1em" title="お気に入り解除">★</button></td>`;
+    h += `<td><button onclick="event.stopPropagation();goToSimulator(${item.code})" style="background:none;border:1px solid #3b82f6;color:#3b82f6;cursor:pointer;padding:2px 8px;border-radius:4px;font-size:.75em" title="買い時判断へ">買い時</button></td>`;
+    h += `<td><button onclick="event.stopPropagation();toggleFavorite(${item.code});renderFavorites()" style="background:none;border:1px solid #ef4444;color:#ef4444;cursor:pointer;padding:2px 8px;border-radius:4px;font-size:.75em" title="お気に入りから削除">削除</button></td>`;
     h += '</tr>';
   });
 
