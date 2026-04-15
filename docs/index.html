@@ -2520,21 +2520,27 @@ const savedThreshold = localStorage.getItem('threshold');
 if (savedThreshold) document.getElementById('thresholdInput').value = savedThreshold;
 
 /* === クライアント側 株価取得 === */
-async function fetchPriceClient(code) {
+async function fetchPriceClient(code, externalSignal) {
   const PROXIES = [
     url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
     url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
   ];
   const targetUrl = `https://finance.yahoo.co.jp/quote/${code}.T`;
   for (const makeUrl of PROXIES) {
+    if (externalSignal?.aborted) return null;
     try {
-      const resp = await fetch(makeUrl(targetUrl), {signal: AbortSignal.timeout(10000)});
+      const signals = [AbortSignal.timeout(10000)];
+      if (externalSignal) signals.push(externalSignal);
+      const resp = await fetch(makeUrl(targetUrl), {signal: AbortSignal.any(signals)});
       if (!resp.ok) continue;
       const html = await resp.text();
       if (html.length < 100) continue; /* プロキシエラー回避 */
       const m = html.match(/"price":\s*"?([\d,.]+)/);
       if (m) { const p = parseFloat(m[1].replace(/,/g, '')); if (p > 0 && p < 500000) return p; }
-    } catch(e) { continue; }
+    } catch(e) {
+      if (externalSignal?.aborted) return null;
+      continue;
+    }
   }
   return null;
 }
@@ -2544,6 +2550,7 @@ async function updatePricesClient(statusEl, barEl, targetList) {
   if (!list.length) return {updated: 0, failed: 0, cancelled: false};
   let updated = 0, failed = 0;
   cancelFlag.update = false;
+  window._updateAbort = new AbortController();
   for (let i = 0; i < list.length; i++) {
     if (cancelFlag.update) {
       statusEl.textContent = `⏹ 中止: ${i}/${list.length}処理済（成功${updated}/失敗${failed}）`;
@@ -2552,23 +2559,38 @@ async function updatePricesClient(statusEl, barEl, targetList) {
     const s = list[i];
     statusEl.textContent = `${i+1}/${list.length}: ${s.code} ${s.name||''} 取得中...`;
     if (barEl) barEl.style.width = Math.round((i+1)/list.length*100) + '%';
-    const price = await fetchPriceClient(s.code);
+    const price = await fetchPriceClient(s.code, window._updateAbort.signal);
+    if (cancelFlag.update) {
+      statusEl.textContent = `⏹ 中止: ${i}/${list.length}処理済（成功${updated}/失敗${failed}）`;
+      return {updated, failed, cancelled: true};
+    }
     if (price) {
       s.cur_price = price;
       updated++;
     } else {
       failed++;
     }
-    /* レート制限対策: 少し待つ */
-    if (i < list.length - 1) await new Promise(r => setTimeout(r, 300));
+    /* レート制限対策: 少し待つ（中止監視つき） */
+    if (i < list.length - 1) {
+      for (let w = 0; w < 6; w++) {
+        if (cancelFlag.update) break;
+        await new Promise(r => setTimeout(r, 50));
+      }
+    }
   }
   if (IS_STATIC) savePortfolioToLocal();
   return {updated, failed, cancelled: false};
 }
 
 /* 中止ボタン */
-document.getElementById('btnUpdatePricesStop').addEventListener('click', () => { cancelFlag.update = true; });
-document.getElementById('btnEnrichStop').addEventListener('click', () => { cancelFlag.enrich = true; });
+document.getElementById('btnUpdatePricesStop').addEventListener('click', () => {
+  cancelFlag.update = true;
+  if (window._updateAbort) { try { window._updateAbort.abort(); } catch(e){} }
+});
+document.getElementById('btnEnrichStop').addEventListener('click', () => {
+  cancelFlag.enrich = true;
+  if (window._enrichAbort) { try { window._enrichAbort.abort(); } catch(e){} }
+});
 document.getElementById('btnScreeningStop').addEventListener('click', () => {
   cancelFlag.screening = true;
   if (window._screeningAbort) { try { window._screeningAbort.abort(); } catch(e){} }
@@ -3016,20 +3038,22 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
    ・みんかぶの「PER(調整後)」は実績ベース独自指標のため使わない
    ・2ソースが20%超乖離したら needs_review フラグを立てる
 */
-async function fetchTextClient(url, timeoutMs) {
+async function fetchTextClient(url, timeoutMs, externalSignal) {
   try {
-    const r = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(url), { signal: AbortSignal.timeout(timeoutMs || 12000) });
+    const signals = [AbortSignal.timeout(timeoutMs || 12000)];
+    if (externalSignal) signals.push(externalSignal);
+    const r = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(url), { signal: AbortSignal.any(signals) });
     if (!r.ok) return null;
     const h = await r.text();
     return { raw: h, text: h.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ') };
   } catch (e) { return null; }
 }
 
-async function enrichStockClient(code) {
+async function enrichStockClient(code, externalSignal) {
   const info = {};
   /* --- Yahooファイナンス: 会社予想PER、実績PBR、利回り --- */
   let yPer = null, yPbr = null, yYield = null;
-  const yahoo = await fetchTextClient(`https://finance.yahoo.co.jp/quote/${code}.T`);
+  const yahoo = await fetchTextClient(`https://finance.yahoo.co.jp/quote/${code}.T`, undefined, externalSignal);
   if (yahoo) {
     const mp = yahoo.text.match(/PER\s*[（(]会社予想[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/);
     if (mp) { const v = parseFloat(mp[1]); if (v > 0) yPer = v; }
@@ -3041,7 +3065,8 @@ async function enrichStockClient(code) {
 
   /* --- IRバンク: 予想PER(「予」付き)優先、なければ実績PER、PBR --- */
   let iPerForecast = null, iPerActual = null, iPbr = null;
-  const irbank = await fetchTextClient(`https://irbank.net/${code}`);
+  if (externalSignal?.aborted) return info;
+  const irbank = await fetchTextClient(`https://irbank.net/${code}`, undefined, externalSignal);
   if (irbank) {
     const mpf = irbank.text.match(/PER[^倍]{0,25}?予\s*(\d+(?:\.\d+)?)\s*倍/);
     if (mpf) iPerForecast = parseFloat(mpf[1]);
@@ -3080,7 +3105,8 @@ async function enrichStockClient(code) {
      ※「配当性向」直後にコロン・全角コロン・空白が来て、その直後に数字が来る場合のみ拾う
      （meta descriptionに「配当性向、...」と列挙される誤マッチを防ぐ）
   */
-  const mk = await fetchTextClient(`https://minkabu.jp/stock/${code}/dividend`);
+  if (externalSignal?.aborted) return info;
+  const mk = await fetchTextClient(`https://minkabu.jp/stock/${code}/dividend`, undefined, externalSignal);
   if (mk) {
     const prM = mk.text.match(/配当性向[：:\s]+(\d+(?:\.\d+)?)\s*%/);
     if (prM) info.payout_ratio = parseFloat(prM[1]);
@@ -3091,7 +3117,8 @@ async function enrichStockClient(code) {
   }
 
   /* --- 株価 --- */
-  const price = await fetchPriceClient(code);
+  if (externalSignal?.aborted) return info;
+  const price = await fetchPriceClient(code, externalSignal);
   if (price) info.cur_price = price;
   if (info.yield && (info.cur_price || 0) > 0) {
     info.annual_div = Math.round((info.cur_price || 0) * info.yield / 100 * 10) / 10;
@@ -3117,6 +3144,7 @@ async function enrichStocks(onlyMissing) {
 
   if (IS_STATIC) {
     /* クライアント側で銘柄データ取得 */
+    window._enrichAbort = new AbortController();
     try {
       const targets = onlyMissing
         ? stocks.filter(s => !s.annual_div || !s.sector)
@@ -3133,7 +3161,13 @@ async function enrichStocks(onlyMissing) {
         const pct = Math.round((i+1)/targets.length*100);
         bar.style.width = pct + '%';
         detail.textContent = `${i+1}/${targets.length}: ${s.code} ${s.name||''} 取得中...`;
-        const info = await enrichStockClient(s.code);
+        const info = await enrichStockClient(s.code, window._enrichAbort.signal);
+        if (cancelFlag.enrich) {
+          status.textContent = `⏹ 中止: ${i}/${targets.length}処理済（成功${updated}件）`;
+          status.style.color = 'var(--accent4)';
+          savePortfolioToLocal();
+          break;
+        }
         if (Object.keys(info).length > 0) {
           if (info.cur_price) s.cur_price = info.cur_price;
           if (info.annual_div) s.annual_div = info.annual_div;
@@ -3146,7 +3180,13 @@ async function enrichStocks(onlyMissing) {
         } else {
           detail.textContent = `${i+1}/${targets.length}: ${s.code} ${s.name||''} ⚠ 取得失敗`;
         }
-        if (i < targets.length - 1) await new Promise(r => setTimeout(r, 500));
+        /* レート制限対策: 中止監視つき */
+        if (i < targets.length - 1) {
+          for (let w = 0; w < 10; w++) {
+            if (cancelFlag.enrich) break;
+            await new Promise(r => setTimeout(r, 50));
+          }
+        }
       }
       savePortfolioToLocal();
       bar.style.width = '100%';
