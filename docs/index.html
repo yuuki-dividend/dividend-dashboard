@@ -625,7 +625,7 @@ const TABS = [
   {id:'simulator',label:'買い時判断',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/><circle cx="12" cy="12" r="4"/></svg>'},
   {id:'sectors',label:'注目銘柄',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h20"/><rect x="4" y="10" width="4" height="10" rx="1"/><rect x="10" y="6" width="4" height="14" rx="1"/><rect x="16" y="2" width="4" height="18" rx="1"/></svg>'},
   {id:'checklist',label:'チェック',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>'},
-  {id:'favorites',label:'お気に入り',icon:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>'},
+  {id:'favorites',label:'お気に入り',icon:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>'},
   {id:'settings',label:'設定',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>'},
   {id:'help',label:'使い方',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'}
 ];
@@ -855,27 +855,35 @@ function renderWelcomeCard() {
   if (!el) return;
   const dismissed = localStorage.getItem('welcomeDismissed') === '1';
   if (dismissed) { el.innerHTML = ''; return; }
+  const hasData = Array.isArray(stocks) && stocks.length > 0;
   el.innerHTML = `
     <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(59,130,246,0.12),rgba(139,92,246,0.12));border:1px solid rgba(59,130,246,0.35);position:relative">
       <button onclick="dismissWelcome()" aria-label="閉じる" style="position:absolute;top:10px;right:10px;background:transparent;border:none;color:var(--text-muted);font-size:1.3em;cursor:pointer;line-height:1">×</button>
       <h2 style="margin:0 0 6px 0;font-size:1.2em">👋 はじめての方へ</h2>
       <p style="margin:0 0 14px 0;color:var(--text-secondary);font-size:0.92em">このアプリは高配当株ポートフォリオのダッシュボードです。まず下の3ステップから始めてみてください。</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px">
-        <div style="padding:14px;background:linear-gradient(135deg,rgba(59,130,246,0.18),rgba(59,130,246,0.06));border-radius:10px;border:2px solid var(--accent2);box-shadow:0 2px 12px rgba(59,130,246,0.15);position:relative">
+        <div style="padding:14px;background:linear-gradient(135deg,rgba(59,130,246,0.18),rgba(59,130,246,0.06));border-radius:10px;border:2px solid var(--accent2);box-shadow:0 2px 12px rgba(59,130,246,0.15);position:relative;display:flex;flex-direction:column;gap:6px">
           <div style="position:absolute;top:-8px;right:10px;background:var(--accent2);color:#fff;font-size:0.62em;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.05em">まずここから</div>
-          <div style="font-size:0.72em;color:var(--accent2);font-weight:700;margin-bottom:4px">STEP 1</div>
-          <div style="font-size:0.95em;font-weight:700;margin-bottom:4px">📝 ポートフォリオを登録</div>
-          <div style="font-size:0.78em;color:var(--text-muted);line-height:1.5">設定タブでCSVインポート or 手動追加</div>
+          <div style="font-size:0.72em;color:var(--accent2);font-weight:700">STEP 1</div>
+          <div style="font-size:0.95em;font-weight:700">📝 ポートフォリオを登録</div>
+          <div style="font-size:0.78em;color:var(--text-muted);line-height:1.5;flex:1">設定タブでCSVインポート or 手動追加</div>
+          <button onclick="switchTab('settings')" style="margin-top:6px;padding:7px 12px;background:var(--accent2);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.82em">設定タブへ進む →</button>
         </div>
-        <div style="padding:12px;background:var(--bg-primary);border-radius:10px;border-left:3px solid #8b5cf6">
-          <div style="font-size:0.72em;color:#8b5cf6;font-weight:700;margin-bottom:4px">STEP 2</div>
-          <div style="font-size:0.9em;font-weight:600;margin-bottom:4px">🔄 株価・配当を更新</div>
-          <div style="font-size:0.78em;color:var(--text-muted);line-height:1.5">設定タブから「更新する」/「全部更新」</div>
+        <div style="padding:12px;background:var(--bg-primary);border-radius:10px;border-left:3px solid #8b5cf6;display:flex;flex-direction:column;gap:6px${hasData?'':';opacity:.7'}">
+          <div style="font-size:0.72em;color:#8b5cf6;font-weight:700">STEP 2</div>
+          <div style="font-size:0.9em;font-weight:600">🔄 株価・配当を更新</div>
+          <div style="font-size:0.78em;color:var(--text-muted);line-height:1.5;flex:1">設定タブから「更新する」/「全部更新」</div>
+          ${hasData
+            ? `<button onclick="switchTab('settings')" style="margin-top:6px;padding:7px 12px;background:#8b5cf6;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.82em">設定タブで更新 →</button>`
+            : `<button disabled title="STEP 1を完了してください" style="margin-top:6px;padding:7px 12px;background:var(--border);color:var(--text-muted);border:none;border-radius:8px;cursor:not-allowed;font-weight:600;font-size:0.82em">🔒 STEP 1完了後に解放</button>`}
         </div>
-        <div style="padding:12px;background:var(--bg-primary);border-radius:10px;border-left:3px solid #10b981">
-          <div style="font-size:0.72em;color:#10b981;font-weight:700;margin-bottom:4px">STEP 3</div>
-          <div style="font-size:0.9em;font-weight:600;margin-bottom:4px">📊 ダッシュボードを見る</div>
-          <div style="font-size:0.78em;color:var(--text-muted);line-height:1.5">この画面で損益・配当を一目で確認</div>
+        <div style="padding:12px;background:var(--bg-primary);border-radius:10px;border-left:3px solid #10b981;display:flex;flex-direction:column;gap:6px${hasData?'':';opacity:.7'}">
+          <div style="font-size:0.72em;color:#10b981;font-weight:700">STEP 3</div>
+          <div style="font-size:0.9em;font-weight:600">📊 ダッシュボードを見る</div>
+          <div style="font-size:0.78em;color:var(--text-muted);line-height:1.5;flex:1">この画面で損益・配当を一目で確認</div>
+          ${hasData
+            ? `<button onclick="dismissWelcome()" style="margin-top:6px;padding:7px 12px;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:0.82em">✓ ガイドを閉じる</button>`
+            : `<button disabled title="STEP 1を完了してください" style="margin-top:6px;padding:7px 12px;background:var(--border);color:var(--text-muted);border:none;border-radius:8px;cursor:not-allowed;font-weight:600;font-size:0.82em">🔒 STEP 1完了後に解放</button>`}
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
