@@ -149,46 +149,101 @@ def fetch_stock_info(code):
     except Exception as e:
         print(f"  [{code}] Yahoo Finance error: {e}")
 
-    # === 2. minkabu メインページ: PER・PBR ===
+    # === 2. 予想PER・PBR: Yahoo(会社予想) + IRバンク(予/実績) のクロスチェック ===
+    # みんかぶの「PER(調整後)」は実績ベースの独自指標なので使わない
+    y_per_forecast = None
+    y_pbr_actual = None
     try:
-        url_mk = f"https://minkabu.jp/stock/{code}"
-        req_mk = urllib.request.Request(url_mk, headers={"User-Agent": UA})
-        with urllib.request.urlopen(req_mk, timeout=15) as resp_mk:
-            html_mk = resp_mk.read().decode("utf-8", errors="ignore")
+        text_yf = re.sub(r'<[^>]+>', ' ', html_yf)
+        text_yf = re.sub(r'&[a-z]+;', ' ', text_yf)
+        text_yf = re.sub(r'\s+', ' ', text_yf)
+        m = re.search(r'PER\s*[（(]会社予想[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍', text_yf)
+        if m:
+            v = float(m.group(1))
+            if v > 0:
+                y_per_forecast = v
+        m = re.search(r'PBR\s*[（(]実績[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍', text_yf)
+        if m:
+            v = float(m.group(1))
+            if v > 0:
+                y_pbr_actual = v
+    except Exception as e:
+        print(f"  [{code}] Yahoo PER/PBR parse error: {e}")
 
-        text_mk = re.sub(r'<[^>]+>', '|', html_mk)
-        text_mk = re.sub(r'\s+', ' ', text_mk)
+    ir_per_forecast = None
+    ir_per_actual = None
+    ir_pbr = None
+    try:
+        url_ir = f"https://irbank.net/{code}"
+        req_ir = urllib.request.Request(url_ir, headers={"User-Agent": UA})
+        with urllib.request.urlopen(req_ir, timeout=15) as resp_ir:
+            html_ir = resp_ir.read().decode("utf-8", errors="ignore")
+        text_ir = re.sub(r'<[^>]+>', ' ', html_ir)
+        text_ir = re.sub(r'&[a-z]+;', ' ', text_ir)
+        text_ir = re.sub(r'\s+', ' ', text_ir)
+        m = re.search(r'PER[^倍]{0,25}?予\s*(\d+(?:\.\d+)?)\s*倍', text_ir)
+        if m:
+            ir_per_forecast = float(m.group(1))
+        m = re.search(r'PER\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍', text_ir)
+        if m:
+            ir_per_actual = float(m.group(1))
+        m = re.search(r'PBR\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍', text_ir)
+        if m:
+            ir_pbr = float(m.group(1))
+    except Exception as e:
+        print(f"  [{code}] IRバンク error: {e}")
 
-        # PER（調整後） — 実際のHTML: PER|(調整後)|||13.54倍
-        m_per = re.search(r'PER\|[^倍]*?([\d,.]+)\s*倍', text_mk)
-        if m_per:
-            info["per"] = float(m_per.group(1).replace(",", ""))
+    # PER採用ロジック: Yahoo予想 > IR予想 > IR実績(フラグ付き)
+    ir_per_adopt = ir_per_forecast if ir_per_forecast else ir_per_actual
+    if y_per_forecast and ir_per_adopt:
+        info["per"] = y_per_forecast
+        diff = abs(y_per_forecast - ir_per_adopt) / min(y_per_forecast, ir_per_adopt)
+        if diff > 0.2:
+            info["needs_review"] = True
+            print(f"  ⚠️ [{code}] PER乖離: Yahoo={y_per_forecast} IR={ir_per_adopt}")
+    elif y_per_forecast:
+        info["per"] = y_per_forecast
+    elif ir_per_forecast:
+        info["per"] = ir_per_forecast
+    elif ir_per_actual:
+        info["per"] = ir_per_actual
+        info["per_is_actual"] = True
 
-        # PBR — 実際のHTML: PBR||1.84倍
-        m_pbr = re.search(r'PBR\|[^倍]*?([\d,.]+)\s*倍', text_mk)
-        if m_pbr:
-            info["pbr"] = float(m_pbr.group(1).replace(",", ""))
-        elif yf_pbr > 0:
-            info["pbr"] = yf_pbr
+    # PBR採用: Yahoo(実績) と IRバンク でクロスチェック
+    if y_pbr_actual and ir_pbr:
+        info["pbr"] = y_pbr_actual
+        diff = abs(y_pbr_actual - ir_pbr) / min(y_pbr_actual, ir_pbr)
+        if diff > 0.2:
+            info["needs_review"] = True
+    elif y_pbr_actual:
+        info["pbr"] = y_pbr_actual
+    elif ir_pbr:
+        info["pbr"] = ir_pbr
+    elif yf_pbr > 0:
+        info["pbr"] = yf_pbr
 
-        # ミックス係数
-        if "per" in info and "pbr" in info:
-            info["mix_coef"] = round(info["per"] * info["pbr"], 2)
+    if "per" in info and "pbr" in info:
+        info["mix_coef"] = round(info["per"] * info["pbr"], 2)
 
-        # 株価フォールバック: minkabuから（Yahoo Financeが失敗した場合）
-        if cur_price == 0:
+    # 株価フォールバック: みんかぶメインページから（Yahoo Financeが失敗した場合のみ）
+    if cur_price == 0:
+        try:
+            url_mk = f"https://minkabu.jp/stock/{code}"
+            req_mk = urllib.request.Request(url_mk, headers={"User-Agent": UA})
+            with urllib.request.urlopen(req_mk, timeout=15) as resp_mk:
+                html_mk = resp_mk.read().decode("utf-8", errors="ignore")
+            text_mk = re.sub(r'<[^>]+>', '|', html_mk)
+            text_mk = re.sub(r'\s+', ' ', text_mk)
             for m in re.finditer(r'([\d,]+(?:\.\d+)?)\|?\s*円', text_mk):
                 val = float(m.group(1).replace(",", ""))
                 if 100 < val < 500000:
-                    # 目標株価を除外（前後のコンテキストを確認）
                     ctx = text_mk[max(0, m.start()-30):m.start()]
                     if "目標" not in ctx:
                         cur_price = val
                         print(f"  [{code}] minkabu 株価フォールバック: {cur_price}")
                         break
-
-    except Exception as e:
-        print(f"  [{code}] minkabu main error: {e}")
+        except Exception as e:
+            print(f"  [{code}] minkabu fallback error: {e}")
 
     # === 3. minkabu 配当ページ: 利回り・配当性向・増配実績 ===
     minkabu_yield = 0

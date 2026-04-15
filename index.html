@@ -2998,38 +2998,92 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
   btn.disabled = false; btn.textContent = '🔄 取り込み';
 });
 
-/* === 銘柄データ更新（IR BANK / バフェットコード等） === */
-/* === クライアント側 銘柄データ取得（minkabu / Yahoo Finance） === */
+/* === 銘柄データ取得: 予想PER/PBR を Yahoo + IRバンク でクロスチェック ===
+   ・Yahoo: 会社予想PER / 実績PBR
+   ・IRバンク: 予想PER（「予」マーカー付き）/ PBR
+   ・みんかぶの「PER(調整後)」は実績ベース独自指標のため使わない
+   ・2ソースが20%超乖離したら needs_review フラグを立てる
+*/
+async function fetchTextClient(url, timeoutMs) {
+  try {
+    const r = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(url), { signal: AbortSignal.timeout(timeoutMs || 12000) });
+    if (!r.ok) return null;
+    const h = await r.text();
+    return { raw: h, text: h.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ') };
+  } catch (e) { return null; }
+}
+
 async function enrichStockClient(code) {
   const info = {};
-  /* minkabu 配当ページから配当・PER・PBR取得 */
-  try {
-    const targetUrl = `https://minkabu.jp/stock/${code}/dividend`;
-    const resp = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`, {signal: AbortSignal.timeout(12000)});
-    if (resp.ok) {
-      const html = await resp.text();
-      /* 配当利回り */
-      const yldM = html.match(/配当利回り[^%]*?([\d.]+)\s*%/);
+  /* --- Yahooファイナンス: 会社予想PER、実績PBR、利回り --- */
+  let yPer = null, yPbr = null, yYield = null;
+  const yahoo = await fetchTextClient(`https://finance.yahoo.co.jp/quote/${code}.T`);
+  if (yahoo) {
+    const mp = yahoo.text.match(/PER\s*[（(]会社予想[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/);
+    if (mp) { const v = parseFloat(mp[1]); if (v > 0) yPer = v; }
+    const mb = yahoo.text.match(/PBR\s*[（(]実績[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/);
+    if (mb) { const v = parseFloat(mb[1]); if (v > 0) yPbr = v; }
+    const myd = yahoo.text.match(/配当利回り[^%]{0,30}?(\d+(?:\.\d+)?)\s*%/);
+    if (myd) yYield = parseFloat(myd[1]);
+  }
+
+  /* --- IRバンク: 予想PER(「予」付き)優先、なければ実績PER、PBR --- */
+  let iPerForecast = null, iPerActual = null, iPbr = null;
+  const irbank = await fetchTextClient(`https://irbank.net/${code}`);
+  if (irbank) {
+    const mpf = irbank.text.match(/PER[^倍]{0,25}?予\s*(\d+(?:\.\d+)?)\s*倍/);
+    if (mpf) iPerForecast = parseFloat(mpf[1]);
+    const mpa = irbank.text.match(/PER\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/);
+    if (mpa) iPerActual = parseFloat(mpa[1]);
+    const mb = irbank.text.match(/PBR\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/);
+    if (mb) iPbr = parseFloat(mb[1]);
+  }
+
+  /* --- PER 採用ロジック --- */
+  const iPer = iPerForecast || iPerActual;
+  if (yPer && iPer) {
+    info.per = yPer; /* Yahoo優先 */
+    const diff = Math.abs(yPer - iPer) / Math.min(yPer, iPer);
+    if (diff > 0.2) info.needs_review = true;
+  } else if (yPer) {
+    info.per = yPer;
+  } else if (iPerForecast) {
+    info.per = iPerForecast;
+  } else if (iPerActual) {
+    info.per = iPerActual;
+    info.per_is_actual = true; /* 予想PER未公表のため実績を代用 */
+  }
+
+  /* --- PBR 採用ロジック --- */
+  if (yPbr && iPbr) {
+    info.pbr = yPbr;
+    const diff = Math.abs(yPbr - iPbr) / Math.min(yPbr, iPbr);
+    if (diff > 0.2) info.needs_review = true;
+  } else if (yPbr) info.pbr = yPbr;
+  else if (iPbr) info.pbr = iPbr;
+
+  if (yYield) info.yield = yYield;
+
+  /* --- 配当性向: みんかぶ配当ページから補助的に取得
+     ※「配当性向」直後にコロン・全角コロン・空白が来て、その直後に数字が来る場合のみ拾う
+     （meta descriptionに「配当性向、...」と列挙される誤マッチを防ぐ）
+  */
+  const mk = await fetchTextClient(`https://minkabu.jp/stock/${code}/dividend`);
+  if (mk) {
+    const prM = mk.text.match(/配当性向[：:\s]+(\d+(?:\.\d+)?)\s*%/);
+    if (prM) info.payout_ratio = parseFloat(prM[1]);
+    if (!info.yield) {
+      const yldM = mk.text.match(/配当利回り[：:\s]+(\d+(?:\.\d+)?)\s*%/);
       if (yldM) info.yield = parseFloat(yldM[1]);
-      /* PER */
-      const perM = html.match(/PER[^<]*?([\d.]+)\s*倍/);
-      if (perM) info.per = parseFloat(perM[1]);
-      /* PBR */
-      const pbrM = html.match(/PBR[^<]*?([\d.]+)\s*倍/);
-      if (pbrM) info.pbr = parseFloat(pbrM[1]);
-      /* 配当性向 */
-      const prM = html.match(/配当性向[^%]*?([\d.]+)\s*%/);
-      if (prM) info.payout_ratio = parseFloat(prM[1]);
     }
-  } catch(e) {}
-  /* 株価取得 */
+  }
+
+  /* --- 株価 --- */
   const price = await fetchPriceClient(code);
   if (price) info.cur_price = price;
-  /* 配当額を株価×利回りで算出 */
   if (info.yield && (info.cur_price || 0) > 0) {
     info.annual_div = Math.round((info.cur_price || 0) * info.yield / 100 * 10) / 10;
   }
-  /* ミックス係数 */
   if (info.per && info.pbr) info.mix_coef = Math.round(info.per * info.pbr * 100) / 100;
   return info;
 }
