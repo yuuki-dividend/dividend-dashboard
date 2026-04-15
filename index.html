@@ -129,10 +129,13 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
 .cal-tooltip .tt-header{padding:16px 18px 12px;border-bottom:1px solid var(--border);flex-shrink:0;background:linear-gradient(135deg,rgba(244,114,182,.05),rgba(6,182,212,.05))}
 .cal-tooltip .tt-body{padding:8px 18px 16px;overflow-y:auto;flex:1;min-height:0}
 /* tooltip display controlled by JS mouseenter/mouseleave */
-.cal-tooltip .stock-item{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;margin:2px 0;border-radius:8px;border-bottom:none;cursor:pointer;transition:background .15s}
+.cal-tooltip .stock-item{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;margin:2px 0;border-radius:8px;border-bottom:none;cursor:pointer;transition:background .15s;gap:10px}
 .cal-tooltip .stock-item:hover{background:var(--accent-light)}
-.cal-tooltip .stock-item span:first-child{color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%}
-.cal-tooltip .stock-item span:last-child{font-weight:600;white-space:nowrap}
+.cal-tooltip .stock-item .si-left{display:flex;align-items:baseline;gap:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:68%;min-width:0}
+.cal-tooltip .stock-item .si-code{color:var(--text-muted);font-size:.78em;font-weight:500;flex-shrink:0}
+.cal-tooltip .stock-item .si-name{color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal-tooltip .stock-item .si-amt{font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right}
+.cal-tooltip .tt-amt-label{font-variant-numeric:tabular-nums}
 /* Quick action cards */
 .quick-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:14px 0}
 .quick-action{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:14px;cursor:pointer;transition:all .25s;border:1px solid var(--border);background:var(--bg-card)}
@@ -171,8 +174,9 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
 
 /* Mobile bottom bar */
 .bottom-bar{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg-secondary);border-top:1px solid var(--border);z-index:100;padding:4px 0 env(safe-area-inset-bottom,4px)}
-.bottom-bar-inner{display:flex;justify-content:space-around}
-.bottom-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;background:none;border:none;color:var(--text-muted);font-size:.6rem;cursor:pointer;font-family:var(--font);flex:1}
+.bottom-bar-inner{display:flex;justify-content:space-around;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.bottom-bar-inner::-webkit-scrollbar{display:none}
+.bottom-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;background:none;border:none;color:var(--text-muted);font-size:.6rem;cursor:pointer;font-family:var(--font);flex:1 0 auto;min-width:60px}
 .bottom-btn svg{width:20px;height:20px}
 .bottom-btn.active{color:#f472b6;font-weight:600}
 
@@ -199,6 +203,13 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
 @media(max-width:480px){
   .cal-grid{grid-template-columns:1fr}
 }
+
+/* Help tab role icons */
+#helpTabRoles svg{width:18px;height:18px;display:block}
+
+/* 買い時判断 row hover */
+.buytime-row{transition:background .15s}
+.buytime-row:hover{background:var(--accent-light) !important;cursor:default}
 
 /* Nisa badge */
 .nisa-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:.65rem;font-weight:600;background:rgba(34,197,94,.15);color:var(--green);margin-left:4px}
@@ -471,42 +482,9 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
     </div>
 
     <!-- 各タブの役割 -->
-    <h3 style="margin:28px 0 12px 0;font-size:1.15em">🗂 各タブの役割</h3>
+    <h3 style="margin:28px 0 12px 0;font-size:1.15em">各タブの役割</h3>
     <div class="card">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
-        <div>
-          <div style="font-weight:700;margin-bottom:4px">📊 ダッシュボード</div>
-          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">保有株の合計額、損益、年間配当、セクター構成など全体サマリー。まず開く画面。</div>
-        </div>
-        <div>
-          <div style="font-weight:700;margin-bottom:4px">📋 ポートフォリオ</div>
-          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">保有銘柄の一覧テーブル。ソート・編集・削除ができます。行クリックで詳細カード。</div>
-        </div>
-        <div>
-          <div style="font-weight:700;margin-bottom:4px">📅 配当カレンダー</div>
-          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">月ごとの配当金額が見えるカレンダー。いつ・いくら入るかが一目で分かります。</div>
-        </div>
-        <div>
-          <div style="font-weight:700;margin-bottom:4px">🎯 買い時判断</div>
-          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">銘柄を選んで追加株数を入れると、利回り・損益がどう変化するか即計算。</div>
-        </div>
-        <div>
-          <div style="font-weight:700;margin-bottom:4px">📈 注目銘柄</div>
-          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">高配当・割安・増配続などの観点で自動抽出された候補銘柄リスト。</div>
-        </div>
-        <div>
-          <div style="font-weight:700;margin-bottom:4px">✅ チェック</div>
-          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">気になる銘柄を登録してリベ大流6項目（利回り・配当性向・PER等）でチェック。</div>
-        </div>
-        <div>
-          <div style="font-weight:700;margin-bottom:4px">⭐ お気に入り</div>
-          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">チェックリストで★をつけた銘柄を一覧比較。候補の絞り込みに。</div>
-        </div>
-        <div>
-          <div style="font-weight:700;margin-bottom:4px">⚙️ 設定</div>
-          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">ポートフォリオのインポート・エクスポート、株価/配当の更新、スクリーニング実行。</div>
-        </div>
-      </div>
+      <div id="helpTabRoles" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px"></div>
     </div>
 
     <!-- よくある質問 -->
@@ -729,6 +707,30 @@ function buildNav() {
     bbtn.onclick = () => switchTab(t.id);
     bottom.appendChild(bbtn);
   });
+  renderHelpTabRoles();
+}
+function renderHelpTabRoles() {
+  const host = document.getElementById('helpTabRoles');
+  if (!host) return;
+  const descs = {
+    dashboard: '保有株の合計額、損益、年間配当、セクター構成など全体サマリー。まず開く画面。',
+    portfolio: '保有銘柄の一覧テーブル。ソート・編集・削除ができます。行クリックで詳細カード。',
+    calendar: '月ごとの配当金額が見えるカレンダー。いつ・いくら入るかが一目で分かります。',
+    simulator: '目標利回りから買い時の株価を逆算。銘柄ごとに割安/割高を判定します。',
+    sectors: '高配当・割安・増配続などの観点で自動抽出された候補銘柄リスト。',
+    checklist: '気になる銘柄を登録してリベ大流6項目（利回り・配当性向・PER等）でチェック。',
+    favorites: 'チェックリストで★をつけた銘柄を一覧比較。候補の絞り込みに。',
+    settings: 'ポートフォリオのインポート・エクスポート、株価/配当の更新、スクリーニング実行。'
+  };
+  host.innerHTML = TABS.filter(t => descs[t.id]).map(t => `
+    <div onclick="switchTab('${t.id}')" style="display:flex;gap:12px;align-items:flex-start;padding:10px;border-radius:10px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--accent-light)'" onmouseout="this.style.background='transparent'">
+      <span style="flex-shrink:0;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;background:var(--bg-primary);border-radius:8px;color:var(--accent2)"><span style="width:18px;height:18px;display:inline-block">${t.icon}</span></span>
+      <div style="min-width:0">
+        <div style="font-weight:700;margin-bottom:2px">${t.label}</div>
+        <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">${descs[t.id]}</div>
+      </div>
+    </div>
+  `).join('');
 }
 
 /* 注目銘柄からチェックリストへ遷移 */
@@ -859,9 +861,10 @@ function renderWelcomeCard() {
       <h2 style="margin:0 0 6px 0;font-size:1.2em">👋 はじめての方へ</h2>
       <p style="margin:0 0 14px 0;color:var(--text-secondary);font-size:0.92em">このアプリは高配当株ポートフォリオのダッシュボードです。まず下の3ステップから始めてみてください。</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px">
-        <div style="padding:12px;background:var(--bg-primary);border-radius:10px;border-left:3px solid var(--accent2)">
+        <div style="padding:14px;background:linear-gradient(135deg,rgba(59,130,246,0.18),rgba(59,130,246,0.06));border-radius:10px;border:2px solid var(--accent2);box-shadow:0 2px 12px rgba(59,130,246,0.15);position:relative">
+          <div style="position:absolute;top:-8px;right:10px;background:var(--accent2);color:#fff;font-size:0.62em;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.05em">まずここから</div>
           <div style="font-size:0.72em;color:var(--accent2);font-weight:700;margin-bottom:4px">STEP 1</div>
-          <div style="font-size:0.9em;font-weight:600;margin-bottom:4px">📝 ポートフォリオを登録</div>
+          <div style="font-size:0.95em;font-weight:700;margin-bottom:4px">📝 ポートフォリオを登録</div>
           <div style="font-size:0.78em;color:var(--text-muted);line-height:1.5">設定タブでCSVインポート or 手動追加</div>
         </div>
         <div style="padding:12px;background:var(--bg-primary);border-radius:10px;border-left:3px solid #8b5cf6">
@@ -886,6 +889,20 @@ function dismissWelcome() {
   localStorage.setItem('welcomeDismissed', '1');
   const el = document.getElementById('welcomeCard');
   if (el) el.innerHTML = '';
+  showToast('使い方は左メニューの「使い方」からいつでも確認できます', 4000);
+}
+function showToast(msg, duration) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg-secondary);color:var(--text-primary);padding:12px 22px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.4);border:1px solid var(--accent2);font-size:.88rem;z-index:10000;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;max-width:90%;text-align:center';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateX(-50%) translateY(0)'; });
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(-50%) translateY(20px)'; }, duration || 3000);
 }
 function resetWelcome() {
   localStorage.removeItem('welcomeDismissed');
@@ -895,7 +912,15 @@ function resetWelcome() {
 /* ===== Tab 1: Dashboard ===== */
 function renderDashboard() {
   renderWelcomeCard();
-  if (!stocks.length) { document.getElementById('summaryCards').innerHTML = '<div class="card summary-card" style="grid-column:1/-1"><div class="label">データがありません</div></div>'; return; }
+  if (!stocks.length) {
+    document.getElementById('summaryCards').innerHTML = `<div class="card" style="grid-column:1/-1;text-align:center;padding:40px 20px;background:linear-gradient(135deg,rgba(59,130,246,0.08),rgba(139,92,246,0.08));border:1px dashed var(--accent2)">
+      <div style="font-size:2.4em;margin-bottom:8px">📋</div>
+      <div style="font-size:1.05em;font-weight:700;margin-bottom:6px">まずは最初の銘柄を登録してみましょう</div>
+      <div style="font-size:0.85em;color:var(--text-muted);margin-bottom:18px">設定タブから CSVインポート または 手動で銘柄を追加できます</div>
+      <button onclick="switchTab('settings')" style="padding:10px 22px;background:var(--accent2);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:0.92em;box-shadow:0 4px 12px rgba(59,130,246,0.3)">⚙️ 設定タブを開く</button>
+    </div>`;
+    return;
+  }
 
   const totalCost = stocks.reduce((a,s) => a + getCost(s), 0);
   const totalMarket = stocks.reduce((a,s) => a + getMarketVal(s), 0);
@@ -1710,8 +1735,8 @@ function renderCalendar() {
     const isCurrent = i === curMonth;
     const isEmpty = count === 0;
     const tooltip = count > 0
-      ? `<div class="tt-header"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:700;font-size:1.1em">${monthEmoji[i]} ${monthNames[i]} 合計</span><span style="font-weight:800;color:var(--accent);font-size:1.15em">${fmtYen(Math.round(m.preTax))}</span></div><div style="display:flex;justify-content:space-between;font-size:.78em;color:var(--text-muted);margin-top:2px"><span>税引後</span><span>${fmtYen(Math.round(m.afterTax))}</span></div><div style="font-size:.72em;color:var(--text-muted);margin-top:2px">${count}銘柄</div></div><div class="tt-body">` + sorted.map(it =>
-          `<div class="stock-item" onclick="goToChecklist(${it.code})" title="${it.code} ${it.name} をチェック"><span>${it.code} ${it.name}</span><span>${fmtYen(Math.round(it.amount))}</span></div>`
+      ? `<div class="tt-header"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:700;font-size:1.1em">${monthEmoji[i]} ${monthNames[i]} 合計</span><span style="font-weight:800;color:var(--accent);font-size:1.15em">${fmtYen(Math.round(m.preTax))}</span></div><div style="display:flex;justify-content:space-between;font-size:.78em;color:var(--text-muted);margin-top:2px"><span>税引後</span><span>${fmtYen(Math.round(m.afterTax))}</span></div><div style="font-size:.72em;color:var(--text-muted);margin-top:2px">${count}銘柄</div></div><div class="tt-body"><div style="display:flex;justify-content:space-between;padding:4px 12px 6px;font-size:.68em;color:var(--text-muted);letter-spacing:.04em;text-transform:uppercase;border-bottom:1px dashed var(--border);margin-bottom:4px"><span>銘柄</span><span class="tt-amt-label">金額 ↓</span></div>` + sorted.map(it =>
+          `<div class="stock-item" onclick="goToChecklist(${it.code})" title="${it.code} ${it.name} をチェック"><span class="si-left"><span class="si-code">${it.code}</span><span class="si-name">${it.name}</span></span><span class="si-amt">${fmtYen(Math.round(it.amount))}</span></div>`
         ).join('') + '</div>'
       : '<div style="color:var(--text-muted);text-align:center;padding:16px 0;font-size:.9em">配当なし</div>';
     /* バーは最小20%にして差を緩やかに */
@@ -1978,16 +2003,18 @@ async function calcBuyTiming() {
     const renderRows = (list) => list.map(s => {
       const isBuy = s.curY >= targetYield;
       const isNear = !isBuy && s.gapPct > -10;
-      const badge = isBuy ? '<span style="background:#22c55e;color:#000;padding:2px 8px;border-radius:12px;font-size:0.85em;font-weight:bold">買い時</span>' :
-        isNear ? '<span style="background:#f59e0b;color:#000;padding:2px 8px;border-radius:12px;font-size:0.85em">もう少し</span>' :
-        '<span style="color:var(--text-muted);font-size:0.85em">待ち</span>';
-      return `<tr style="border-bottom:1px solid var(--card-border)${isBuy ? ';background:rgba(34,197,94,0.08)':''}">
+      // 判定と同じ色体系で「現在利回り」「目標との差」の色を統一
+      const judgeColor = isBuy ? '#22c55e' : isNear ? '#f59e0b' : 'var(--text-muted)';
+      const badge = isBuy ? `<span style="background:${judgeColor};color:#000;padding:2px 8px;border-radius:12px;font-size:0.85em;font-weight:bold">買い時</span>` :
+        isNear ? `<span style="background:${judgeColor};color:#000;padding:2px 8px;border-radius:12px;font-size:0.85em;font-weight:bold">もう少し</span>` :
+        `<span style="color:${judgeColor};font-size:0.85em">待ち</span>`;
+      return `<tr class="buytime-row" style="border-bottom:1px solid var(--card-border);font-variant-numeric:tabular-nums${isBuy ? ';background:rgba(34,197,94,0.08)':''}">
         <td style="padding:7px 6px">${s.code}</td>
         <td style="padding:7px 6px">${s.name}</td>
-        <td style="text-align:right;padding:7px 6px;font-weight:bold;color:${isBuy?'#22c55e':s.curY>=targetYield*0.8?'#f59e0b':'var(--text-primary)'}">${s.curY.toFixed(2)}%</td>
+        <td style="text-align:right;padding:7px 6px;font-weight:bold;color:${judgeColor}">${s.curY.toFixed(2)}%</td>
         <td style="text-align:right;padding:7px 6px">${fmtYen(Math.round(getPrice(s)))}</td>
-        <td style="text-align:right;padding:7px 6px">${fmtYen(Math.round(s.targetPrice))}</td>
-        <td style="text-align:right;padding:7px 6px;color:${s.gap>=0?'#22c55e':'var(--text-muted)'}">${s.gap>=0?'↓'+fmtYen(Math.abs(Math.round(s.gap)))+'余裕':'あと↓'+fmtYen(Math.abs(Math.round(s.gap)))+'待ち'}</td>
+        <td style="text-align:right;padding:7px 6px;font-weight:700;color:#f59e0b;background:rgba(245,158,11,0.06)">${fmtYen(Math.round(s.targetPrice))}</td>
+        <td style="text-align:right;padding:7px 6px;font-weight:600;color:${judgeColor}">${s.gap>=0?'↓'+fmtYen(Math.abs(Math.round(s.gap)))+'余裕':'あと↓'+fmtYen(Math.abs(Math.round(s.gap)))+'待ち'}</td>
         <td style="text-align:center;padding:7px 6px">${badge}</td>
       </tr>`;
     }).join('');
