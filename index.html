@@ -2743,7 +2743,10 @@ async function fetchPriceClient(code, externalSignal) {
       const html = await resp.text();
       if (html.length < 100) continue; /* プロキシエラー回避 */
       const m = html.match(/"price":\s*"?([\d,.]+)/);
-      if (m) { const p = parseFloat(m[1].replace(/,/g, '')); if (p > 0 && p < 500000) return p; }
+      if (m) {
+        const p = validateNumber(m[1], 'price');
+        if (p != null) return p;
+      }
     } catch(e) {
       if (externalSignal?.aborted) return null;
       continue;
@@ -3262,12 +3265,9 @@ async function enrichStockClient(code, externalSignal) {
   let yPer = null, yPbr = null, yYield = null;
   const yahoo = await fetchTextClient(`https://finance.yahoo.co.jp/quote/${code}.T`, undefined, externalSignal);
   if (yahoo) {
-    const mp = yahoo.text.match(/PER\s*[（(]会社予想[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/);
-    if (mp) { const v = parseFloat(mp[1]); if (v > 0) yPer = v; }
-    const mb = yahoo.text.match(/PBR\s*[（(]実績[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/);
-    if (mb) { const v = parseFloat(mb[1]); if (v > 0) yPbr = v; }
-    const myd = yahoo.text.match(/配当利回り[^%]{0,30}?(\d+(?:\.\d+)?)\s*%/);
-    if (myd) yYield = parseFloat(myd[1]);
+    yPer   = safeExtract(yahoo.text, /PER\s*[（(]会社予想[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/, 'per');
+    yPbr   = safeExtract(yahoo.text, /PBR\s*[（(]実績[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/, 'pbr');
+    yYield = safeExtract(yahoo.text, /配当利回り[^%]{0,30}?(\d+(?:\.\d+)?)\s*%/, 'yield');
   }
 
   /* --- IRバンク: 予想PER(「予」付き)優先、なければ実績PER、PBR --- */
@@ -3275,12 +3275,9 @@ async function enrichStockClient(code, externalSignal) {
   if (externalSignal?.aborted) return info;
   const irbank = await fetchTextClient(`https://irbank.net/${code}`, undefined, externalSignal);
   if (irbank) {
-    const mpf = irbank.text.match(/PER[^倍]{0,25}?予\s*(\d+(?:\.\d+)?)\s*倍/);
-    if (mpf) iPerForecast = parseFloat(mpf[1]);
-    const mpa = irbank.text.match(/PER\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/);
-    if (mpa) iPerActual = parseFloat(mpa[1]);
-    const mb = irbank.text.match(/PBR\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/);
-    if (mb) iPbr = parseFloat(mb[1]);
+    iPerForecast = safeExtract(irbank.text, /PER[^倍]{0,25}?予\s*(\d+(?:\.\d+)?)\s*倍/, 'per');
+    iPerActual   = safeExtract(irbank.text, /PER\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/, 'per');
+    iPbr         = safeExtract(irbank.text, /PBR\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/, 'pbr');
   }
 
   /* --- PER 採用ロジック --- */
@@ -3315,11 +3312,11 @@ async function enrichStockClient(code, externalSignal) {
   if (externalSignal?.aborted) return info;
   const mk = await fetchTextClient(`https://minkabu.jp/stock/${code}/dividend`, undefined, externalSignal);
   if (mk) {
-    const prM = mk.text.match(/配当性向[：:\s]+(\d+(?:\.\d+)?)\s*%/);
-    if (prM) info.payout_ratio = parseFloat(prM[1]);
+    const pr = safeExtract(mk.text, /配当性向[：:\s]+(\d+(?:\.\d+)?)\s*%/, 'payout');
+    if (pr != null) info.payout_ratio = pr;
     if (!info.yield) {
-      const yldM = mk.text.match(/配当利回り[：:\s]+(\d+(?:\.\d+)?)\s*%/);
-      if (yldM) info.yield = parseFloat(yldM[1]);
+      const yv = safeExtract(mk.text, /配当利回り[：:\s]+(\d+(?:\.\d+)?)\s*%/, 'yield');
+      if (yv != null) info.yield = yv;
     }
   }
 
@@ -3685,6 +3682,49 @@ if ('serviceWorker' in navigator) {
 })();
 
 /* ============================================================
+   データ抽出バリデーション
+   広告・PR・関連銘柄などの誤取得を防ぐための範囲チェック＋文脈チェック
+   ============================================================ */
+const AD_CONTEXT_KEYWORDS = ['広告', 'PR', 'スポンサー', '関連銘柄', 'おすすめ', '注目銘柄', 'sponsored', 'advertisement'];
+const VALUE_RANGES = {
+  price:  { min: 1,    max: 1000000, label: '株価' },
+  per:    { min: 0.1,  max: 500,     label: 'PER' },
+  pbr:    { min: 0.01, max: 100,     label: 'PBR' },
+  yield:  { min: 0,    max: 20,      label: '利回り' },
+  payout: { min: 0,    max: 500,     label: '配当性向' }
+};
+function cleanNumericString(s) {
+  if (s == null) return '';
+  return String(s).replace(/[,円倍%\s　]/g, '').replace(/[^\d.\-]/g, '');
+}
+function validateNumber(value, type) {
+  const range = VALUE_RANGES[type];
+  const v = typeof value === 'number' ? value : parseFloat(cleanNumericString(value));
+  if (!isFinite(v) || isNaN(v)) return null;
+  if (!range) return v;
+  if (v < range.min || v > range.max) return null;
+  return v;
+}
+function extractWithContext(text, regex, lookback) {
+  if (!text) return null;
+  const lb = lookback || 80;
+  const re = regex.global ? regex : new RegExp(regex.source, regex.flags + 'g');
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const start = Math.max(0, m.index - lb);
+    const ctx = text.substring(start, m.index);
+    if (AD_CONTEXT_KEYWORDS.some(k => ctx.includes(k))) continue;
+    return m;
+  }
+  return null;
+}
+function safeExtract(text, regex, type, lookback) {
+  const m = extractWithContext(text, regex, lookback);
+  if (!m) return null;
+  return validateNumber(m[1], type);
+}
+
+/* ============================================================
    銘柄データ 4サイト比較モーダル
    ============================================================ */
 async function fetchCompareFromSite(name, url, parsers) {
@@ -3712,26 +3752,26 @@ async function openCompareModal(code, name) {
   const [results, refPrice] = await Promise.all([
     Promise.all([
       fetchCompareFromSite('Yahoo', `https://finance.yahoo.co.jp/quote/${code}.T`, {
-        per_forecast: (t) => { const m = t.match(/PER\s*[（(]会社予想[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); const v = m ? parseFloat(m[1]) : null; return (v && v > 0) ? v : null; },
-        pbr_actual: (t) => { const m = t.match(/PBR\s*[（(]実績[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); const v = m ? parseFloat(m[1]) : null; return (v && v > 0) ? v : null; },
-        yield: (t) => { const m = t.match(/配当利回り[（(]会社予想[）)][^%]{0,40}?(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
+        per_forecast: (t) => safeExtract(t, /PER\s*[（(]会社予想[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/, 'per'),
+        pbr_actual:   (t) => safeExtract(t, /PBR\s*[（(]実績[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/, 'pbr'),
+        yield:        (t) => safeExtract(t, /配当利回り[（(]会社予想[）)][^%]{0,40}?(\d+(?:\.\d+)?)\s*%/, 'yield'),
       }),
       fetchCompareFromSite('IRバンク', `https://irbank.net/${code}`, {
-        per_forecast: (t) => { const m = t.match(/PER[^倍]{0,25}?予\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
-        per_actual: (t) => { const m = t.match(/PER\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
-        pbr: (t) => { const m = t.match(/PBR\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
-        yield: (t) => { const m = t.match(/利回り[^%]{0,20}?(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
+        per_forecast: (t) => safeExtract(t, /PER[^倍]{0,25}?予\s*(\d+(?:\.\d+)?)\s*倍/, 'per'),
+        per_actual:   (t) => safeExtract(t, /PER\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/, 'per'),
+        pbr:          (t) => safeExtract(t, /PBR\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/, 'pbr'),
+        yield:        (t) => safeExtract(t, /利回り[^%]{0,20}?(\d+(?:\.\d+)?)\s*%/, 'yield'),
       }),
       fetchCompareFromSite('みんかぶ', `https://minkabu.jp/stock/${code}`, {
-        per_adjusted: (t) => { const m = t.match(/PER\s*[（(]調整後[）)]\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
-        pbr: (t) => { const m = t.match(/PBR\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
-        yield: (t) => { const m = t.match(/配当利回り[：:\s]+(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
-        payout: (t) => { const m = t.match(/配当性向[：:\s]+(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
+        per_adjusted: (t) => safeExtract(t, /PER\s*[（(]調整後[）)]\s*(\d+(?:\.\d+)?)\s*倍/, 'per'),
+        pbr:          (t) => safeExtract(t, /PBR\s*(\d+(?:\.\d+)?)\s*倍/, 'pbr'),
+        yield:        (t) => safeExtract(t, /配当利回り[：:\s]+(\d+(?:\.\d+)?)\s*%/, 'yield'),
+        payout:       (t) => safeExtract(t, /配当性向[：:\s]+(\d+(?:\.\d+)?)\s*%/, 'payout'),
       }),
       fetchCompareFromSite('株探', `https://kabutan.jp/stock/?code=${code}`, {
-        per: (t) => { const m = t.match(/連結予想.*?PER[^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
-        pbr: (t) => { const m = t.match(/PBR[^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
-        yield: (t) => { const m = t.match(/利回り\s*(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
+        per:   (t) => safeExtract(t, /連結予想.*?PER[^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/, 'per'),
+        pbr:   (t) => safeExtract(t, /PBR[^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/, 'pbr'),
+        yield: (t) => safeExtract(t, /利回り\s*(\d+(?:\.\d+)?)\s*%/, 'yield'),
       }),
     ]),
     fetchPriceClient(code),
