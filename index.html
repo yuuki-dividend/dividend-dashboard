@@ -240,6 +240,7 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
 
   <!-- Tab 1: Dashboard -->
   <div class="tab-content" id="tab-dashboard">
+    <div id="welcomeCard"></div>
     <div class="summary-grid" id="summaryCards"></div>
     <div id="dataTimestamps"></div>
     <div id="quickActions"></div>
@@ -438,6 +439,138 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
       <div id="checklistResults" style="flex:1;min-width:0"></div>
     </div>
   </div>
+
+  <!-- Tab: Help / 使い方 -->
+  <div class="tab-content" id="tab-help">
+    <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(59,130,246,0.1),rgba(139,92,246,0.1));border:1px solid rgba(59,130,246,0.3)">
+      <h2 style="margin:0 0 8px 0;font-size:1.4em">📘 このアプリの使い方</h2>
+      <p style="margin:0;color:var(--text-secondary);font-size:0.95em">高配当株ポートフォリオを一元管理するダッシュボードです。<br>まずは下の3ステップを順番に進めてみてください。</p>
+    </div>
+
+    <!-- STEP 1-3 カード -->
+    <h3 style="margin:20px 0 12px 0;font-size:1.15em">🚀 はじめに（3ステップ）</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:20px">
+      <div class="card" style="border-left:4px solid var(--accent2)">
+        <div style="font-size:0.8em;color:var(--accent2);font-weight:700;margin-bottom:6px">STEP 1</div>
+        <h4 style="margin:0 0 8px 0;font-size:1.05em">📝 ポートフォリオを登録</h4>
+        <p style="font-size:0.88em;color:var(--text-secondary);line-height:1.6;margin:0 0 10px 0">右下の <b>⚙️ 設定</b> タブを開き、「CSVインポート」または「手動追加」で保有銘柄を登録します。マネーフォワードのCSVも取り込めます。</p>
+        <button class="btn" onclick="switchTab('settings')" style="padding:6px 14px;font-size:0.85em;background:var(--accent2);color:#fff;border:none;border-radius:8px;cursor:pointer">設定タブへ</button>
+      </div>
+      <div class="card" style="border-left:4px solid #8b5cf6">
+        <div style="font-size:0.8em;color:#8b5cf6;font-weight:700;margin-bottom:6px">STEP 2</div>
+        <h4 style="margin:0 0 8px 0;font-size:1.05em">🔄 株価・配当を更新</h4>
+        <p style="font-size:0.88em;color:var(--text-secondary);line-height:1.6;margin:0 0 10px 0"><b>設定</b>タブの「🔄 更新する」で現在株価を取得、「📊 全部更新する」で配当業績・PER/PBR等も更新。時間がかかる場合は「⏹ 中止」で即停止できます。</p>
+        <button class="btn" onclick="switchTab('settings')" style="padding:6px 14px;font-size:0.85em;background:#8b5cf6;color:#fff;border:none;border-radius:8px;cursor:pointer">設定タブへ</button>
+      </div>
+      <div class="card" style="border-left:4px solid #10b981">
+        <div style="font-size:0.8em;color:#10b981;font-weight:700;margin-bottom:6px">STEP 3</div>
+        <h4 style="margin:0 0 8px 0;font-size:1.05em">📊 ダッシュボードを見る</h4>
+        <p style="font-size:0.88em;color:var(--text-secondary);line-height:1.6;margin:0 0 10px 0"><b>ダッシュボード</b>で損益・配当・セクター構成を一目で確認。あとは<b>配当カレンダー</b>や<b>買い時判断</b>など、知りたいタブを覗いてみてください。</p>
+        <button class="btn" onclick="switchTab('dashboard')" style="padding:6px 14px;font-size:0.85em;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer">ダッシュボードへ</button>
+      </div>
+    </div>
+
+    <!-- 各タブの役割 -->
+    <h3 style="margin:28px 0 12px 0;font-size:1.15em">🗂 各タブの役割</h3>
+    <div class="card">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
+        <div>
+          <div style="font-weight:700;margin-bottom:4px">📊 ダッシュボード</div>
+          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">保有株の合計額、損益、年間配当、セクター構成など全体サマリー。まず開く画面。</div>
+        </div>
+        <div>
+          <div style="font-weight:700;margin-bottom:4px">📋 ポートフォリオ</div>
+          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">保有銘柄の一覧テーブル。ソート・編集・削除ができます。行クリックで詳細カード。</div>
+        </div>
+        <div>
+          <div style="font-weight:700;margin-bottom:4px">📅 配当カレンダー</div>
+          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">月ごとの配当金額が見えるカレンダー。いつ・いくら入るかが一目で分かります。</div>
+        </div>
+        <div>
+          <div style="font-weight:700;margin-bottom:4px">🎯 買い時判断</div>
+          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">銘柄を選んで追加株数を入れると、利回り・損益がどう変化するか即計算。</div>
+        </div>
+        <div>
+          <div style="font-weight:700;margin-bottom:4px">📈 注目銘柄</div>
+          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">高配当・割安・増配続などの観点で自動抽出された候補銘柄リスト。</div>
+        </div>
+        <div>
+          <div style="font-weight:700;margin-bottom:4px">✅ チェック</div>
+          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">気になる銘柄を登録してリベ大流6項目（利回り・配当性向・PER等）でチェック。</div>
+        </div>
+        <div>
+          <div style="font-weight:700;margin-bottom:4px">⭐ お気に入り</div>
+          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">チェックリストで★をつけた銘柄を一覧比較。候補の絞り込みに。</div>
+        </div>
+        <div>
+          <div style="font-weight:700;margin-bottom:4px">⚙️ 設定</div>
+          <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5">ポートフォリオのインポート・エクスポート、株価/配当の更新、スクリーニング実行。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- よくある質問 -->
+    <h3 style="margin:28px 0 12px 0;font-size:1.15em">💡 よくある質問</h3>
+    <div class="card">
+      <details style="margin-bottom:10px;padding:10px;border:1px solid var(--border);border-radius:8px">
+        <summary style="cursor:pointer;font-weight:600">Q. チェックタブの「🔍 他サイトと比較」って何？</summary>
+        <div style="margin-top:10px;font-size:0.9em;color:var(--text-secondary);line-height:1.6">
+          Yahoo・IRバンク・みんかぶ・株探 の4サイトからPER・PBR・利回りを同時取得し、値がサイト間で大きく食い違っていないかをチェックするボタンです。<b>乖離20%以上は ⚠ 表示</b>。データの信頼性を1クリックで確認できます。
+        </div>
+      </details>
+      <details style="margin-bottom:10px;padding:10px;border:1px solid var(--border);border-radius:8px">
+        <summary style="cursor:pointer;font-weight:600">Q. PERが「予想」と「実績」で全然違う銘柄があります</summary>
+        <div style="margin-top:10px;font-size:0.9em;color:var(--text-secondary);line-height:1.6">
+          一般投資家が見るのは<b>予想PER（会社予想）</b>です。本アプリもYahoo「会社予想」を優先採用しています。ただし銀行株など予想未公表の銘柄では実績PERで代用（「per_is_actual」フラグ付き）。みんかぶ「調整後PER」は実績ベースなので、業績変動が大きい銘柄では数値が大きく違うことがあります。
+        </div>
+      </details>
+      <details style="margin-bottom:10px;padding:10px;border:1px solid var(--border);border-radius:8px">
+        <summary style="cursor:pointer;font-weight:600">Q. データはどこに保存される？</summary>
+        <div style="margin-top:10px;font-size:0.9em;color:var(--text-secondary);line-height:1.6">
+          <b>ローカル版（http://localhost:8081）</b>では<code>stocks.json</code>に保存。<b>GitHub Pages版</b>ではブラウザのlocalStorageに保存されます。設定タブの「JSONエクスポート」でバックアップも可能。
+        </div>
+      </details>
+      <details style="margin-bottom:10px;padding:10px;border:1px solid var(--border);border-radius:8px">
+        <summary style="cursor:pointer;font-weight:600">Q. 保有していない銘柄もチェックできる？</summary>
+        <div style="margin-top:10px;font-size:0.9em;color:var(--text-secondary);line-height:1.6">
+          はい。<b>チェックタブ</b>に銘柄コード/名前を入れると、リベ大流6項目（配当利回り・配当性向・PER・PBR・ミックス係数・連続増配）で評価。良さそうなら★でお気に入りへ、購入したら「ポートフォリオに追加」もできます。
+        </div>
+      </details>
+      <details style="margin-bottom:10px;padding:10px;border:1px solid var(--border);border-radius:8px">
+        <summary style="cursor:pointer;font-weight:600">Q. 「スクリーニング」は何をしている？</summary>
+        <div style="margin-top:10px;font-size:0.9em;color:var(--text-secondary);line-height:1.6">
+          設定タブの「リベ大流スクリーニング」を実行すると、東証全銘柄を対象にリベ大の優良高配当株の基準（配当利回り4%以上、配当性向30〜60%、自己資本比率40%以上、EPS成長など）でフィルタし、「注目銘柄」タブに結果を反映します。時間がかかります（10〜20分）。
+        </div>
+      </details>
+    </div>
+
+    <!-- トラブルシュート -->
+    <h3 style="margin:28px 0 12px 0;font-size:1.15em">🛠 困ったとき</h3>
+    <div class="card">
+      <div style="display:grid;grid-template-columns:1fr;gap:12px">
+        <div style="padding:10px;background:var(--bg-primary);border-radius:8px">
+          <div style="font-weight:700;margin-bottom:4px">⚠ 「データを読み込み中...」で止まる</div>
+          <div style="font-size:0.88em;color:var(--text-secondary);line-height:1.6">ブラウザを一度リロード（⌘R / Ctrl+R）してください。それでも直らない場合はキャッシュクリア（⌘Shift+R / Ctrl+Shift+R）を。</div>
+        </div>
+        <div style="padding:10px;background:var(--bg-primary);border-radius:8px">
+          <div style="font-weight:700;margin-bottom:4px">⚠ 株価や配当が一部の銘柄で取れない</div>
+          <div style="font-size:0.88em;color:var(--text-secondary);line-height:1.6">プロキシ経由でサイトを取得しているため、一時的にブロックされることがあります。数分置いて再実行、または対象銘柄のチェックタブで「🔄」個別更新を試してください。</div>
+        </div>
+        <div style="padding:10px;background:var(--bg-primary);border-radius:8px">
+          <div style="font-weight:700;margin-bottom:4px">⚠ 更新を中止したのにまだ動いている</div>
+          <div style="font-size:0.88em;color:var(--text-secondary);line-height:1.6">「⏹ 中止」押下で進行中の通信を即abortしますが、ブラウザの接続完了タイミングによっては1〜2秒待つ場合があります。それ以上止まらない場合はリロードを。</div>
+        </div>
+        <div style="padding:10px;background:var(--bg-primary);border-radius:8px">
+          <div style="font-weight:700;margin-bottom:4px">⚠ 表示が乱れる / チャートが出ない</div>
+          <div style="font-size:0.88em;color:var(--text-secondary);line-height:1.6">他タブに切り替えてから戻すと再描画されます。それでも直らなければリロード。</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;text-align:center;color:var(--text-muted);font-size:0.85em">
+      💬 他にも分からないことがあれば、作者（あなた）に聞いてみてください！
+    </div>
+  </div>
 </main>
 
 <!-- 4サイト比較モーダル -->
@@ -515,7 +648,8 @@ const TABS = [
   {id:'sectors',label:'注目銘柄',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h20"/><rect x="4" y="10" width="4" height="10" rx="1"/><rect x="10" y="6" width="4" height="14" rx="1"/><rect x="16" y="2" width="4" height="18" rx="1"/></svg>'},
   {id:'checklist',label:'チェック',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>'},
   {id:'favorites',label:'お気に入り',icon:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>'},
-  {id:'settings',label:'設定',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>'}
+  {id:'settings',label:'設定',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>'},
+  {id:'help',label:'使い方',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'}
 ];
 
 /* ===== Helpers ===== */
@@ -713,8 +847,54 @@ function createChart(canvasId, config) {
   return charts[canvasId];
 }
 
+/* ===== Welcome Card (初回ガイド) ===== */
+function renderWelcomeCard() {
+  const el = document.getElementById('welcomeCard');
+  if (!el) return;
+  const dismissed = localStorage.getItem('welcomeDismissed') === '1';
+  if (dismissed) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(59,130,246,0.12),rgba(139,92,246,0.12));border:1px solid rgba(59,130,246,0.35);position:relative">
+      <button onclick="dismissWelcome()" aria-label="閉じる" style="position:absolute;top:10px;right:10px;background:transparent;border:none;color:var(--text-muted);font-size:1.3em;cursor:pointer;line-height:1">×</button>
+      <h2 style="margin:0 0 6px 0;font-size:1.2em">👋 はじめての方へ</h2>
+      <p style="margin:0 0 14px 0;color:var(--text-secondary);font-size:0.92em">このアプリは高配当株ポートフォリオのダッシュボードです。まず下の3ステップから始めてみてください。</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px">
+        <div style="padding:12px;background:var(--bg-primary);border-radius:10px;border-left:3px solid var(--accent2)">
+          <div style="font-size:0.72em;color:var(--accent2);font-weight:700;margin-bottom:4px">STEP 1</div>
+          <div style="font-size:0.9em;font-weight:600;margin-bottom:4px">📝 ポートフォリオを登録</div>
+          <div style="font-size:0.78em;color:var(--text-muted);line-height:1.5">設定タブでCSVインポート or 手動追加</div>
+        </div>
+        <div style="padding:12px;background:var(--bg-primary);border-radius:10px;border-left:3px solid #8b5cf6">
+          <div style="font-size:0.72em;color:#8b5cf6;font-weight:700;margin-bottom:4px">STEP 2</div>
+          <div style="font-size:0.9em;font-weight:600;margin-bottom:4px">🔄 株価・配当を更新</div>
+          <div style="font-size:0.78em;color:var(--text-muted);line-height:1.5">設定タブから「更新する」/「全部更新」</div>
+        </div>
+        <div style="padding:12px;background:var(--bg-primary);border-radius:10px;border-left:3px solid #10b981">
+          <div style="font-size:0.72em;color:#10b981;font-weight:700;margin-bottom:4px">STEP 3</div>
+          <div style="font-size:0.9em;font-weight:600;margin-bottom:4px">📊 ダッシュボードを見る</div>
+          <div style="font-size:0.78em;color:var(--text-muted);line-height:1.5">この画面で損益・配当を一目で確認</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button onclick="switchTab('help')" style="padding:8px 16px;background:var(--accent2);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.88em">📘 詳しい使い方を見る</button>
+        <button onclick="dismissWelcome()" style="padding:8px 16px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.88em">✓ 了解しました（次回から非表示）</button>
+      </div>
+    </div>
+  `;
+}
+function dismissWelcome() {
+  localStorage.setItem('welcomeDismissed', '1');
+  const el = document.getElementById('welcomeCard');
+  if (el) el.innerHTML = '';
+}
+function resetWelcome() {
+  localStorage.removeItem('welcomeDismissed');
+  renderWelcomeCard();
+}
+
 /* ===== Tab 1: Dashboard ===== */
 function renderDashboard() {
+  renderWelcomeCard();
   if (!stocks.length) { document.getElementById('summaryCards').innerHTML = '<div class="card summary-card" style="grid-column:1/-1"><div class="label">データがありません</div></div>'; return; }
 
   const totalCost = stocks.reduce((a,s) => a + getCost(s), 0);
