@@ -3102,13 +3102,12 @@ async function enrichStockClient(code) {
 
 async function enrichStocks(onlyMissing) {
   const btn1 = document.getElementById('btnEnrichAll');
-  const btn2 = document.getElementById('btnEnrichMissing');
   const stopBtn = document.getElementById('btnEnrichStop');
   const status = document.getElementById('enrichStatus');
   const progress = document.getElementById('enrichProgress');
   const bar = document.getElementById('enrichBar');
   const detail = document.getElementById('enrichDetail');
-  btn1.disabled = btn2.disabled = true;
+  btn1.disabled = true;
   if (stopBtn) stopBtn.style.display = '';
   cancelFlag.enrich = false;
   progress.style.display = 'block';
@@ -3216,14 +3215,13 @@ async function enrichStocks(onlyMissing) {
     }
     window._enrichAbort = null;
   }
-  btn1.disabled = btn2.disabled = false;
+  btn1.disabled = false;
   if (stopBtn) stopBtn.style.display = 'none';
   cancelFlag.enrich = false;
   updateLastUpdateIndicator();
   setTimeout(() => { progress.style.display = 'none'; }, 5000);
 }
 document.getElementById('btnEnrichAll').addEventListener('click', () => enrichStocks(false));
-document.getElementById('btnEnrichMissing').addEventListener('click', () => enrichStocks(true));
 
 /* === リベ大流スクリーニング実行 === */
 document.getElementById('btnRunScreening').addEventListener('click', async () => {
