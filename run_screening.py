@@ -161,35 +161,63 @@ def fetch_from_yahoo_finance():
 # ============================================================
 
 def parse_toushi_table(html):
-    """投資の森のテーブルHTMLをパース"""
+    """投資の森のテーブルHTMLをパース（複数列バリアント対応）
+
+    パターン: code / name / 利回り% / [PBR列(optional)] / 増配/減配 / 株価
+    hrefは /stock/dividend/XXXX/ または /stock/XXXX/ の両方に対応。
+    """
     stocks = []
-    pattern = (
-        r'<a href="/stock/dividend/(\d{4})/">\1</a>\s*</td>\s*'
-        r'<td><a[^>]*>([^<]+)</a></td>\s*'
-        r'<td>([\d.]+)%</td>\s*'
-        r'<td[^>]*>((?:連続増配|非減配|減配)\d+|[－\-])</td>\s*'
-        r'<td>([\d,]+)</td>'
-    )
-    matches = re.findall(pattern, html, re.DOTALL)
-    for code_str, name, yld_str, trend, price_str in matches:
-        stocks.append({
-            "code": int(code_str),
-            "name": name.strip(),
-            "yield": float(yld_str),
-            "div_trend": trend if trend not in ("－", "-") else "",
-            "price": float(price_str.replace(",", ""))
-        })
+    seen = set()  # (code) で重複排除
+    variants = [
+        # V1: code name 利回り 増配 株価 （既存ページ / monthly / 50index / ranking_hd）
+        (
+            r'<a href="/stock/(?:dividend/)?(\d{4})/">\1</a>\s*</td>\s*'
+            r'<td><a[^>]*>([^<]+)</a></td>\s*'
+            r'<td>([\d.]+)%</td>\s*'
+            r'<td[^>]*>((?:連続増配|非減配|減配)\d+|[－\-])</td>\s*'
+            r'<td>([\d,]+)</td>'
+        ),
+        # V2: code name 利回り PBR 増配 株価 （stockrise_hd_pbr）
+        (
+            r'<a href="/stock/(?:dividend/)?(\d{4})/">\1</a>\s*</td>\s*'
+            r'<td><a[^>]*>([^<]+)</a></td>\s*'
+            r'<td>([\d.]+)%</td>\s*'
+            r'<td>[\d.]+</td>\s*'
+            r'<td[^>]*>((?:連続増配|非減配|減配)\d+|[－\-])</td>\s*'
+            r'<td>([\d,]+)</td>'
+        ),
+    ]
+    for pattern in variants:
+        for code_str, name, yld_str, trend, price_str in re.findall(pattern, html, re.DOTALL):
+            code = int(code_str)
+            if code in seen:
+                continue
+            seen.add(code)
+            stocks.append({
+                "code": code,
+                "name": name.strip(),
+                "yield": float(yld_str),
+                "div_trend": trend if trend not in ("－", "-") else "",
+                "price": float(price_str.replace(",", ""))
+            })
     return stocks
 
 
 def fetch_from_toushi_no_mori():
-    """投資の森 高配当ランキングから取得"""
+    """投資の森 高配当ランキングから取得（全部盛り）"""
     stocks = []
     urls = [
+        # 既存3ページ
         ("https://nikkeiyosoku.com/nisa/ranking_hold_hd_end/", "死ぬまで持ちたい高配当"),
         ("https://nikkeiyosoku.com/nisa/ranking_cheap_hd_crash/", "暴落時に欲しい高配当"),
         ("https://nikkeiyosoku.com/stock/ranking_hd/", "高配当総合"),
+        # 追加4ページ（全部盛り）
+        ("https://nikkeiyosoku.com/nisa/ranking_hd/", "NISA成長投資枠おすすめ高配当"),
+        ("https://nikkeiyosoku.com/nisa/ranking_hold_hd_monthly/", "毎月配当金生活"),
+        ("https://nikkeiyosoku.com/nisa/ranking_safe_hd_50index/", "日経高配当50指数"),
+        ("https://nikkeiyosoku.com/nisa/ranking_stockrise_hd_pbr/", "PBR1倍以下×高配当"),
     ]
+    seen_codes = set()
     for url, label in urls:
         try:
             req = urllib.request.Request(url, headers={"User-Agent": UA})
@@ -197,8 +225,12 @@ def fetch_from_toushi_no_mori():
                 html = resp.read().decode("utf-8", errors="ignore")
 
             parsed = parse_toushi_table(html)
-            stocks.extend(parsed)
-            log(f"  投資の森 {label}: {len(parsed)}銘柄")
+            # ページ間でも重複排除（同じ銘柄が複数ランキングに出る想定）
+            new_items = [s for s in parsed if s["code"] not in seen_codes]
+            for s in new_items:
+                seen_codes.add(s["code"])
+            stocks.extend(new_items)
+            log(f"  投資の森 {label}: {len(parsed)}件取得 / {len(new_items)}件新規")
             time.sleep(1)
         except Exception as e:
             log(f"  投資の森 {label}エラー: {e}")
