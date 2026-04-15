@@ -339,13 +339,28 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
         </div>
       </details>
     </div>
-    <!-- データ更新 -->
+    <!-- ⚡ 日常の更新（株価だけ・速い） -->
     <div class="card settings-section">
-      <h3>🌐 銘柄データ更新</h3>
-      <p style="font-size:.78em;color:var(--text-muted);margin-bottom:10px">IR BANK・バフェットコード等から配当・PER・PBR・セクター情報を一括取得します</p>
+      <h3>🔄 更新</h3>
+      <p style="font-size:.82em;color:var(--text-muted);margin-bottom:10px">保有銘柄 + チェック中銘柄の株価を最新にします（数十秒〜数分）</p>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn btn-primary" id="btnEnrichAll" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)">📊 全銘柄データ更新</button>
-        <button class="btn btn-outline" id="btnEnrichMissing">⚡ 不足データのみ更新</button>
+        <button class="btn btn-primary" id="btnUpdatePrices" style="background:linear-gradient(135deg,#06b6d4,#34d399)">🔄 更新する</button>
+        <button class="btn" id="btnUpdatePricesStop" style="background:#ef4444;color:#fff;display:none">⏹ 中止</button>
+        <span id="priceUpdateStatus" style="font-size:.8em;color:var(--text-muted)"></span>
+      </div>
+      <div id="priceUpdateProgress" style="display:none;margin-top:10px">
+        <div style="background:var(--border);border-radius:8px;height:8px;overflow:hidden">
+          <div id="priceUpdateBar" style="background:linear-gradient(90deg,#06b6d4,#34d399);height:100%;width:0%;transition:width .3s"></div>
+        </div>
+      </div>
+    </div>
+    <!-- 📊 配当・業績も含めて更新（月1推奨・遅い） -->
+    <div class="card settings-section">
+      <h3>📊 配当・業績も含めて更新</h3>
+      <p style="font-size:.82em;color:var(--text-muted);margin-bottom:10px">配当金・PER・PBR・配当性向・連続増配実績までまとめて取り直します。<b>月1回・新規銘柄を追加したとき推奨</b>（数分かかります）</p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-primary" id="btnEnrichAll" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)">📊 全部更新する</button>
+        <button class="btn" id="btnEnrichStop" style="background:#ef4444;color:#fff;display:none">⏹ 中止</button>
         <span id="enrichStatus" style="font-size:.8em;color:var(--text-muted)"></span>
       </div>
       <div id="enrichProgress" style="display:none;margin-top:10px">
@@ -361,6 +376,7 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
       <p style="font-size:.85em;color:var(--text-muted);margin-bottom:10px">minkabu高配当ランキングからリベ大基準（利回り3.75%以上・配当性向70%以下・連続増配/非減配・ミックス係数で割安判定）でスクリーニングし、注目銘柄を更新します</p>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-primary" id="btnRunScreening" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">🔍 スクリーニング実行</button>
+        <button class="btn" id="btnScreeningStop" style="background:#ef4444;color:#fff;display:none">⏹ 中止</button>
         <span id="screeningStatus" style="font-size:.85em;color:var(--text-muted)"></span>
       </div>
       <div id="screeningProgress" style="display:none;margin-top:10px">
@@ -372,11 +388,6 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
       <h3>データ管理</h3>
       <div class="settings-row"><button class="btn btn-primary" id="btnDownload">stocks.json をダウンロード</button></div>
       <div class="settings-row"><label class="btn btn-outline">stocks.json をアップロード<input type="file" id="fileUpload" accept=".json" hidden></label></div>
-      <!-- CSV取り込みは上のポートフォリオ取り込みセクションに統合 -->
-      <div class="settings-row">
-        <button class="btn btn-primary" id="btnUpdatePrices" style="background:linear-gradient(135deg,#06b6d4,#34d399)">株価を更新</button>
-        <span id="priceUpdateStatus" style="font-size:.8em;color:var(--text-muted)"></span>
-      </div>
     </div>
     <div class="card settings-section">
       <h3>表示設定</h3>
@@ -447,6 +458,8 @@ let stocks = [];
 let screeningData = [];
 let allListedStocks = [];  // 上場全銘柄（JPXデータ）
 let charts = {};
+/* 長時間処理の中止フラグ（ユーザーがストップボタンを押したら true） */
+let cancelFlag = { update: false, enrich: false, screening: false };
 const TAX_RATE = 0.20315;
 
 /* ===== localStorage Portfolio Management (Static Mode) ===== */
@@ -2216,6 +2229,7 @@ function renderChecklistTable() {
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <span style="background:${verdictBg};color:${verdictColor};padding:6px 16px;border-radius:20px;font-weight:700;font-size:0.9em;white-space:nowrap">${item.verdict}</span>
+          <button onclick="refetchChecklistItem('${item.code}', this)" style="background:var(--bg-primary);border:1px solid var(--border);color:var(--accent2);cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1em;transition:all .2s" title="この銘柄だけ再取得">🔄</button>
           <button onclick="toggleFavorite(${item.code})" style="background:${isFavorite(item.code) ? '#fbbf2430' : 'var(--bg-primary)'};border:1px solid ${isFavorite(item.code) ? '#fbbf24' : 'var(--border)'};color:${isFavorite(item.code) ? '#fbbf24' : 'var(--text-muted)'};cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1em;transition:all .2s" title="お気に入り">★</button>
           <button onclick="removeFromChecklist(${item.code})" style="background:var(--bg-primary);border:1px solid var(--border);color:var(--text-muted);cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1em;transition:all .2s" title="削除">×</button>
         </div>
@@ -2270,6 +2284,44 @@ function renderChecklistTable() {
   });
 
   el.innerHTML = h;
+}
+
+/* 1銘柄だけ再取得（株価 + 配当 + 指標） */
+async function refetchChecklistItem(code, btn) {
+  const item = checklistItems.find(c => c.code == code);
+  if (!item) return;
+  const originalText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const info = await enrichStockClient(code);
+    if (info && Object.keys(info).length > 0) {
+      if (info.cur_price) item.price = info.cur_price;
+      if (info.annual_div) {
+        item.annual_div = info.annual_div;
+        if (item.price > 0) item.yield = Math.round((info.annual_div / item.price) * 10000) / 100;
+      }
+      if (info.per) item.per = info.per;
+      if (info.pbr) item.pbr = info.pbr;
+      if (info.mix_coef) item.mix_coef = info.mix_coef;
+      if (info.payout_ratio) item.payout_ratio = info.payout_ratio;
+      /* 保有銘柄にもあれば反映 */
+      const ps = stocks.find(s => s.code == code);
+      if (ps) {
+        if (info.cur_price) ps.cur_price = info.cur_price;
+        if (info.annual_div) ps.annual_div = info.annual_div;
+        if (info.per) ps.per = info.per;
+        if (info.pbr) ps.pbr = info.pbr;
+        if (info.mix_coef) ps.mix_coef = info.mix_coef;
+        if (IS_STATIC) savePortfolioToLocal();
+      }
+      localStorage.setItem('checklistItems', JSON.stringify(checklistItems));
+      renderChecklistTable();
+    } else {
+      if (btn) { btn.textContent = '⚠'; setTimeout(() => { btn.disabled = false; btn.textContent = originalText; }, 1500); }
+    }
+  } catch (e) {
+    if (btn) { btn.textContent = '⚠'; setTimeout(() => { btn.disabled = false; btn.textContent = originalText; }, 1500); }
+  }
 }
 
 document.getElementById('btnAddChecklist').addEventListener('click', addToChecklist);
@@ -2475,13 +2527,19 @@ async function fetchPriceClient(code) {
   return null;
 }
 
-async function updatePricesClient(statusEl, barEl) {
-  if (!stocks.length) return {updated: 0, failed: 0};
+async function updatePricesClient(statusEl, barEl, targetList) {
+  const list = targetList || stocks;
+  if (!list.length) return {updated: 0, failed: 0, cancelled: false};
   let updated = 0, failed = 0;
-  for (let i = 0; i < stocks.length; i++) {
-    const s = stocks[i];
-    statusEl.textContent = `${i+1}/${stocks.length}: ${s.code} ${s.name||''} 取得中...`;
-    if (barEl) barEl.style.width = Math.round((i+1)/stocks.length*100) + '%';
+  cancelFlag.update = false;
+  for (let i = 0; i < list.length; i++) {
+    if (cancelFlag.update) {
+      statusEl.textContent = `⏹ 中止: ${i}/${list.length}処理済（成功${updated}/失敗${failed}）`;
+      return {updated, failed, cancelled: true};
+    }
+    const s = list[i];
+    statusEl.textContent = `${i+1}/${list.length}: ${s.code} ${s.name||''} 取得中...`;
+    if (barEl) barEl.style.width = Math.round((i+1)/list.length*100) + '%';
     const price = await fetchPriceClient(s.code);
     if (price) {
       s.cur_price = price;
@@ -2490,59 +2548,94 @@ async function updatePricesClient(statusEl, barEl) {
       failed++;
     }
     /* レート制限対策: 少し待つ */
-    if (i < stocks.length - 1) await new Promise(r => setTimeout(r, 300));
+    if (i < list.length - 1) await new Promise(r => setTimeout(r, 300));
   }
   if (IS_STATIC) savePortfolioToLocal();
-  return {updated, failed};
+  return {updated, failed, cancelled: false};
 }
 
-/* Stock price update button */
+/* 中止ボタン */
+document.getElementById('btnUpdatePricesStop').addEventListener('click', () => { cancelFlag.update = true; });
+document.getElementById('btnEnrichStop').addEventListener('click', () => { cancelFlag.enrich = true; });
+document.getElementById('btnScreeningStop').addEventListener('click', () => {
+  cancelFlag.screening = true;
+  if (window._screeningAbort) { try { window._screeningAbort.abort(); } catch(e){} }
+});
+
+/* 最終更新時刻の表示を更新（ダッシュボードの timestamp バーを再描画） */
+function updateLastUpdateIndicator() {
+  const activeTab = document.querySelector('.nav-btn.active');
+  if (activeTab && activeTab.dataset.tab === 'dashboard') {
+    /* renderDashboard will re-read lastPriceUpdate from localStorage */
+    try { switchTab('dashboard'); } catch(e) {}
+  }
+}
+
+/* 🔄 更新ボタン（保有銘柄 + チェック中 + お気に入り銘柄の株価を更新） */
 document.getElementById('btnUpdatePrices').addEventListener('click', async () => {
   const btn = document.getElementById('btnUpdatePrices');
+  const stopBtn = document.getElementById('btnUpdatePricesStop');
   const status = document.getElementById('priceUpdateStatus');
-  btn.disabled = true;
-  btn.textContent = '更新中...';
+  const progress = document.getElementById('priceUpdateProgress');
+  const bar = document.getElementById('priceUpdateBar');
 
-  if (IS_STATIC) {
-    /* クライアント側で株価取得 */
-    status.textContent = '株価を取得中...';
-    status.style.color = 'var(--accent2)';
-    try {
-      const result = await updatePricesClient(status, null);
-      status.textContent = `✅ 更新完了: ${result.updated}件成功, ${result.failed}件失敗`;
+  /* 保有銘柄 + チェックリスト + お気に入り をまとめて（重複排除） */
+  const targetMap = new Map();
+  stocks.forEach(s => targetMap.set(s.code, s));
+  (checklistItems || []).forEach(c => {
+    if (!targetMap.has(c.code)) targetMap.set(c.code, { code: c.code, name: c.name || '' });
+  });
+  (favoritesCodes || []).forEach(code => {
+    if (!targetMap.has(code)) {
+      const jpx = (allListedStocks || []).find(s => s.code === code);
+      targetMap.set(code, { code, name: jpx ? jpx.name : '' });
+    }
+  });
+  const targets = Array.from(targetMap.values());
+
+  if (targets.length === 0) {
+    status.textContent = '対象銘柄がありません';
+    status.style.color = 'var(--red)';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = '更新中...';
+  stopBtn.style.display = ''; progress.style.display = 'block'; bar.style.width = '0%';
+  status.textContent = `${targets.length}銘柄を更新開始...`;
+  status.style.color = 'var(--accent2)';
+
+  try {
+    const result = await updatePricesClient(status, bar, targets);
+    /* 保有銘柄とチェック銘柄に反映 */
+    targets.forEach(t => {
+      const port = stocks.find(s => s.code === t.code);
+      if (port && t.cur_price) port.cur_price = t.cur_price;
+      const ci = (checklistItems || []).find(c => c.code === t.code);
+      if (ci && t.cur_price) ci.cur_price = t.cur_price;
+    });
+    if (checklistItems) localStorage.setItem('checklistItems', JSON.stringify(checklistItems));
+    if (IS_STATIC) savePortfolioToLocal();
+    else {
+      try { await fetch('/api/stocks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(stocks) }); } catch(e) {}
+    }
+    if (result.cancelled) {
+      status.style.color = 'var(--accent4)';
+    } else {
+      status.textContent = `✅ 更新完了: 成功${result.updated}件, 失敗${result.failed}件`;
       status.style.color = result.failed === 0 ? 'var(--green)' : 'var(--accent4)';
-      localStorage.setItem('lastPriceUpdate', new Date().toLocaleString('ja-JP'));
-      const activeTab = document.querySelector('.nav-btn.active');
-      if (activeTab) switchTab(activeTab.dataset.tab);
-    } catch(err) {
-      status.textContent = '❌ 更新失敗: ' + err.message;
-      status.style.color = 'var(--red)';
     }
-  } else {
-    /* サーバー経由 */
-    status.textContent = 'サーバーで株価を取得中（数分かかります）...';
-    status.style.color = 'var(--accent2)';
-    try {
-      const resp = await fetch('/api/update-prices', {method:'POST'});
-      if (resp.ok) {
-        const result = await resp.json();
-        status.textContent = '更新完了: ' + (result.updated || 0) + '件成功, ' + (result.failed || 0) + '件失敗';
-        status.style.color = 'var(--green)';
-        const r2 = await fetch('/api/stocks');
-        if (r2.ok) { stocks = await r2.json(); if (!Array.isArray(stocks)) stocks = stocks.stocks || []; }
-        const activeTab = document.querySelector('.nav-btn.active');
-        if (activeTab) switchTab(activeTab.dataset.tab);
-      } else {
-        status.textContent = '更新失敗: ' + resp.statusText;
-        status.style.color = 'var(--red)';
-      }
-    } catch(err) {
-      status.textContent = '更新失敗: ' + err.message;
-      status.style.color = 'var(--red)';
-    }
+    localStorage.setItem('lastPriceUpdate', new Date().toLocaleString('ja-JP'));
+    updateLastUpdateIndicator();
+    const activeTab = document.querySelector('.nav-btn.active');
+    if (activeTab) switchTab(activeTab.dataset.tab);
+  } catch(err) {
+    status.textContent = '❌ 更新失敗: ' + err.message;
+    status.style.color = 'var(--red)';
   }
   btn.disabled = false;
-  btn.textContent = '株価を更新';
+  btn.textContent = '🔄 更新する';
+  stopBtn.style.display = 'none';
+  setTimeout(() => { progress.style.display = 'none'; }, 3000);
 });
 
 /* === インポートタブ切替 === */
@@ -2944,11 +3037,14 @@ async function enrichStockClient(code) {
 async function enrichStocks(onlyMissing) {
   const btn1 = document.getElementById('btnEnrichAll');
   const btn2 = document.getElementById('btnEnrichMissing');
+  const stopBtn = document.getElementById('btnEnrichStop');
   const status = document.getElementById('enrichStatus');
   const progress = document.getElementById('enrichProgress');
   const bar = document.getElementById('enrichBar');
   const detail = document.getElementById('enrichDetail');
   btn1.disabled = btn2.disabled = true;
+  if (stopBtn) stopBtn.style.display = '';
+  cancelFlag.enrich = false;
   progress.style.display = 'block';
   bar.style.width = '0%';
   status.textContent = '更新開始...';
@@ -2962,6 +3058,12 @@ async function enrichStocks(onlyMissing) {
         : [...stocks];
       let updated = 0;
       for (let i = 0; i < targets.length; i++) {
+        if (cancelFlag.enrich) {
+          status.textContent = `⏹ 中止: ${i}/${targets.length}処理済（成功${updated}件）`;
+          status.style.color = 'var(--accent4)';
+          savePortfolioToLocal();
+          break;
+        }
         const s = targets[i];
         const pct = Math.round((i+1)/targets.length*100);
         bar.style.width = pct + '%';
@@ -2994,16 +3096,20 @@ async function enrichStocks(onlyMissing) {
     }
   } else {
     /* サーバー経由 */
+    const ctrl = new AbortController();
+    window._enrichAbort = ctrl;
     try {
       const resp = await fetch('/api/enrich-stocks', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ only_missing: onlyMissing })
+        body: JSON.stringify({ only_missing: onlyMissing }),
+        signal: ctrl.signal
       });
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
       while (true) {
+        if (cancelFlag.enrich) { try { ctrl.abort(); } catch(e){} break; }
         const {value, done} = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, {stream: true});
@@ -3034,11 +3140,20 @@ async function enrichStocks(onlyMissing) {
       const activeTab = document.querySelector('.nav-btn.active');
       if (activeTab) switchTab(activeTab.dataset.tab);
     } catch(err) {
-      status.textContent = '❌ ' + err.message;
-      status.style.color = 'var(--red)';
+      if (cancelFlag.enrich || err.name === 'AbortError') {
+        status.textContent = '⏹ 中止しました';
+        status.style.color = 'var(--accent4)';
+      } else {
+        status.textContent = '❌ ' + err.message;
+        status.style.color = 'var(--red)';
+      }
     }
+    window._enrichAbort = null;
   }
   btn1.disabled = btn2.disabled = false;
+  if (stopBtn) stopBtn.style.display = 'none';
+  cancelFlag.enrich = false;
+  updateLastUpdateIndicator();
   setTimeout(() => { progress.style.display = 'none'; }, 5000);
 }
 document.getElementById('btnEnrichAll').addEventListener('click', () => enrichStocks(false));
@@ -3047,6 +3162,7 @@ document.getElementById('btnEnrichMissing').addEventListener('click', () => enri
 /* === リベ大流スクリーニング実行 === */
 document.getElementById('btnRunScreening').addEventListener('click', async () => {
   const btn = document.getElementById('btnRunScreening');
+  const stopBtn = document.getElementById('btnScreeningStop');
   const status = document.getElementById('screeningStatus');
   const progress = document.getElementById('screeningProgress');
   const logEl = document.getElementById('screeningLog');
@@ -3057,16 +3173,21 @@ document.getElementById('btnRunScreening').addEventListener('click', async () =>
   }
   btn.disabled = true;
   btn.textContent = '実行中...';
+  if (stopBtn) stopBtn.style.display = '';
+  cancelFlag.screening = false;
   status.textContent = 'スクリーニング開始（数分かかります）...';
   status.style.color = 'var(--accent2)';
   progress.style.display = 'block';
   logEl.innerHTML = '';
+  const ctrl = new AbortController();
+  window._screeningAbort = ctrl;
   try {
-    const resp = await fetch('/api/run-screening', {method: 'POST'});
+    const resp = await fetch('/api/run-screening', {method: 'POST', signal: ctrl.signal});
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
     while (true) {
+      if (cancelFlag.screening) { try { ctrl.abort(); } catch(e){} break; }
       const {value, done} = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, {stream: true});
@@ -3093,11 +3214,19 @@ document.getElementById('btnRunScreening').addEventListener('click', async () =>
     const r2 = await fetch('/api/screening');
     if (r2.ok) { screeningData = await r2.json(); }
   } catch(err) {
-    status.textContent = '❌ ' + err.message;
-    status.style.color = 'var(--red)';
+    if (cancelFlag.screening || err.name === 'AbortError') {
+      status.textContent = '⏹ 中止しました（サーバー側の処理は続行される場合があります）';
+      status.style.color = 'var(--accent4)';
+    } else {
+      status.textContent = '❌ ' + err.message;
+      status.style.color = 'var(--red)';
+    }
   }
+  window._screeningAbort = null;
+  cancelFlag.screening = false;
   btn.disabled = false;
   btn.textContent = '🔍 スクリーニング実行';
+  if (stopBtn) stopBtn.style.display = 'none';
 });
 
 /* Memo feature - localStorage per stock code */
