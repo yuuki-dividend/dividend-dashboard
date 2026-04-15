@@ -440,6 +440,17 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
   </div>
 </main>
 
+<!-- 4サイト比較モーダル -->
+<div id="compareModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto" onclick="if(event.target===this)closeCompareModal()">
+  <div style="background:var(--bg-card);border-radius:16px;max-width:820px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.4);border:1px solid var(--border)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px">
+      <h3 id="compareModalTitle" style="margin:0;font-size:1.1em">🔍 銘柄比較</h3>
+      <button onclick="closeCompareModal()" style="background:var(--bg-primary);border:1px solid var(--border);color:var(--text-primary);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1em">×</button>
+    </div>
+    <div id="compareModalBody"></div>
+  </div>
+</div>
+
 <!-- Detail Overlay -->
 <div class="detail-overlay" id="detailOverlay">
   <div class="detail-card" id="detailCard"></div>
@@ -2271,6 +2282,7 @@ function renderChecklistTable() {
       </div>
       ${(item.advice && item.advice.length) ? '<div style="font-size:0.92em;margin-bottom:10px;padding:12px 14px;border-radius:10px;background:linear-gradient(135deg,rgba(6,182,212,0.08),rgba(244,114,182,0.08));border-left:3px solid var(--accent);line-height:1.8">' + (item.advice||[]).map(a => '<div style="margin-bottom:6px">💡 ' + a + '</div>').join('') + '</div>' : ''}
       <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+        <button onclick="openCompareModal('${item.code}', '${(item.name||'').replace(/'/g,"\\'")}')" style="padding:4px 12px;background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;border:none;border-radius:20px;font-size:0.7em;font-weight:600;cursor:pointer">🔍 他サイトと比較</button>
         <a href="https://irbank.net/${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#1565C0;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600;transition:opacity .2s">IR BANK</a>
         <a href="https://www.buffett-code.com/company/${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#2e7d32;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">バフェット・コード</a>
         <a href="https://kabutan.jp/stock/?code=${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#d32f2f;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">株探</a>
@@ -3426,6 +3438,122 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('offline', showOffline);
   if (!navigator.onLine) showOffline();
 })();
+
+/* ============================================================
+   銘柄データ 4サイト比較モーダル
+   ============================================================ */
+async function fetchCompareFromSite(name, url, parsers) {
+  const out = { site: name, url, values: {}, error: null };
+  try {
+    const r = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(url), { signal: AbortSignal.timeout(12000) });
+    if (!r.ok) { out.error = 'HTTP ' + r.status; return out; }
+    const raw = await r.text();
+    const text = raw.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ');
+    for (const [key, fn] of Object.entries(parsers)) {
+      try { out.values[key] = fn(text, raw); } catch(e) { out.values[key] = null; }
+    }
+  } catch (e) { out.error = e.message; }
+  return out;
+}
+
+async function openCompareModal(code, name) {
+  const modal = document.getElementById('compareModal');
+  const body = document.getElementById('compareModalBody');
+  const title = document.getElementById('compareModalTitle');
+  title.textContent = `🔍 ${code} ${name || ''} — 4サイト比較`;
+  body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">各サイトから取得中…（数秒かかります）</div>';
+  modal.style.display = 'flex';
+
+  const results = await Promise.all([
+    fetchCompareFromSite('Yahoo', `https://finance.yahoo.co.jp/quote/${code}.T`, {
+      price: (t) => { const m = t.match(/(\d[\d,]*(?:\.\d+)?)\s*円/); return m ? parseFloat(m[1].replace(/,/g,'')) : null; },
+      per_forecast: (t) => { const m = t.match(/PER\s*[（(]会社予想[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); const v = m ? parseFloat(m[1]) : null; return (v && v > 0) ? v : null; },
+      pbr_actual: (t) => { const m = t.match(/PBR\s*[（(]実績[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); const v = m ? parseFloat(m[1]) : null; return (v && v > 0) ? v : null; },
+      yield: (t) => { const m = t.match(/配当利回り[（(]会社予想[）)][^%]{0,40}?(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
+    }),
+    fetchCompareFromSite('IRバンク', `https://irbank.net/${code}`, {
+      per_forecast: (t) => { const m = t.match(/PER[^倍]{0,25}?予\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
+      per_actual: (t) => { const m = t.match(/PER\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
+      pbr: (t) => { const m = t.match(/PBR\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
+      yield: (t) => { const m = t.match(/利回り[^%]{0,20}?(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
+    }),
+    fetchCompareFromSite('みんかぶ', `https://minkabu.jp/stock/${code}`, {
+      price: (t) => { const m = t.match(/株価\s*(\d[\d,]*(?:\.\d+)?)\s*円/); return m ? parseFloat(m[1].replace(/,/g,'')) : null; },
+      per_adjusted: (t) => { const m = t.match(/PER\s*[（(]調整後[）)]\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
+      pbr: (t) => { const m = t.match(/PBR\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
+      yield: (t) => { const m = t.match(/配当利回り[：:\s]+(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
+      payout: (t) => { const m = t.match(/配当性向[：:\s]+(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
+    }),
+    fetchCompareFromSite('株探', `https://kabutan.jp/stock/?code=${code}`, {
+      per: (t) => { const m = t.match(/連結予想.*?PER[^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
+      pbr: (t) => { const m = t.match(/PBR[^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
+      yield: (t) => { const m = t.match(/利回り\s*(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
+    }),
+  ]);
+
+  /* 各指標の代表値と乖離判定 */
+  const pickPer = (r) => r.values.per_forecast || r.values.per || r.values.per_actual || r.values.per_adjusted || null;
+  const pickPbr = (r) => r.values.pbr_actual || r.values.pbr || null;
+  const perVals = results.map(r => ({ site: r.site, val: pickPer(r) })).filter(x => x.val);
+  const pbrVals = results.map(r => ({ site: r.site, val: pickPbr(r) })).filter(x => x.val);
+  const priceVals = results.map(r => ({ site: r.site, val: r.values.price })).filter(x => x.val);
+  const yldVals = results.map(r => ({ site: r.site, val: r.values.yield })).filter(x => x.val);
+
+  const divergence = (arr) => {
+    if (arr.length < 2) return 0;
+    const mn = Math.min(...arr.map(a => a.val));
+    const mx = Math.max(...arr.map(a => a.val));
+    return (mx - mn) / mn;
+  };
+
+  const fmtVal = (v, unit) => v ? (v < 10 ? v.toFixed(2) : v.toFixed(1)) + unit : '<span style="color:var(--text-muted)">-</span>';
+
+  const perDiv = divergence(perVals);
+  const pbrDiv = divergence(pbrVals);
+  const yldDiv = divergence(yldVals);
+  const warnBadge = (d) => d > 0.2 ? ' <span style="background:#fbbf24;color:#78350f;padding:1px 6px;border-radius:10px;font-size:0.65em;font-weight:700">⚠ 乖離大</span>' : (d > 0.1 ? ' <span style="background:#93c5fd;color:#1e3a5f;padding:1px 6px;border-radius:10px;font-size:0.65em;font-weight:700">やや乖離</span>' : '');
+
+  let h = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.9em">';
+  h += '<thead><tr><th style="text-align:left;padding:8px;border-bottom:2px solid var(--border)">サイト</th>';
+  h += '<th style="padding:8px;border-bottom:2px solid var(--border)">株価</th>';
+  h += '<th style="padding:8px;border-bottom:2px solid var(--border)">PER</th>';
+  h += '<th style="padding:8px;border-bottom:2px solid var(--border)">PBR</th>';
+  h += '<th style="padding:8px;border-bottom:2px solid var(--border)">利回り</th>';
+  h += '<th style="padding:8px;border-bottom:2px solid var(--border)">備考</th></tr></thead><tbody>';
+
+  results.forEach(r => {
+    const per = pickPer(r);
+    const pbr = pickPbr(r);
+    const perType = r.values.per_forecast ? '予想' : (r.values.per ? '予想' : (r.values.per_actual ? '実績' : (r.values.per_adjusted ? '調整後' : '')));
+    const note = r.error ? '<span style="color:var(--red)">取得失敗: ' + r.error + '</span>' : (perType ? 'PER=' + perType : '');
+    h += '<tr style="border-bottom:1px solid var(--border)">';
+    h += `<td style="padding:10px 8px;font-weight:700"><a href="${r.url}" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:none">${r.site} ↗</a></td>`;
+    h += `<td style="padding:10px 8px;text-align:center">${fmtVal(r.values.price, '円')}</td>`;
+    h += `<td style="padding:10px 8px;text-align:center">${fmtVal(per, '倍')}</td>`;
+    h += `<td style="padding:10px 8px;text-align:center">${fmtVal(pbr, '倍')}</td>`;
+    h += `<td style="padding:10px 8px;text-align:center">${fmtVal(r.values.yield, '%')}</td>`;
+    h += `<td style="padding:10px 8px;font-size:0.8em;color:var(--text-muted)">${note}</td>`;
+    h += '</tr>';
+  });
+  h += '</tbody></table></div>';
+
+  h += '<div style="margin-top:16px;padding:14px;background:var(--bg-primary);border-radius:10px;font-size:0.88em">';
+  h += '<div style="font-weight:700;margin-bottom:8px">📊 サイト間のばらつき</div>';
+  h += `<div>PER: ${perVals.length}サイト比較・最大${(perDiv*100).toFixed(1)}%乖離${warnBadge(perDiv)}</div>`;
+  h += `<div>PBR: ${pbrVals.length}サイト比較・最大${(pbrDiv*100).toFixed(1)}%乖離${warnBadge(pbrDiv)}</div>`;
+  h += `<div>利回り: ${yldVals.length}サイト比較・最大${(yldDiv*100).toFixed(1)}%乖離${warnBadge(yldDiv)}</div>`;
+  h += '</div>';
+
+  h += '<div style="margin-top:12px;font-size:0.78em;color:var(--text-muted);line-height:1.6">';
+  h += '💡 <b>PERの種類に注意</b>：Yahoo/株探は「予想PER」、みんかぶは「調整後PER（実績ベース）」、IRバンクは予想と実績の両方を表示。業績予想が大きく変動する銘柄では値が大きく違います。';
+  h += '</div>';
+
+  body.innerHTML = h;
+}
+
+function closeCompareModal() {
+  document.getElementById('compareModal').style.display = 'none';
+}
 </script>
 </body>
 </html>
