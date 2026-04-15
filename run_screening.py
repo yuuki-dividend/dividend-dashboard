@@ -980,6 +980,21 @@ def run_screening():
         },
     }
 
+    # ガード：全カテゴリが空の場合は上書きせず中止（データ取得失敗の誤上書き防止）
+    is_empty = (not high_dividend) and (not buy_timing) and (not sector_recs)
+    if is_empty:
+        log("⚠️ 全カテゴリが空のため保存を中止しました（既存 screening_data.json は保持）")
+        log("   想定原因: 外部データソースの取得失敗、または条件に合致する銘柄が0件")
+        log("   対処: 既存ファイルはそのまま。後ほど再実行してください。")
+        return
+    # 既存ファイルがあれば念のためバックアップ（.prev）
+    try:
+        if os.path.exists(SCREENING_FILE):
+            import shutil
+            shutil.copy2(SCREENING_FILE, SCREENING_FILE + ".prev")
+    except Exception as e:
+        log(f"  ⚠️ バックアップ失敗（続行）: {e}")
+
     with open(SCREENING_FILE, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
 
