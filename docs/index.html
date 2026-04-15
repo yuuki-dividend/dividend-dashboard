@@ -3462,31 +3462,32 @@ async function openCompareModal(code, name) {
   body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">各サイトから取得中…（数秒かかります）</div>';
   modal.style.display = 'flex';
 
-  const results = await Promise.all([
-    fetchCompareFromSite('Yahoo', `https://finance.yahoo.co.jp/quote/${code}.T`, {
-      price: (t) => { const m = t.match(/(\d[\d,]*(?:\.\d+)?)\s*円/); return m ? parseFloat(m[1].replace(/,/g,'')) : null; },
-      per_forecast: (t) => { const m = t.match(/PER\s*[（(]会社予想[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); const v = m ? parseFloat(m[1]) : null; return (v && v > 0) ? v : null; },
-      pbr_actual: (t) => { const m = t.match(/PBR\s*[（(]実績[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); const v = m ? parseFloat(m[1]) : null; return (v && v > 0) ? v : null; },
-      yield: (t) => { const m = t.match(/配当利回り[（(]会社予想[）)][^%]{0,40}?(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
-    }),
-    fetchCompareFromSite('IRバンク', `https://irbank.net/${code}`, {
-      per_forecast: (t) => { const m = t.match(/PER[^倍]{0,25}?予\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
-      per_actual: (t) => { const m = t.match(/PER\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
-      pbr: (t) => { const m = t.match(/PBR\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
-      yield: (t) => { const m = t.match(/利回り[^%]{0,20}?(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
-    }),
-    fetchCompareFromSite('みんかぶ', `https://minkabu.jp/stock/${code}`, {
-      price: (t) => { const m = t.match(/株価\s*(\d[\d,]*(?:\.\d+)?)\s*円/); return m ? parseFloat(m[1].replace(/,/g,'')) : null; },
-      per_adjusted: (t) => { const m = t.match(/PER\s*[（(]調整後[）)]\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
-      pbr: (t) => { const m = t.match(/PBR\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
-      yield: (t) => { const m = t.match(/配当利回り[：:\s]+(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
-      payout: (t) => { const m = t.match(/配当性向[：:\s]+(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
-    }),
-    fetchCompareFromSite('株探', `https://kabutan.jp/stock/?code=${code}`, {
-      per: (t) => { const m = t.match(/連結予想.*?PER[^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
-      pbr: (t) => { const m = t.match(/PBR[^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
-      yield: (t) => { const m = t.match(/利回り\s*(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
-    }),
+  const [results, refPrice] = await Promise.all([
+    Promise.all([
+      fetchCompareFromSite('Yahoo', `https://finance.yahoo.co.jp/quote/${code}.T`, {
+        per_forecast: (t) => { const m = t.match(/PER\s*[（(]会社予想[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); const v = m ? parseFloat(m[1]) : null; return (v && v > 0) ? v : null; },
+        pbr_actual: (t) => { const m = t.match(/PBR\s*[（(]実績[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); const v = m ? parseFloat(m[1]) : null; return (v && v > 0) ? v : null; },
+        yield: (t) => { const m = t.match(/配当利回り[（(]会社予想[）)][^%]{0,40}?(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
+      }),
+      fetchCompareFromSite('IRバンク', `https://irbank.net/${code}`, {
+        per_forecast: (t) => { const m = t.match(/PER[^倍]{0,25}?予\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
+        per_actual: (t) => { const m = t.match(/PER\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
+        pbr: (t) => { const m = t.match(/PBR\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
+        yield: (t) => { const m = t.match(/利回り[^%]{0,20}?(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
+      }),
+      fetchCompareFromSite('みんかぶ', `https://minkabu.jp/stock/${code}`, {
+        per_adjusted: (t) => { const m = t.match(/PER\s*[（(]調整後[）)]\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
+        pbr: (t) => { const m = t.match(/PBR\s*(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
+        yield: (t) => { const m = t.match(/配当利回り[：:\s]+(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
+        payout: (t) => { const m = t.match(/配当性向[：:\s]+(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
+      }),
+      fetchCompareFromSite('株探', `https://kabutan.jp/stock/?code=${code}`, {
+        per: (t) => { const m = t.match(/連結予想.*?PER[^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
+        pbr: (t) => { const m = t.match(/PBR[^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/); return m ? parseFloat(m[1]) : null; },
+        yield: (t) => { const m = t.match(/利回り\s*(\d+(?:\.\d+)?)\s*%/); return m ? parseFloat(m[1]) : null; },
+      }),
+    ]),
+    fetchPriceClient(code),
   ]);
 
   /* 各指標の代表値と乖離判定 */
@@ -3494,7 +3495,6 @@ async function openCompareModal(code, name) {
   const pickPbr = (r) => r.values.pbr_actual || r.values.pbr || null;
   const perVals = results.map(r => ({ site: r.site, val: pickPer(r) })).filter(x => x.val);
   const pbrVals = results.map(r => ({ site: r.site, val: pickPbr(r) })).filter(x => x.val);
-  const priceVals = results.map(r => ({ site: r.site, val: r.values.price })).filter(x => x.val);
   const yldVals = results.map(r => ({ site: r.site, val: r.values.yield })).filter(x => x.val);
 
   const divergence = (arr) => {
@@ -3511,9 +3511,12 @@ async function openCompareModal(code, name) {
   const yldDiv = divergence(yldVals);
   const warnBadge = (d) => d > 0.2 ? ' <span style="background:#fbbf24;color:#78350f;padding:1px 6px;border-radius:10px;font-size:0.65em;font-weight:700">⚠ 乖離大</span>' : (d > 0.1 ? ' <span style="background:#93c5fd;color:#1e3a5f;padding:1px 6px;border-radius:10px;font-size:0.65em;font-weight:700">やや乖離</span>' : '');
 
-  let h = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.9em">';
+  let h = '';
+  if (refPrice) {
+    h += `<div style="margin-bottom:14px;padding:10px 14px;background:var(--bg-primary);border-radius:10px;font-size:0.95em"><span style="color:var(--text-muted);font-size:0.85em">📈 現在株価</span> <b style="font-size:1.15em;margin-left:8px">${refPrice.toLocaleString()}円</b> <span style="color:var(--text-muted);font-size:0.75em;margin-left:8px">（Yahoo Finance）</span></div>`;
+  }
+  h += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.9em">';
   h += '<thead><tr><th style="text-align:left;padding:8px;border-bottom:2px solid var(--border)">サイト</th>';
-  h += '<th style="padding:8px;border-bottom:2px solid var(--border)">株価</th>';
   h += '<th style="padding:8px;border-bottom:2px solid var(--border)">PER</th>';
   h += '<th style="padding:8px;border-bottom:2px solid var(--border)">PBR</th>';
   h += '<th style="padding:8px;border-bottom:2px solid var(--border)">利回り</th>';
@@ -3526,7 +3529,6 @@ async function openCompareModal(code, name) {
     const note = r.error ? '<span style="color:var(--red)">取得失敗: ' + r.error + '</span>' : (perType ? 'PER=' + perType : '');
     h += '<tr style="border-bottom:1px solid var(--border)">';
     h += `<td style="padding:10px 8px;font-weight:700"><a href="${r.url}" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:none">${r.site} ↗</a></td>`;
-    h += `<td style="padding:10px 8px;text-align:center">${fmtVal(r.values.price, '円')}</td>`;
     h += `<td style="padding:10px 8px;text-align:center">${fmtVal(per, '倍')}</td>`;
     h += `<td style="padding:10px 8px;text-align:center">${fmtVal(pbr, '倍')}</td>`;
     h += `<td style="padding:10px 8px;text-align:center">${fmtVal(r.values.yield, '%')}</td>`;
