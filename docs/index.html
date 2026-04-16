@@ -1,11 +1,22 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-theme="light">
 <head>
+<script>
+  /* 初期描画のフラッシュ防止 — JS 本体より前に localStorage を見て即テーマ適用 */
+  try {
+    var __savedTheme = localStorage.getItem('theme');
+    if (__savedTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  } catch (e) {}
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>高配当株ポートフォリオ</title>
 <link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#1e293b">
+<meta name="theme-color" content="#f7f5f2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="./icon-192.svg">
@@ -499,7 +510,7 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
       <h3>表示設定</h3>
       <div class="settings-row">
         <span>ダークモード</span>
-        <div class="toggle on" id="themeToggle"></div>
+        <div class="toggle" id="themeToggle"></div>
       </div>
       <div class="settings-row">
         <span>利回り閾値 (%)</span>
@@ -696,6 +707,55 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
         <label style="display:block;font-size:.78em;color:var(--text-muted);margin-bottom:4px">平均取得単価（円）</label>
         <input type="number" id="sfBuyPrice" min="0" step="0.01" placeholder="例: 2450" style="width:100%;padding:10px 12px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;font-size:1em;font-variant-numeric:tabular-nums">
       </div>
+
+      <!-- 外部リンク（編集モードのみ表示）— 手動補完の参考用 -->
+      <div id="sfExternalLinks" style="margin-bottom:12px;display:none">
+        <div style="font-size:.72em;color:var(--text-muted);margin-bottom:4px">詳細データを調べる</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <a id="sfLinkIrBank" href="#" target="_blank" rel="noopener noreferrer" style="padding:6px 10px;background:var(--bg-primary);color:var(--accent3);border:1px solid var(--border);border-radius:6px;text-decoration:none;font-size:.78em;font-weight:600;display:inline-flex;align-items:center;gap:4px">📊 配当推移（IR BANK）</a>
+          <a id="sfLinkKabutan" href="#" target="_blank" rel="noopener noreferrer" style="padding:6px 10px;background:var(--bg-primary);color:var(--accent4);border:1px solid var(--border);border-radius:6px;text-decoration:none;font-size:.78em;font-weight:600;display:inline-flex;align-items:center;gap:4px">📝 業績詳細（株探）</a>
+        </div>
+      </div>
+
+      <!-- 詳細データの手動オーバーライド（編集時のみ表示） -->
+      <details id="sfOverrideWrap" style="margin-bottom:14px;display:none">
+        <summary style="cursor:pointer;font-size:.82em;color:var(--accent2);font-weight:700;padding:4px 0">✍️ 詳細データを手動で入力する（取得失敗時の補完）</summary>
+        <div style="padding:10px;background:var(--bg-primary);border:1px dashed var(--border);border-radius:8px;margin-top:8px">
+          <div style="font-size:.72em;color:var(--text-muted);margin-bottom:10px;line-height:1.5">
+            入力した値は <b>✍️ マーク付き</b>で表示され、次回以降の自動更新で上書きされません。<br>
+            空欄にして保存 or 下の「🔄 自動取得に戻す」で解除できます。
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label style="display:block;font-size:.72em;color:var(--text-muted);margin-bottom:2px">1株配当（円/年）</label>
+              <input type="number" id="sfAnnualDiv" min="0" step="0.1" placeholder="未入力=自動" style="width:100%;padding:8px 10px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;font-size:.9em;font-variant-numeric:tabular-nums">
+            </div>
+            <div>
+              <label style="display:block;font-size:.72em;color:var(--text-muted);margin-bottom:2px">配当利回り（%）</label>
+              <input type="number" id="sfYield" min="0" step="0.01" placeholder="未入力=自動" style="width:100%;padding:8px 10px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;font-size:.9em;font-variant-numeric:tabular-nums">
+            </div>
+            <div>
+              <label style="display:block;font-size:.72em;color:var(--text-muted);margin-bottom:2px">PER（倍）</label>
+              <input type="number" id="sfPer" min="0" step="0.01" placeholder="未入力=自動" style="width:100%;padding:8px 10px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;font-size:.9em;font-variant-numeric:tabular-nums">
+            </div>
+            <div>
+              <label style="display:block;font-size:.72em;color:var(--text-muted);margin-bottom:2px">PBR（倍）</label>
+              <input type="number" id="sfPbr" min="0" step="0.01" placeholder="未入力=自動" style="width:100%;padding:8px 10px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;font-size:.9em;font-variant-numeric:tabular-nums">
+            </div>
+            <div>
+              <label style="display:block;font-size:.72em;color:var(--text-muted);margin-bottom:2px">配当性向（%）</label>
+              <input type="number" id="sfPayoutRatio" min="0" step="0.1" placeholder="未入力=自動" style="width:100%;padding:8px 10px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;font-size:.9em;font-variant-numeric:tabular-nums">
+            </div>
+            <div>
+              <label style="display:block;font-size:.72em;color:var(--text-muted);margin-bottom:2px">セクター</label>
+              <input type="text" id="sfSector" maxlength="40" placeholder="未入力=自動" style="width:100%;padding:8px 10px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;font-size:.9em">
+            </div>
+          </div>
+          <button type="button" onclick="resetManualOverrides()" style="margin-top:10px;width:100%;padding:8px;background:transparent;color:var(--accent4);border:1px dashed var(--accent4);border-radius:6px;cursor:pointer;font-weight:600;font-size:.85em">🔄 全手動入力をクリアして自動取得に戻す</button>
+          <div id="sfManualSummary" style="margin-top:8px;font-size:.7em;color:var(--text-muted);line-height:1.5"></div>
+        </div>
+      </details>
+
       <div id="sfHint" style="font-size:.75em;color:var(--text-muted);margin-bottom:10px;line-height:1.5"></div>
       <div id="sfError" style="display:none;padding:8px 12px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:6px;font-size:.82em;margin-bottom:10px"></div>
       <div style="display:flex;gap:8px;margin-top:10px">
@@ -741,6 +801,64 @@ function refreshAllViews() {
   try { if (typeof renderChecklistTable === 'function') renderChecklistTable(); } catch(e){ console.warn(e); }
 }
 
+/* 手動オーバーライドを扱うフィールド一覧
+   各要素: [inputId, stockKey, manualFlagKey, type] */
+const MANUAL_OVERRIDE_FIELDS = [
+  ['sfAnnualDiv',   'annual_div',    'annual_div_manual',   'float'],
+  ['sfYield',       'yield',         'yield_manual',        'float'],
+  ['sfPer',         'per',           'per_manual',          'float'],
+  ['sfPbr',         'pbr',           'pbr_manual',          'float'],
+  ['sfPayoutRatio', 'payout_ratio',  'payout_ratio_manual', 'float'],
+  ['sfSector',      'sector',        'sector_manual',       'string'],
+];
+
+function _sfSyncOverrideFields(s) {
+  /* 既存値を入力欄に反映（手動値があれば表示、なければ現在値を薄く表示） */
+  for (const [inputId, key] of MANUAL_OVERRIDE_FIELDS) {
+    const el = document.getElementById(inputId);
+    if (!el) continue;
+    const v = s && s[key] != null ? s[key] : '';
+    el.value = (v === '' || v == null) ? '' : String(v);
+  }
+  /* summary 表示: 現在どの項目が手動か一覧 */
+  const labels = [];
+  if (s) {
+    if (s.annual_div_manual)   labels.push('1株配当');
+    if (s.yield_manual)        labels.push('利回り');
+    if (s.per_manual)          labels.push('PER');
+    if (s.pbr_manual)          labels.push('PBR');
+    if (s.payout_ratio_manual) labels.push('配当性向');
+    if (s.sector_manual)       labels.push('セクター');
+  }
+  const sum = document.getElementById('sfManualSummary');
+  if (sum) {
+    sum.textContent = labels.length
+      ? `現在の手動項目: ${labels.join(' / ')} （次回自動更新で上書きされません）`
+      : '現在すべて自動取得モードです';
+  }
+}
+
+function resetManualOverrides() {
+  if (_sfMode !== 'edit' || !_sfEditCode) return;
+  if (!confirm('この銘柄の手動入力をすべてクリアして、次回更新時に自動取得に戻しますか？')) return;
+  const s = stocks.find(st => String(st.code) === _sfEditCode);
+  if (!s) return;
+  for (const [, , flagKey] of MANUAL_OVERRIDE_FIELDS) {
+    delete s[flagKey];
+  }
+  /* 入力欄もクリア（次の保存で空欄=自動） */
+  for (const [inputId] of MANUAL_OVERRIDE_FIELDS) {
+    const el = document.getElementById(inputId);
+    if (el) el.value = '';
+  }
+  if (typeof savePortfolioToLocal === 'function') savePortfolioToLocal();
+  _sfSyncOverrideFields(s);
+  refreshAllViews();
+  /* 視覚的フィードバック */
+  const hint = document.getElementById('sfHint');
+  if (hint) hint.innerHTML = '<span style="color:var(--green);font-weight:700">✅ 手動入力をすべてクリアしました。次回「📊 全部更新」で自動取得されます</span>';
+}
+
 function openAddStock() {
   _sfMode = 'add'; _sfEditCode = null;
   document.getElementById('stockFormTitle').textContent = '＋ 銘柄を追加';
@@ -753,6 +871,16 @@ function openAddStock() {
   document.getElementById('sfError').style.display = 'none';
   document.getElementById('sfSaveBtn').disabled = false;
   document.getElementById('sfSaveBtn').textContent = '保存';
+  /* 追加モードでは手動オーバーライド欄・外部リンクは隠す */
+  const ov = document.getElementById('sfOverrideWrap');
+  if (ov) { ov.style.display = 'none'; ov.open = false; }
+  const links = document.getElementById('sfExternalLinks');
+  if (links) links.style.display = 'none';
+  /* 入力欄クリア */
+  for (const [inputId] of MANUAL_OVERRIDE_FIELDS) {
+    const el = document.getElementById(inputId);
+    if (el) el.value = '';
+  }
   document.getElementById('stockFormOverlay').classList.add('show');
   setTimeout(() => document.getElementById('sfCode').focus(), 50);
 }
@@ -768,11 +896,29 @@ function openEditStock(code) {
   document.getElementById('sfShares').value = s.shares || 0;
   document.getElementById('sfBuyPrice').value = s.buy_price || 0;
   document.getElementById('sfHint').innerHTML =
-    `現在値: <b>${fmtYen(s.cur_price||0)}</b> / 年間配当: <b>${fmtYen(s.annual_div||0)}</b>（変更しません）<br>` +
+    `現在値: <b>${fmtYen(s.cur_price||0)}</b> / 年間配当: <b>${fmtYen(s.annual_div||0)}</b>（値の変更は下の「詳細データを手動で入力する」から）<br>` +
     '※ 買い増し・一部売却後の最新の株数と平均取得単価を直接入力してください';
   document.getElementById('sfError').style.display = 'none';
   document.getElementById('sfSaveBtn').disabled = false;
   document.getElementById('sfSaveBtn').textContent = '保存';
+  /* 編集モードでは手動オーバーライド欄を表示し、既存値を反映 */
+  const ov = document.getElementById('sfOverrideWrap');
+  if (ov) {
+    ov.style.display = '';
+    /* 手動項目が1つでもあれば自動的に開いておく */
+    const hasManual = MANUAL_OVERRIDE_FIELDS.some(([,,flag]) => s[flag]);
+    ov.open = hasManual;
+  }
+  /* 外部リンク（IR BANK / 株探）を現在の証券コードに合わせて表示 */
+  const links = document.getElementById('sfExternalLinks');
+  if (links) {
+    links.style.display = '';
+    const irLink  = document.getElementById('sfLinkIrBank');
+    const kabLink = document.getElementById('sfLinkKabutan');
+    if (irLink)  irLink.href  = `https://irbank.net/${s.code}/dividend`;
+    if (kabLink) kabLink.href = `https://kabutan.jp/stock/finance?code=${s.code}`;
+  }
+  _sfSyncOverrideFields(s);
   document.getElementById('stockFormOverlay').classList.add('show');
   setTimeout(() => document.getElementById('sfShares').focus(), 50);
 }
@@ -814,9 +960,58 @@ async function submitStockForm() {
     if (!s) { _sfShowError('対象銘柄が見つかりません'); return; }
     s.shares = shares;
     s.buy_price = buyPrice;
+
+    /* ===== 手動オーバーライド処理 =====
+     * 入力欄に値があれば manual フラグを立てて保存（自動更新から保護）
+     * 空欄にされた場合は該当フラグを削除（次回自動取得される） */
+    let manualChanged = false;
+    for (const [inputId, key, flagKey, type] of MANUAL_OVERRIDE_FIELDS) {
+      const el = document.getElementById(inputId);
+      if (!el) continue;
+      const raw = (el.value || '').trim();
+      if (raw === '') {
+        /* 空欄: 手動フラグ解除（自動取得に戻す） */
+        if (s[flagKey]) {
+          delete s[flagKey];
+          manualChanged = true;
+        }
+        continue;
+      }
+      /* 値あり: バリデーション → 手動値として保存 */
+      if (type === 'float') {
+        const v = parseFloat(raw);
+        if (!isFinite(v) || v < 0) { _sfShowError(`${key} は0以上の数値で入力してください`); return; }
+        if (s[key] !== v) manualChanged = true;
+        s[key] = v;
+      } else {
+        if (s[key] !== raw) manualChanged = true;
+        s[key] = raw;
+      }
+      s[flagKey] = true; /* ★ 手動オーバーライドフラグ */
+    }
+    /* 1株配当 or 利回りの片方だけ更新された場合、整合性を取る（株価×利回り=配当） */
+    if (s.annual_div_manual && s.cur_price > 0 && !s.yield_manual) {
+      /* 利回りは手動ではない → 配当から自動算出 */
+      s.yield = Math.round((s.annual_div / s.cur_price) * 100 * 100) / 100;
+    } else if (s.yield_manual && s.cur_price > 0 && !s.annual_div_manual) {
+      s.annual_div = Math.round(s.cur_price * s.yield / 100 * 10) / 10;
+    }
+    /* PER×PBR からミックス係数を再計算 */
+    if (s.per && s.pbr) s.mix_coef = Math.round(s.per * s.pbr * 100) / 100;
+
     if (typeof savePortfolioToLocal === 'function') savePortfolioToLocal();
     refreshAllViews();
     closeStockForm();
+    if (manualChanged) {
+      console.log(`[${s.code}] 手動オーバーライド更新:`, {
+        annual_div_manual: s.annual_div_manual,
+        yield_manual: s.yield_manual,
+        per_manual: s.per_manual,
+        pbr_manual: s.pbr_manual,
+        payout_ratio_manual: s.payout_ratio_manual,
+        sector_manual: s.sector_manual
+      });
+    }
     return;
   }
 
@@ -2517,6 +2712,7 @@ function renderPortfolio() {
   const wrap = document.getElementById('portfolioTableWrap');
 
   /* Cell data builder */
+  const mIcon = (flag) => flag ? ' <span title="手動入力（自動更新で保護されています）" style="font-size:.65em;color:#f59e0b;cursor:help">✍️</span>' : '';
   const cellMap = (s) => {
     const pl = getPL(s);
     const plCls = pl >= 0 ? 'text-green' : 'text-red';
@@ -2529,7 +2725,7 @@ function renderPortfolio() {
       market: fmtYen(Math.round(getMarketVal(s))),
       pl: `<span class="${plCls}">${fmtYen(Math.round(pl))}</span>`,
       plr: `<span class="${plCls}">${fmtPct(getPLRate(s))}</span>`,
-      div_per: fmtYen(s.annual_div||0),
+      div_per: fmtYen(s.annual_div||0) + mIcon(s.annual_div_manual),
       book_yield: (() => {
         const y = getBookYield(s); const cy = getCurYield(s);
         if (y <= 0) return '-';
@@ -2538,13 +2734,14 @@ function renderPortfolio() {
         let color = 'var(--text-primary)'; let weight = 400; let icon = '';
         if (diff > 0.5) { color = '#22c55e'; weight = 800; icon = '🎉'; }
         else if (diff > 0) { color = '#f59e0b'; weight = 700; icon = '↑'; }
-        return `<span style="color:${color};font-weight:${weight};font-variant-numeric:tabular-nums" title="買値利回り (YOC) = 年間配当 / 取得単価">${icon ? icon+' ' : ''}${y.toFixed(2)}%</span>`;
+        return `<span style="color:${color};font-weight:${weight};font-variant-numeric:tabular-nums" title="買値利回り (YOC) = 年間配当 / 取得単価">${icon ? icon+' ' : ''}${y.toFixed(2)}%</span>${mIcon(s.annual_div_manual || s.yield_manual)}`;
       })(),
-      cur_yield: fmtPct(getCurYield(s)),
-      per: s.per ? s.per.toFixed(1) : '-', pbr: s.pbr ? s.pbr.toFixed(2) : '-',
-      mix_coef: s.mix_coef ? s.mix_coef.toFixed(2) : '-',
+      cur_yield: fmtPct(getCurYield(s)) + mIcon(s.yield_manual),
+      per: (s.per ? s.per.toFixed(1) : '-') + mIcon(s.per_manual),
+      pbr: (s.pbr ? s.pbr.toFixed(2) : '-') + mIcon(s.pbr_manual),
+      mix_coef: (s.mix_coef ? s.mix_coef.toFixed(2) : '-') + mIcon(s.per_manual || s.pbr_manual),
       valuation: `<span style="${getValuationColor(s.mix_coef)};padding:4px 8px;border-radius:4px;font-weight:600;font-size:.78rem">${getValuationLabel(s.mix_coef)}</span>`,
-      sector: getSector(s),
+      sector: getSector(s) + mIcon(s.sector_manual),
       earnings: (() => {
         const d = s.earnings_date || '';
         const manual = !!s.earnings_date_manual;
@@ -2562,9 +2759,11 @@ function renderPortfolio() {
         if (days <= 14) return `<span ${clickable}><span style="color:#f59e0b;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums">⚠️ ${disp}<span style="font-size:.75em;margin-left:4px">(${days}日)</span></span>${mark}</span>`;
         return `<span ${clickable}><span style="color:var(--text-secondary);white-space:nowrap;font-variant-numeric:tabular-nums">${disp}</span>${mark}</span>`;
       })(),
-      /* 編集（✏️）・削除（🗑️）ボタン。行クリック伝播を止めてモーダル/確認ダイアログへ */
+      /* 編集（✏️）・外部リンク（📊 IR BANK / 📝 株探）・削除（🗑️）ボタン。行クリック伝播を止めてモーダル/確認ダイアログへ */
       _action: `<span style="display:inline-flex;gap:4px;white-space:nowrap">
         <button onclick="event.stopPropagation(); openEditStock('${s.code}')" title="株数・取得単価を編集" style="padding:4px 8px;background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.85em;line-height:1;transition:all .15s" onmouseover="this.style.color='var(--accent2)';this.style.borderColor='var(--accent2)';this.style.background='rgba(59,130,246,.08)'" onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)';this.style.background='transparent'">✏️</button>
+        <a href="https://irbank.net/${s.code}/dividend" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="IR BANK で配当推移を見る" style="padding:4px 6px;background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.85em;line-height:1;text-decoration:none;display:inline-flex;align-items:center;transition:all .15s" onmouseover="this.style.color='var(--accent3)';this.style.borderColor='var(--accent3)';this.style.background='rgba(52,211,153,.08)'" onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)';this.style.background='transparent'">📊</a>
+        <a href="https://kabutan.jp/stock/finance?code=${s.code}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="株探で業績・財務を見る" style="padding:4px 6px;background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.85em;line-height:1;text-decoration:none;display:inline-flex;align-items:center;transition:all .15s" onmouseover="this.style.color='var(--accent4)';this.style.borderColor='var(--accent4)';this.style.background='rgba(251,191,36,.08)'" onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)';this.style.background='transparent'">📝</a>
         <button onclick="event.stopPropagation(); deleteStock('${s.code}')" title="この銘柄をポートフォリオから削除" style="padding:4px 8px;background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.85em;line-height:1;transition:all .15s" onmouseover="this.style.color='#ef4444';this.style.borderColor='#ef4444';this.style.background='rgba(239,68,68,.08)'" onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)';this.style.background='transparent'">🗑️</button>
       </span>`
     };
@@ -2648,9 +2847,10 @@ document.getElementById('stockFormOverlay').addEventListener('keydown', e => {
 function showDetail(s) {
   if (!s) return;
   const pl = getPL(s);
+  const mIcon = (flag) => flag ? ' <span title="手動入力（自動更新で保護されています）" style="font-size:.7em;color:#f59e0b;cursor:help">✍️</span>' : '';
   const rows = [
     ['証券コード', s.code + (s.nisa === 'NISA' ? ' (NISA)' : ' (課税)')],
-    ['セクター', getSector(s)],
+    ['セクター', getSector(s) + mIcon(s.sector_manual)],
     ['保有株数', fmt(s.shares||0) + '株'],
     ['取得単価', fmtYen(s.buy_price||0)],
     ['取得総額', fmtYen(Math.round(getCost(s)))],
@@ -2658,11 +2858,11 @@ function showDetail(s) {
     ['評価額', fmtYen(Math.round(getMarketVal(s)))],
     ['含み損益', fmtYen(Math.round(pl))],
     ['含み損益率', fmtPct(getPLRate(s))],
-    ['年間配当/株', fmtYen(s.annual_div||0)],
+    ['年間配当/株', fmtYen(s.annual_div||0) + mIcon(s.annual_div_manual)],
     ['年間配当総額(税引前)', fmtYen(Math.round(getAnnualDiv(s)))],
     ['年間配当総額(税引後)', fmtYen(Math.round(getAnnualDivAfterTax(s)))],
     ['簿価利回り', fmtPct(getBookYield(s))],
-    ['現在利回り', fmtPct(getCurYield(s))],
+    ['現在利回り', fmtPct(getCurYield(s)) + mIcon(s.yield_manual)],
     ['中間配当', fmtYen(s.mid_div||0) + ' (' + (s.mid_month||'-') + '月)'],
     ['期末配当', fmtYen((s.annual_div||0)-(s.mid_div||0)) + ' (' + (s.end_month||'-') + '月)']
   ];
@@ -2674,6 +2874,10 @@ function showDetail(s) {
     <button onclick="closeDetail();goToChecklist(${s.code})" style="flex:1;padding:10px 16px;border-radius:12px;border:none;cursor:pointer;font-weight:700;font-size:.82rem;background:linear-gradient(135deg,#f472b6,#06b6d4);color:#fff;transition:opacity .2s">✓ チェックリストで分析</button>
     <button onclick="closeDetail();goToSimulator(${s.code})" style="flex:1;padding:10px 16px;border-radius:12px;border:1px solid var(--accent2);cursor:pointer;font-weight:700;font-size:.82rem;background:none;color:var(--accent2);transition:opacity .2s">⏰ 買い時判断</button>
     <a href="https://kabutan.jp/stock/news?code=${s.code}" target="_blank" rel="noopener" style="flex:1;padding:10px 16px;border-radius:12px;border:1px solid #e91e63;cursor:pointer;font-weight:700;font-size:.82rem;background:none;color:#e91e63;text-decoration:none;text-align:center;transition:opacity .2s">📰 ニュース</a>
+  </div>
+  <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+    <a href="https://irbank.net/${s.code}/dividend" target="_blank" rel="noopener noreferrer" style="flex:1;padding:8px 12px;border-radius:10px;border:1px solid var(--border);cursor:pointer;font-weight:600;font-size:.76rem;background:var(--bg-primary);color:var(--accent3);text-decoration:none;text-align:center;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:4px" title="IR BANK で配当推移を見る">📊 配当推移（IR BANK）</a>
+    <a href="https://kabutan.jp/stock/finance?code=${s.code}" target="_blank" rel="noopener noreferrer" style="flex:1;padding:8px 12px;border-radius:10px;border:1px solid var(--border);cursor:pointer;font-weight:600;font-size:.76rem;background:var(--bg-primary);color:var(--accent4);text-decoration:none;text-align:center;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:4px" title="株探で業績・財務を見る">📝 業績詳細（株探）</a>
   </div>`;
   /* 削除ボタン（詳細カード右上・目立ちすぎない赤アウトライン） */
   const deleteBtn = `<button onclick="deleteStock('${s.code}', true)" title="この銘柄をポートフォリオから削除" style="margin-left:auto;margin-right:8px;padding:5px 10px;background:transparent;color:#ef4444;border:1px solid rgba(239,68,68,.4);border-radius:8px;cursor:pointer;font-size:.72em;font-weight:600;line-height:1;transition:all .15s;display:inline-flex;align-items:center;gap:4px;white-space:nowrap" onmouseover="this.style.background='rgba(239,68,68,.1)';this.style.borderColor='#ef4444'" onmouseout="this.style.background='transparent';this.style.borderColor='rgba(239,68,68,.4)'">🗑️ 削除</button>`;
@@ -3734,9 +3938,13 @@ toggle.addEventListener('click', () => {
   const activeTab = document.querySelector('.nav-btn.active');
   if (activeTab) switchTab(activeTab.dataset.tab);
 });
-/* Restore theme */
+/* Restore theme — デフォルトはライトモード。明示的に 'dark' が保存されている場合のみダーク。 */
 const saved = localStorage.getItem('theme');
-if (saved === 'light') setTheme(false);
+if (saved === 'dark') {
+  setTheme(true);
+} else {
+  setTheme(false);
+}
 
 /* Threshold */
 document.getElementById('thresholdInput').addEventListener('change', e => {
@@ -3745,42 +3953,96 @@ document.getElementById('thresholdInput').addEventListener('change', e => {
 const savedThreshold = localStorage.getItem('threshold');
 if (savedThreshold) document.getElementById('thresholdInput').value = savedThreshold;
 
-/* === クライアント側 株価取得（15秒タイムアウト + 3秒待機後 1 回リトライ）=== */
+/* === クライアント側 株価取得（軽量・高速版）===
+ *
+ * 設計方針（速度最優先）:
+ *  - ソースは Yahoo 1 本に固定（実証済みで最も安定・軽量）。
+ *  - CORS プロキシ 3 つを並列競争（Promise.any）— 最速で返した 1 つが勝ち。
+ *    ブラウザの同時接続上限を考慮し、1 銘柄あたり 3 並列に抑える。
+ *  - タイムアウトは 8 秒と短め（プロキシが詰まったら即次へ）。
+ *  - 1 回目で全プロキシ失敗時のみ 2 秒後に 1 度だけリトライ。
+ *  - 失敗時は console.error で HTTPエラー／タイムアウト／パース失敗を区別してログ。
+ *  - 価格パターンは複数用意（Yahoo の DOM 変更に強い）。
+ */
+const PRICE_CORS_PROXIES = [
+  { name: 'corsproxy.io', make: u => `https://corsproxy.io/?url=${encodeURIComponent(u)}` },
+  { name: 'allorigins',   make: u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
+  { name: 'codetabs',     make: u => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}` },
+];
+const PRICE_PATTERNS = [
+  /"price":\s*"?([\d,.]+)/,
+  /"regularMarketPrice":\s*"?([\d,.]+)/,
+  /"lastPrice":\s*"?([\d,.]+)/,
+  /現在値[^0-9]{0,30}([\d,]+\.?\d*)\s*円/
+];
+
 async function fetchPriceClient(code, externalSignal) {
+  if (externalSignal?.aborted) return null;
+  const PER_TIMEOUT = 8000; /* 1 プロキシ試行の上限 8 秒 */
   const targetUrl = `https://finance.yahoo.co.jp/quote/${code}.T`;
-  const PROXIES = [
-    url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    url => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
-  ];
-  const per = 15000; /* 15 秒で打ち切り */
+
+  /* 3 プロキシに並列投げ、最初に成功したものを採用 */
+  const buildAttempts = () => PRICE_CORS_PROXIES.map((prx) => (async () => {
+    const label = `[${code}][${prx.name}]`;
+    const signals = [AbortSignal.timeout(PER_TIMEOUT)];
+    if (externalSignal) signals.push(externalSignal);
+    let resp;
+    try {
+      resp = await fetch(prx.make(targetUrl), { signal: AbortSignal.any(signals) });
+    } catch (e) {
+      const msg = (e && e.name === 'TimeoutError') ? `timeout (${PER_TIMEOUT/1000}s)` : (e?.message || 'network error');
+      console.error(`[fetchPriceClient]${label} fetch 失敗: ${msg}`);
+      throw new Error(msg);
+    }
+    if (!resp.ok) {
+      console.error(`[fetchPriceClient]${label} HTTP ${resp.status} ${resp.statusText}`);
+      throw new Error(`HTTP ${resp.status}`);
+    }
+    let html;
+    try {
+      html = await resp.text();
+    } catch (e) {
+      console.error(`[fetchPriceClient]${label} response.text() 失敗:`, e?.message);
+      throw e;
+    }
+    if (!html || html.length < 100) {
+      console.error(`[fetchPriceClient]${label} 空レスポンス (len=${html?.length||0})`);
+      throw new Error('empty response');
+    }
+    for (const pattern of PRICE_PATTERNS) {
+      const m = html.match(pattern);
+      if (m) {
+        const p = validateNumber(m[1], 'price');
+        if (p != null) return p;
+      }
+    }
+    console.error(`[fetchPriceClient]${label} 価格パターン不一致 (html.length=${html.length})`);
+    throw new Error('no price pattern matched');
+  })());
+
   const tryOnce = async () => {
     if (externalSignal?.aborted) return null;
-    const attempts = PROXIES.map(async (makeUrl) => {
-      const signals = [AbortSignal.timeout(per)];
-      if (externalSignal) signals.push(externalSignal);
-      const resp = await fetch(makeUrl(targetUrl), {signal: AbortSignal.any(signals)});
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const html = await resp.text();
-      if (html.length < 100) throw new Error('empty');
-      const m = html.match(/"price":\s*"?([\d,.]+)/);
-      if (!m) throw new Error('no price match');
-      const p = validateNumber(m[1], 'price');
-      if (p == null) throw new Error('invalid price');
-      return p;
-    });
-    try { return await Promise.any(attempts); }
-    catch (e) { return null; }
+    try {
+      return await Promise.any(buildAttempts());
+    } catch (aggErr) {
+      const errs = aggErr?.errors || [];
+      console.error(`[fetchPriceClient][${code}] 全 ${errs.length} プロキシ失敗:`,
+        errs.map(e => e?.message).filter(Boolean).join(' / ') || '不明');
+      return null;
+    }
   };
+
+  /* 1 回目 */
   let p = await tryOnce();
   if (p != null) return p;
   if (externalSignal?.aborted) return null;
-  /* 3 秒待って 1 度だけリトライ */
-  console.warn(`[fetchPriceClient] [${code}] 1回目失敗、3秒後リトライ`);
-  await new Promise(r => setTimeout(r, 3000));
+
+  /* 2 秒待って 1 度だけリトライ */
+  console.warn(`[fetchPriceClient][${code}] 1回目全滅、2秒後リトライ`);
+  await new Promise(r => setTimeout(r, 2000));
   if (externalSignal?.aborted) return null;
   p = await tryOnce();
-  if (p == null) console.warn(`[fetchPriceClient] [${code}] リトライも失敗`);
+  if (p == null) console.error(`[fetchPriceClient][${code}] リトライも失敗 — 全プロキシ取得不可`);
   return p;
 }
 
@@ -3790,7 +4052,9 @@ async function updatePricesClient(statusEl, barEl, targetList) {
   let updated = 0, failed = 0, completed = 0;
   cancelFlag.update = false;
   window._updateAbort = new AbortController();
-  const CHUNK_SIZE = 5; /* 株価は軽量なので 5 並列 */
+  /* 株価は超軽量（3プロキシ並列・8秒タイムアウト）なので 8 並列に拡大。
+     1 銘柄 = 3 リクエスト、8 並列 = 24 同時リクエスト（ブラウザ上限 ≒ 6/domain × 3 domains = 18 で緩やかに待ち） */
+  const CHUNK_SIZE = 8;
   for (let i = 0; i < list.length; i += CHUNK_SIZE) {
     if (cancelFlag.update) {
       statusEl.textContent = `⏹ 中止: ${completed}/${list.length}処理済（成功${updated}/失敗${failed}）`;
@@ -3814,12 +4078,10 @@ async function updatePricesClient(statusEl, barEl, targetList) {
     }
     if (barEl) barEl.style.width = Math.round(completed/list.length*100) + '%';
     statusEl.textContent = `${completed}/${list.length}: 成功${updated}/失敗${failed}`;
-    /* チャンク間のわずかな休憩 */
+    /* チャンク間の休憩は 30ms のみ（中止応答用） */
     if (i + CHUNK_SIZE < list.length) {
-      for (let w = 0; w < 2; w++) {
-        if (cancelFlag.update) break;
-        await new Promise(r => setTimeout(r, 50));
-      }
+      if (cancelFlag.update) break;
+      await new Promise(r => setTimeout(r, 30));
     }
   }
   if (IS_STATIC) savePortfolioToLocal();
@@ -4410,7 +4672,7 @@ const CORS_PROXIES = [
    タイムアウトは緩めの 18 秒。1 回失敗したら 3 秒待って 1 度だけリトライ。
    確実性を最優先。 */
 async function fetchTextClient(url, timeoutMs, externalSignal) {
-  const per = timeoutMs || 18000; /* デフォルト 18 秒で打ち切り（プロキシ遅延に寛容） */
+  const per = timeoutMs || 10000; /* デフォルト 10 秒（短めにして詰まったら即次へ） */
   const tryOnce = async () => {
     if (externalSignal?.aborted) return null;
     const attempts = CORS_PROXIES.map(async (mk) => {
@@ -4423,18 +4685,22 @@ async function fetchTextClient(url, timeoutMs, externalSignal) {
       return { raw: h, text: h.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ') };
     });
     try { return await Promise.any(attempts); }
-    catch (e) { return null; /* AggregateError: 全プロキシ失敗 */ }
+    catch (e) {
+      const errs = e?.errors || [];
+      console.warn(`[fetchTextClient] 全プロキシ失敗 ${url}:`, errs.map(x => x?.message).filter(Boolean).join(' / '));
+      return null;
+    }
   };
   /* 1 回目 */
   let result = await tryOnce();
   if (result) return result;
   if (externalSignal?.aborted) return null;
-  /* 失敗時: 3 秒待って 1 度だけ再挑戦 */
-  console.warn(`[fetchTextClient] 1回目失敗、3秒後リトライ: ${url}`);
-  await new Promise(r => setTimeout(r, 3000));
+  /* 失敗時: 2 秒待って 1 度だけ再挑戦 */
+  console.warn(`[fetchTextClient] 1回目失敗、2秒後リトライ: ${url}`);
+  await new Promise(r => setTimeout(r, 2000));
   if (externalSignal?.aborted) return null;
   result = await tryOnce();
-  if (!result) console.warn(`[fetchTextClient] リトライも失敗: ${url}`);
+  if (!result) console.error(`[fetchTextClient] リトライも失敗: ${url}`);
   return result;
 }
 
@@ -4442,123 +4708,205 @@ async function enrichStockClient(code, externalSignal) {
   const info = {};
   if (externalSignal?.aborted) return info;
 
+  /* ETF/REIT ヒント — これに該当する銘柄は PER/PBR/自己資本比率 等が
+     そもそも公表されていないため、取得失敗を「異常」扱いにしない。 */
+  const isEtf = isLikelyEtfOrReit(code);
+  if (isEtf) info.is_etf = true;
+
   /* --- 3サイト（yahoo / irbank / minkabu）を並列フェッチ（大幅高速化）--- */
-  const [yahoo, irbank, mk] = await Promise.all([
-    fetchTextClient(`https://finance.yahoo.co.jp/quote/${code}.T`, 6000, externalSignal),
-    fetchTextClient(`https://irbank.net/${code}`, 6000, externalSignal),
-    fetchTextClient(`https://minkabu.jp/stock/${code}/dividend`, 6000, externalSignal),
-  ]);
+  let yahoo = null, irbank = null, mk = null;
+  try {
+    const results = await Promise.all([
+      fetchTextClient(`https://finance.yahoo.co.jp/quote/${code}.T`, 8000, externalSignal).catch(e => { console.warn(`[${code}] yahoo fetch 失敗:`, e?.message); return null; }),
+      fetchTextClient(`https://irbank.net/${code}`, 8000, externalSignal).catch(e => { console.warn(`[${code}] irbank fetch 失敗:`, e?.message); return null; }),
+      fetchTextClient(`https://minkabu.jp/stock/${code}/dividend`, 8000, externalSignal).catch(e => { console.warn(`[${code}] minkabu fetch 失敗:`, e?.message); return null; }),
+    ]);
+    yahoo = results[0]; irbank = results[1]; mk = results[2];
+  } catch (e) {
+    console.error(`[${code}] 並列フェッチで予期せぬ例外:`, e?.message);
+  }
   if (externalSignal?.aborted) return info;
 
-  /* --- Yahooファイナンス: 会社予想PER、実績PBR、利回り --- */
+  /* === 以下、各項目は独立した try-catch で囲み、
+         1項目の失敗が他項目の取得を止めないようにする === */
+
+  /* --- Yahooファイナンス: 会社予想PER、実績PBR、利回り（複数パターンで取得率アップ） --- */
   let yPer = null, yPbr = null, yYield = null;
-  if (yahoo) {
-    yPer   = safeExtract(yahoo.text, /PER\s*[（(]会社予想[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/, 'per');
-    yPbr   = safeExtract(yahoo.text, /PBR\s*[（(]実績[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/, 'pbr');
-    yYield = safeExtract(yahoo.text, /配当利回り[^%]{0,30}?(\d+(?:\.\d+)?)\s*%/, 'yield');
-  }
+  try {
+    if (yahoo) {
+      /* 「会社予想」→「連結予想」→「無印 PER」の順で試行 */
+      yPer = safeExtract(yahoo.text, /PER\s*[（(]会社予想[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/, 'per')
+          || safeExtract(yahoo.text, /PER\s*[（(]連結予想[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/, 'per')
+          || safeExtract(yahoo.text, /PER[^倍]{0,30}?(\d+(?:\.\d+)?)\s*倍/, 'per');
+    }
+  } catch (e) { console.warn(`[${code}] yahoo PER 抽出で例外:`, e?.message); }
+  try {
+    if (yahoo) {
+      yPbr = safeExtract(yahoo.text, /PBR\s*[（(]実績[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/, 'pbr')
+          || safeExtract(yahoo.text, /PBR\s*[（(]連結[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/, 'pbr')
+          || safeExtract(yahoo.text, /PBR[^倍]{0,30}?(\d+(?:\.\d+)?)\s*倍/, 'pbr');
+    }
+  } catch (e) { console.warn(`[${code}] yahoo PBR 抽出で例外:`, e?.message); }
+  try {
+    if (yahoo) {
+      yYield = safeExtract(yahoo.text, /配当利回り\s*[（(]会社予想[）)][^%]{0,40}?(\d+(?:\.\d+)?)\s*%/, 'yield')
+           || safeExtract(yahoo.text, /配当利回り[^%]{0,30}?(\d+(?:\.\d+)?)\s*%/, 'yield')
+           || safeExtract(yahoo.text, /利回り[^%]{0,20}?(\d+(?:\.\d+)?)\s*%/, 'yield');
+    }
+  } catch (e) { console.warn(`[${code}] yahoo 利回り抽出で例外:`, e?.message); }
 
   /* --- IRバンク: 予想PER(「予」付き)優先、なければ実績PER、PBR --- */
   let iPerForecast = null, iPerActual = null, iPbr = null;
-  if (irbank) {
-    iPerForecast = safeExtract(irbank.text, /PER[^倍]{0,25}?予\s*(\d+(?:\.\d+)?)\s*倍/, 'per');
-    iPerActual   = safeExtract(irbank.text, /PER\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/, 'per');
-    iPbr         = safeExtract(irbank.text, /PBR\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/, 'pbr');
-  }
+  try {
+    if (irbank) iPerForecast = safeExtract(irbank.text, /PER[^倍]{0,25}?予\s*(\d+(?:\.\d+)?)\s*倍/, 'per');
+  } catch (e) { console.warn(`[${code}] irbank 予想PER 抽出で例外:`, e?.message); }
+  try {
+    if (irbank) iPerActual = safeExtract(irbank.text, /PER\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/, 'per');
+  } catch (e) { console.warn(`[${code}] irbank 実績PER 抽出で例外:`, e?.message); }
+  try {
+    if (irbank) iPbr = safeExtract(irbank.text, /PBR\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/, 'pbr');
+  } catch (e) { console.warn(`[${code}] irbank PBR 抽出で例外:`, e?.message); }
 
   /* --- PER 採用ロジック --- */
-  const iPer = iPerForecast || iPerActual;
-  if (yPer && iPer) {
-    info.per = yPer; /* Yahoo優先 */
-    const diff = Math.abs(yPer - iPer) / Math.min(yPer, iPer);
-    if (diff > 0.2) info.needs_review = true;
-  } else if (yPer) {
-    info.per = yPer;
-  } else if (iPerForecast) {
-    info.per = iPerForecast;
-  } else if (iPerActual) {
-    info.per = iPerActual;
-    info.per_is_actual = true; /* 予想PER未公表のため実績を代用 */
-  }
+  try {
+    const iPer = iPerForecast || iPerActual;
+    if (yPer && iPer) {
+      info.per = yPer; /* Yahoo優先 */
+      const diff = Math.abs(yPer - iPer) / Math.min(yPer, iPer);
+      if (diff > 0.2) info.needs_review = true;
+    } else if (yPer) {
+      info.per = yPer;
+    } else if (iPerForecast) {
+      info.per = iPerForecast;
+    } else if (iPerActual) {
+      info.per = iPerActual;
+      info.per_is_actual = true; /* 予想PER未公表のため実績を代用 */
+    } else if (isEtf) {
+      /* ETF は PER が存在しなくても正常 */
+      console.debug(`[${code}] PER 未取得（ETF/REIT のため正常扱い）`);
+    }
+  } catch (e) { console.warn(`[${code}] PER 採用ロジックで例外:`, e?.message); }
 
   /* --- PBR 採用ロジック --- */
-  if (yPbr && iPbr) {
-    info.pbr = yPbr;
-    const diff = Math.abs(yPbr - iPbr) / Math.min(yPbr, iPbr);
-    if (diff > 0.2) info.needs_review = true;
-  } else if (yPbr) info.pbr = yPbr;
-  else if (iPbr) info.pbr = iPbr;
+  try {
+    if (yPbr && iPbr) {
+      info.pbr = yPbr;
+      const diff = Math.abs(yPbr - iPbr) / Math.min(yPbr, iPbr);
+      if (diff > 0.2) info.needs_review = true;
+    } else if (yPbr) info.pbr = yPbr;
+    else if (iPbr) info.pbr = iPbr;
+    else if (isEtf) {
+      console.debug(`[${code}] PBR 未取得（ETF/REIT のため正常扱い）`);
+    }
+  } catch (e) { console.warn(`[${code}] PBR 採用ロジックで例外:`, e?.message); }
 
-  if (yYield) info.yield = yYield;
+  /* --- 利回り（Yahoo 優先） --- */
+  try {
+    if (yYield) info.yield = yYield;
+  } catch (e) { console.warn(`[${code}] 利回り設定で例外:`, e?.message); }
 
-  /* --- 配当性向: みんかぶ配当ページ（並列取得済みの mk を使用） --- */
-  if (mk) {
-    const pr = safeExtract(mk.text, /配当性向[：:\s]+(\d+(?:\.\d+)?)\s*%/, 'payout');
-    if (pr != null) info.payout_ratio = pr;
-    if (!info.yield) {
+  /* --- 配当性向: みんかぶ配当ページ --- */
+  try {
+    if (mk) {
+      const pr = safeExtract(mk.text, /配当性向[：:\s]+(\d+(?:\.\d+)?)\s*%/, 'payout');
+      if (pr != null) info.payout_ratio = pr;
+    }
+  } catch (e) { console.warn(`[${code}] 配当性向抽出で例外:`, e?.message); }
+
+  /* --- 利回りフォールバック: みんかぶ配当ページ --- */
+  try {
+    if (!info.yield && mk) {
       const yv = safeExtract(mk.text, /配当利回り[：:\s]+(\d+(?:\.\d+)?)\s*%/, 'yield');
       if (yv != null) info.yield = yv;
     }
-  }
+  } catch (e) { console.warn(`[${code}] 利回りフォールバック抽出で例外:`, e?.message); }
+
+  /* --- 自己資本比率（IRバンク / みんかぶから抽出を試行） --- */
+  try {
+    let eq = null;
+    if (irbank) {
+      eq = safeExtract(irbank.text, /自己資本比率[^%]{0,25}?(\d+(?:\.\d+)?)\s*%/, 'equity');
+    }
+    if (eq == null && mk) {
+      eq = safeExtract(mk.text, /自己資本比率[^%]{0,25}?(\d+(?:\.\d+)?)\s*%/, 'equity');
+    }
+    if (eq != null) info.equity_ratio = eq;
+    else if (isEtf) console.debug(`[${code}] 自己資本比率 未取得（ETF/REIT のため正常扱い）`);
+  } catch (e) { console.warn(`[${code}] 自己資本比率抽出で例外:`, e?.message); }
 
   /* --- 株価: 既に並列取得済みの yahoo.raw から抽出（再フェッチ不要） --- */
-  if (yahoo && yahoo.raw) {
-    const m = yahoo.raw.match(/"price":\s*"?([\d,.]+)/);
-    if (m) {
-      const p = validateNumber(m[1], 'price');
-      if (p != null) info.cur_price = p;
-    }
-  }
-  /* Yahoo で取れなかった場合のみ別経路で再試行（極小コスト） */
-  if (!info.cur_price) {
-    if (externalSignal?.aborted) return info;
-    const price = await fetchPriceClient(code, externalSignal);
-    if (price) info.cur_price = price;
-  }
-  if (info.yield && (info.cur_price || 0) > 0) {
-    info.annual_div = Math.round((info.cur_price || 0) * info.yield / 100 * 10) / 10;
-  }
-  if (info.per && info.pbr) info.mix_coef = Math.round(info.per * info.pbr * 100) / 100;
-
-  /* --- 上場年月日（Yahoo / IRバンクのどちらか） --- */
-  let listed = null;
-  const tryParse = (txt) => {
-    if (!txt) return null;
-    let m = txt.match(/上場(?:年月日|日)[^\d]{0,12}(\d{4})\s*[年\/\-\.]\s*(\d{1,2})/);
-    if (!m) m = txt.match(/上場[：:\s]{0,4}(\d{4})\s*[年\/\-\.]\s*(\d{1,2})/);
-    return m ? {y: +m[1], mo: +m[2]} : null;
-  };
-  if (yahoo) listed = tryParse(yahoo.text);
-  if (!listed && irbank) listed = tryParse(irbank.text);
-  if (listed && listed.y >= 1949 && listed.y <= (new Date()).getFullYear()) {
-    const now = new Date();
-    const years = (now.getFullYear() - listed.y) + (now.getMonth() + 1 - listed.mo) / 12;
-    info.listed_years = Math.round(years * 10) / 10;
-    info.listing_date = `${listed.y}-${String(listed.mo).padStart(2,'0')}`;
-  }
-
-  /* --- 1ヶ月騰落率（Yahoo / みんかぶテキスト内に「騰落率 1ヶ月」が入っている場合） --- */
-  const parse1m = (txt) => {
-    if (!txt) return null;
-    // "騰落率 1ヶ月 +3.21%" / "1ヶ月騰落率 -12.5%" などのパターンを網羅
-    const patterns = [
-      /騰落率[^%]{0,10}?1\s*[ヶ箇か]?月[^%]{0,20}?([+\-－−]?\d+(?:\.\d+)?)\s*%/,
-      /1\s*[ヶ箇か]?月[^%]{0,10}?騰落[率]?[^%]{0,20}?([+\-－−]?\d+(?:\.\d+)?)\s*%/,
-      /1ヵ月前比[^%]{0,20}?([+\-－−]?\d+(?:\.\d+)?)\s*%/
-    ];
-    for (const p of patterns) {
-      const m = txt.match(p);
+  try {
+    if (yahoo && yahoo.raw) {
+      const m = yahoo.raw.match(/"price":\s*"?([\d,.]+)/);
       if (m) {
-        const v = parseFloat(m[1].replace(/[−－]/g,'-'));
-        if (!isNaN(v) && v > -90 && v < 200) return v;
+        const p = validateNumber(m[1], 'price');
+        if (p != null) info.cur_price = p;
       }
     }
-    return null;
-  };
-  let pc = null;
-  if (yahoo) pc = parse1m(yahoo.text);
-  if (pc == null && mk) pc = parse1m(mk.text);
-  if (pc != null) info.price_1m_change = pc;
+  } catch (e) { console.warn(`[${code}] 株価抽出で例外:`, e?.message); }
+
+  /* Yahoo で取れなかった場合のみ別経路で再試行（極小コスト） */
+  try {
+    if (!info.cur_price) {
+      if (externalSignal?.aborted) return info;
+      const price = await fetchPriceClient(code, externalSignal);
+      if (price) info.cur_price = price;
+    }
+  } catch (e) { console.warn(`[${code}] 株価フォールバック取得で例外:`, e?.message); }
+
+  /* --- 年間配当・mix_coef の計算（数値が揃った項目だけ算出） --- */
+  try {
+    if (info.yield && (info.cur_price || 0) > 0) {
+      info.annual_div = Math.round((info.cur_price || 0) * info.yield / 100 * 10) / 10;
+    }
+  } catch (e) { console.warn(`[${code}] 年間配当計算で例外:`, e?.message); }
+  try {
+    if (info.per && info.pbr) info.mix_coef = Math.round(info.per * info.pbr * 100) / 100;
+  } catch (e) { console.warn(`[${code}] mix_coef計算で例外:`, e?.message); }
+
+  /* --- 上場年月日（Yahoo / IRバンクのどちらか） --- */
+  try {
+    let listed = null;
+    const tryParse = (txt) => {
+      if (!txt) return null;
+      let m = txt.match(/上場(?:年月日|日)[^\d]{0,12}(\d{4})\s*[年\/\-\.]\s*(\d{1,2})/);
+      if (!m) m = txt.match(/上場[：:\s]{0,4}(\d{4})\s*[年\/\-\.]\s*(\d{1,2})/);
+      return m ? {y: +m[1], mo: +m[2]} : null;
+    };
+    if (yahoo) listed = tryParse(yahoo.text);
+    if (!listed && irbank) listed = tryParse(irbank.text);
+    if (listed && listed.y >= 1949 && listed.y <= (new Date()).getFullYear()) {
+      const now = new Date();
+      const years = (now.getFullYear() - listed.y) + (now.getMonth() + 1 - listed.mo) / 12;
+      info.listed_years = Math.round(years * 10) / 10;
+      info.listing_date = `${listed.y}-${String(listed.mo).padStart(2,'0')}`;
+    }
+  } catch (e) { console.warn(`[${code}] 上場年月日抽出で例外:`, e?.message); }
+
+  /* --- 1ヶ月騰落率（Yahoo / みんかぶテキスト内に「騰落率 1ヶ月」が入っている場合） --- */
+  try {
+    const parse1m = (txt) => {
+      if (!txt) return null;
+      // "騰落率 1ヶ月 +3.21%" / "1ヶ月騰落率 -12.5%" などのパターンを網羅
+      const patterns = [
+        /騰落率[^%]{0,10}?1\s*[ヶ箇か]?月[^%]{0,20}?([+\-－−]?\d+(?:\.\d+)?)\s*%/,
+        /1\s*[ヶ箇か]?月[^%]{0,10}?騰落[率]?[^%]{0,20}?([+\-－−]?\d+(?:\.\d+)?)\s*%/,
+        /1ヵ月前比[^%]{0,20}?([+\-－−]?\d+(?:\.\d+)?)\s*%/
+      ];
+      for (const p of patterns) {
+        const m = txt.match(p);
+        if (m) {
+          const v = parseFloat(m[1].replace(/[−－]/g,'-'));
+          if (!isNaN(v) && v > -90 && v < 200) return v;
+        }
+      }
+      return null;
+    };
+    let pc = null;
+    if (yahoo) pc = parse1m(yahoo.text);
+    if (pc == null && mk) pc = parse1m(mk.text);
+    if (pc != null) info.price_1m_change = pc;
+  } catch (e) { console.warn(`[${code}] 1ヶ月騰落率抽出で例外:`, e?.message); }
 
   /* --- 次回決算発表予定日（Yahoo / みんかぶ / IRバンク / 株探から探索） --- */
   try {
@@ -4668,8 +5016,8 @@ async function enrichStocks(onlyMissing, forceRefresh) {
           completed++;
           if (price) {
             s.cur_price = price;
-            /* 年間配当は cur_price × yield / 100 で再計算（キャッシュのyield流用）*/
-            if (s.yield && price > 0) {
+            /* 年間配当: 手動オーバーライド時は再計算しない（保護） */
+            if (!s.annual_div_manual && s.yield && price > 0) {
               s.annual_div = Math.round(price * s.yield / 100 * 10) / 10;
             }
             cacheHits++; updated++;
@@ -4685,57 +5033,67 @@ async function enrichStocks(onlyMissing, forceRefresh) {
         }
       }
 
-      /* ========= B. キャッシュ切れ・新規: フルスクレイピング（直列 for...of）=========
-       * 確実性を最優先: 1 銘柄ずつ順番に取得し、完了後 2.5 秒スリープ。
-       * 相手サーバーへの負荷・BANリスクを最小化。 */
-      const SLEEP_BETWEEN_MS = 2500; /* 1 銘柄完了ごとに 2.5 秒待機 */
-      for (let i = 0; i < needFull.length; i++) {
+      /* ========= B. キャッシュ切れ・新規: フルスクレイピング（3並列）=========
+       * 速度と BAN リスクのバランス: 3 銘柄ずつ並列取得し、チャンク間に 500ms 休憩。
+       * 1 チャンク当たり 3 銘柄 × 3 サイト × 最大 3 プロキシ = 最大 27 並列だが、
+       * Promise.any で最速の 1 つが勝つので実質 9 並列程度。 */
+      const FULL_CHUNK = 3;
+      const FULL_CHUNK_SLEEP_MS = 500;
+      const applyInfoToStock = (s, info) => {
+        if (!info || Object.keys(info).length === 0) return false;
+        if (info.cur_price) s.cur_price = info.cur_price;
+        if (info.annual_div    && !s.annual_div_manual)    s.annual_div = info.annual_div;
+        if (info.per           && !s.per_manual)           s.per = info.per;
+        if (info.pbr           && !s.pbr_manual)           s.pbr = info.pbr;
+        if (info.payout_ratio  && !s.payout_ratio_manual)  s.payout_ratio = info.payout_ratio;
+        if (info.yield         && !s.yield_manual)         s.yield = info.yield;
+        if (info.equity_ratio != null) s.equity_ratio = info.equity_ratio;
+        const effPer = s.per_manual ? s.per : (info.per || s.per);
+        const effPbr = s.pbr_manual ? s.pbr : (info.pbr || s.pbr);
+        if (effPer && effPbr) s.mix_coef = Math.round(effPer * effPbr * 100) / 100;
+        if (info.sector && !s.sector_manual && !s.sector) s.sector = info.sector;
+        if (info.listed_years != null) s.listed_years = info.listed_years;
+        if (info.listing_date) s.listing_date = info.listing_date;
+        if (info.price_1m_change != null) s.price_1m_change = info.price_1m_change;
+        if (info.earnings_date && !s.earnings_date_manual) {
+          s.earnings_date = info.earnings_date;
+          s._earnings_fetched_at = Date.now();
+        }
+        s._enriched_at = Date.now();
+        return true;
+      };
+
+      for (let i = 0; i < needFull.length; i += FULL_CHUNK) {
         if (cancelFlag.enrich) {
           status.textContent = `⏹ 中止: ${completed}/${targets.length}処理済（成功${updated}件 / キャッシュ${cacheHits}件）`;
           status.style.color = 'var(--accent4)';
           savePortfolioToLocal();
           break;
         }
-        const s = needFull[i];
-        detail.textContent = `[フル取得 直列] ${completed+1}/${targets.length}: ${s.code} ${s.name||''} 取得中...`;
-        let info = {};
-        try {
-          info = await enrichStockClient(s.code, window._enrichAbort.signal);
-        } catch (e) {
-          console.warn(`[${s.code}] enrichStockClient 失敗:`, e && e.message);
-          info = {};
-        }
-        completed++;
-        if (info && Object.keys(info).length > 0) {
-          if (info.cur_price) s.cur_price = info.cur_price;
-          if (info.annual_div) s.annual_div = info.annual_div;
-          if (info.per) s.per = info.per;
-          if (info.pbr) s.pbr = info.pbr;
-          if (info.mix_coef) s.mix_coef = info.mix_coef;
-          if (info.payout_ratio) s.payout_ratio = info.payout_ratio;
-          if (info.yield) s.yield = info.yield;
-          if (info.listed_years != null) s.listed_years = info.listed_years;
-          if (info.listing_date) s.listing_date = info.listing_date;
-          if (info.price_1m_change != null) s.price_1m_change = info.price_1m_change;
-          if (info.earnings_date && !s.earnings_date_manual) {
-            s.earnings_date = info.earnings_date;
-            s._earnings_fetched_at = Date.now();
+        const chunk = needFull.slice(i, i + FULL_CHUNK);
+        detail.textContent = `[フル取得 ${FULL_CHUNK}並列] ${completed+1}〜${Math.min(completed+chunk.length,targets.length)}/${targets.length}: ${chunk.map(s=>s.code).join(', ')} 取得中...`;
+        const results = await Promise.all(chunk.map(async (s) => {
+          try {
+            const info = await enrichStockClient(s.code, window._enrichAbort.signal);
+            return { s, info };
+          } catch (e) {
+            console.warn(`[${s.code}] enrichStockClient 失敗:`, e && e.message);
+            return { s, info: {} };
           }
-          /* ★ キャッシュ有効期限の起点 — 次回以降は72h以内ならスキップ */
-          s._enriched_at = Date.now();
-          updated++;
-          detail.textContent = `${completed}/${targets.length}: ${s.code} ${s.name||''} ✅（キャッシュ${cacheHits}/新規${updated - cacheHits}/失敗${failed}）`;
-        } else {
-          failed++;
-          detail.textContent = `${completed}/${targets.length}: ${s.code} ${s.name||''} ⚠ 取得失敗（キャッシュ${cacheHits}/新規${updated - cacheHits}/失敗${failed}）`;
+        }));
+        for (const { s, info } of results) {
+          completed++;
+          if (applyInfoToStock(s, info)) updated++;
+          else failed++;
         }
         const pct = Math.round(completed/targets.length*100);
         bar.style.width = pct + '%';
-        /* 失敗時は途中保存（ユーザーが中断しても進捗を守る） */
-        if (i % 3 === 2) savePortfolioToLocal();
-        /* 1 銘柄処理後に 2.5 秒スリープ（中止監視つき、50ms刻みで速やかに抜けられる） */
-        if (i < needFull.length - 1) {
-          const steps = Math.floor(SLEEP_BETWEEN_MS / 50);
+        detail.textContent = `${completed}/${targets.length}: ✅新規${updated - cacheHits} / キャッシュ${cacheHits} / 失敗${failed}`;
+        /* 各チャンク完了後に途中保存 */
+        savePortfolioToLocal();
+        /* チャンク間 500ms の休憩（中止応答用にも） */
+        if (i + FULL_CHUNK < needFull.length) {
+          const steps = Math.floor(FULL_CHUNK_SLEEP_MS / 50);
           for (let w = 0; w < steps; w++) {
             if (cancelFlag.enrich) break;
             await new Promise(r => setTimeout(r, 50));
@@ -4984,8 +5342,73 @@ fetch(IS_LOCAL ? '/api/all_stocks' : './all_stocks.json').then(r=>r.json()).then
 /* ===== PWA: Service Worker & Offline Detection ===== */
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register(IS_LOCAL ? '/sw.js' : './sw.js')
-    .then(reg => console.log('[PWA] SW registered:', reg.scope))
+    .then(reg => {
+      console.log('[PWA] SW registered:', reg.scope);
+      // If an updated SW is already waiting (user had app open during previous deploy)
+      if (reg.waiting) showUpdateBanner();
+      // Detect newer SW installed during this session
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdateBanner();
+          }
+        });
+      });
+    })
     .catch(err => console.log('[PWA] SW error:', err));
+
+  // Listen for content-diff messages from SW (stale-while-revalidate detected HTML change)
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (!event.data) return;
+    if (event.data.type === 'NEW_VERSION') {
+      showUpdateBanner();
+    }
+  });
+
+  // Reload once a new SW takes control (after user clicks 再読込)
+  let __swReloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (__swReloading) return;
+    __swReloading = true;
+    window.location.reload();
+  });
+}
+
+function showUpdateBanner() {
+  if (document.getElementById('swUpdateBanner')) return;
+  const bar = document.createElement('div');
+  bar.id = 'swUpdateBanner';
+  bar.style.cssText = [
+    'position:fixed','top:0','left:0','right:0','z-index:99999',
+    'padding:10px 16px',
+    'background:linear-gradient(90deg,#3b82f6,#6366f1)',
+    'color:#fff','font-size:14px','font-weight:600',
+    'display:flex','align-items:center','justify-content:center','gap:12px',
+    'box-shadow:0 2px 8px rgba(0,0,0,0.2)',
+    'font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN",sans-serif'
+  ].join(';');
+  bar.innerHTML = '<span>🔄 新しいバージョンが利用可能です</span>'
+    + '<button id="swUpdateReload" style="padding:6px 14px;background:#fff;color:#3b82f6;border:none;border-radius:6px;font-weight:700;cursor:pointer;font-size:13px">再読込</button>'
+    + '<button id="swUpdateDismiss" style="padding:6px 10px;background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.5);border-radius:6px;cursor:pointer;font-size:13px">あとで</button>';
+  document.body.appendChild(bar);
+
+  document.getElementById('swUpdateReload').addEventListener('click', async () => {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg && reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        // controllerchange listener above handles the reload
+        return;
+      }
+    } catch (e) {}
+    // No waiting worker (content-diff only) → just reload
+    window.location.reload();
+  });
+  document.getElementById('swUpdateDismiss').addEventListener('click', () => {
+    bar.remove();
+  });
 }
 
 (function initOfflineDetection() {
@@ -5041,8 +5464,21 @@ const VALUE_RANGES = {
   per:    { min: 0.1,  max: 500,     label: 'PER' },
   pbr:    { min: 0.01, max: 100,     label: 'PBR' },
   yield:  { min: 0,    max: 20,      label: '利回り' },
-  payout: { min: 0,    max: 500,     label: '配当性向' }
+  payout: { min: 0,    max: 500,     label: '配当性向' },
+  equity: { min: 0,    max: 100,     label: '自己資本比率' }
 };
+/* ETF / REIT は 13xx / 14xx / 15xx / 16xx / 17xx / 18xx / 20xx / 22xx / 25xx 帯に多く、
+   PER/PBR/自己資本比率などの個別株指標が存在しないケースがある。
+   取得失敗を「異常」扱いにしないためのヒント関数。 */
+function isLikelyEtfOrReit(code) {
+  const n = parseInt(String(code).replace(/\D/g,''), 10);
+  if (!isFinite(n)) return false;
+  // ETF 本体
+  if (n >= 1300 && n <= 2899) return true;
+  // REIT（東証REIT指数構成銘柄は 3000 台 8500 台など分布するが、8900 台に集中）
+  if (n >= 8900 && n <= 8999) return true;
+  return false;
+}
 function cleanNumericString(s) {
   if (s == null) return '';
   return String(s).replace(/[,円倍%\s　]/g, '').replace(/[^\d.\-]/g, '');

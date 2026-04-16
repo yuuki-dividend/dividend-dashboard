@@ -1,5 +1,6 @@
 // Service Worker for 高配当株ダッシュボード PWA
-const CACHE_VERSION = 'v1';
+// v2: stale-while-revalidate for instant load + background update + new-version notification
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = 'dividend-dashboard-' + CACHE_VERSION;
 
 // Resources to pre-cache on install
@@ -23,7 +24,12 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       console.log('[SW] Pre-caching static resources');
-      return cache.addAll(PRECACHE_URLS);
+      // Use addAll but tolerate individual failures (CDN might be blocked)
+      return Promise.all(
+        PRECACHE_URLS.map(url =>
+          cache.add(url).catch(err => console.warn('[SW] Precache failed:', url, err))
+        )
+      );
     }).then(() => self.skipWaiting())
   );
 });
@@ -43,29 +49,40 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch: Network First with Cache Fallback
+// Fetch: Stale-While-Revalidate for static, Network First for API
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
 
-  // API requests: network first, cache response with timestamp
+  // Skip non-http(s) requests (chrome-extension:, data:, etc.)
+  if (!url.protocol.startsWith('http')) return;
+
+  // API requests: network first
   if (API_URLS.some(api => url.pathname === api)) {
     event.respondWith(networkFirstAPI(event.request));
     return;
   }
 
-  // Static resources: network first with cache fallback
-  event.respondWith(networkFirstStatic(event.request));
+  // Static resources (HTML, CSS, JS, images, icons, CDN): stale-while-revalidate
+  event.respondWith(staleWhileRevalidate(event.request, event));
 });
+
+// Listen for skipWaiting message (triggered by update banner "再読込" button)
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+// --- Strategies ---
 
 async function networkFirstAPI(request) {
   const cache = await caches.open(CACHE_NAME);
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
-      // Clone the response and add a cache timestamp header
       const body = await networkResponse.clone().text();
       const now = new Date().toISOString();
       const cachedResponse = new Response(body, {
@@ -78,7 +95,6 @@ async function networkFirstAPI(request) {
         }
       });
       await cache.put(request, cachedResponse.clone());
-      // Return a fresh response (without cache headers)
       return new Response(body, {
         status: networkResponse.status,
         statusText: networkResponse.statusText,
@@ -91,7 +107,6 @@ async function networkFirstAPI(request) {
     }
     return networkResponse;
   } catch (err) {
-    // Offline: serve from cache with X-From-Cache header
     const cachedResponse = await cache.match(request);
     if (cachedResponse) {
       const body = await cachedResponse.text();
@@ -113,26 +128,90 @@ async function networkFirstAPI(request) {
   }
 }
 
-async function networkFirstStatic(request) {
+/**
+ * Stale-While-Revalidate:
+ *  - Serve from cache immediately (if available) → instant load
+ *  - In parallel, fetch from network → update cache
+ *  - If the network response differs from cached (by ETag / content-length / text hash),
+ *    post a 'NEW_VERSION' message to all clients so they can show an update banner.
+ */
+async function staleWhileRevalidate(request, fetchEvent) {
   const cache = await caches.open(CACHE_NAME);
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      cache.put(request, networkResponse.clone());
+  const cachedResponse = await cache.match(request);
+
+  // Background network fetch (non-blocking from cache hit's perspective)
+  const networkFetch = fetch(request).then(async (networkResponse) => {
+    if (!networkResponse || !networkResponse.ok) {
+      return networkResponse;
+    }
+    try {
+      // Clone for cache storage
+      const networkClone = networkResponse.clone();
+
+      // Detect version change for HTML documents only (avoid spamming for every asset)
+      const isHTML = isHTMLRequest(request, networkResponse);
+      if (isHTML && cachedResponse) {
+        const newerText = await networkResponse.clone().text();
+        const olderText = await cachedResponse.clone().text();
+        if (newerText !== olderText) {
+          notifyClients({ type: 'NEW_VERSION', url: request.url });
+        }
+      }
+      await cache.put(request, networkClone);
+    } catch (err) {
+      console.warn('[SW] Cache update failed:', request.url, err);
     }
     return networkResponse;
+  }).catch(err => {
+    // Network failed — cached response (if any) will still be served
+    console.warn('[SW] Network fetch failed:', request.url, err);
+    return null;
+  });
+
+  // Return cache immediately if present; otherwise wait for network
+  if (cachedResponse) {
+    // Keep SW alive until the background refresh finishes (waitUntil accepts the promise)
+    if (fetchEvent && typeof fetchEvent.waitUntil === 'function') {
+      try { fetchEvent.waitUntil(networkFetch); } catch (_) {}
+    } else {
+      networkFetch.catch(() => {});
+    }
+    return cachedResponse;
+  }
+
+  // No cache → await network (fallback to offline page for HTML)
+  const networkResponse = await networkFetch;
+  if (networkResponse) return networkResponse;
+
+  if (isHTMLRequest(request)) {
+    return new Response(
+      '<html><body style="background:#1e293b;color:#f0ece8;display:flex;justify-content:center;align-items:center;height:100vh;font-family:system-ui"><div style="text-align:center"><h1>Offline</h1><p>No cached version available.</p></div></body></html>',
+      { status: 503, headers: { 'Content-Type': 'text/html' } }
+    );
+  }
+  return new Response('Offline', { status: 503 });
+}
+
+function isHTMLRequest(request, response) {
+  if (response) {
+    const ct = response.headers.get('Content-Type') || '';
+    if (ct.includes('text/html')) return true;
+  }
+  const accept = request.headers.get('Accept') || '';
+  if (accept.includes('text/html')) return true;
+  const url = new URL(request.url);
+  if (url.pathname === '/' || url.pathname.endsWith('/') || url.pathname.endsWith('.html')) return true;
+  return false;
+}
+
+async function notifyClients(message) {
+  try {
+    const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clientsList) {
+      client.postMessage(message);
+    }
   } catch (err) {
-    const cachedResponse = await cache.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    // For HTML pages, return a basic offline page
-    if (request.headers.get('Accept') && request.headers.get('Accept').includes('text/html')) {
-      return new Response(
-        '<html><body style="background:#1e293b;color:#f0ece8;display:flex;justify-content:center;align-items:center;height:100vh;font-family:system-ui"><div style="text-align:center"><h1>Offline</h1><p>No cached version available.</p></div></body></html>',
-        { status: 503, headers: { 'Content-Type': 'text/html' } }
-      );
-    }
-    return new Response('Offline', { status: 503 });
+    console.warn('[SW] notifyClients failed:', err);
   }
 }
+
