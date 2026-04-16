@@ -5525,8 +5525,9 @@ async function loadData() {
         const data = await resp.json();
         stocks = Array.isArray(data) ? data : (data.stocks || []);
       } else {
-        console.warn('API応答エラー:', resp.status, '- サンプルデータを使用します');
-        stocks = getSampleData();
+        console.warn('API応答エラー:', resp.status, '- 空で開始します。設定タブから JSON/CSV を読み込んでください');
+        stocks = [];
+        window._showOnboardingBanner = true;
       }
     }
   } catch(err) {
@@ -5535,27 +5536,21 @@ async function loadData() {
       const localData = loadPortfolioFromLocal();
       stocks = localData || [];
     } else {
-      stocks = getSampleData();
+      /* サーバー側 API が完全に落ちている場合でも、架空のサンプルデータは
+         絶対に混入させない。空で開始し、ユーザーに JSON/CSV 取り込みを促す */
+      stocks = [];
+      window._showOnboardingBanner = true;
     }
   }
   document.getElementById('loadingScreen').style.display = 'none';
   switchTab('dashboard');
 }
 
-function getSampleData() {
-  return [
-    {code:"8591",name:"オリックス",shares:100,buy_price:2400,cur_price:2850,annual_div:94,mid_div:47,mid_month:6,end_month:12,nisa:true,sector:"その他金融"},
-    {code:"9433",name:"KDDI",shares:100,buy_price:4200,cur_price:4650,annual_div:140,mid_div:70,mid_month:6,end_month:12,nisa:false,sector:"通信"},
-    {code:"8306",name:"三菱UFJ",shares:300,buy_price:980,cur_price:1350,annual_div:41,mid_div:20.5,mid_month:6,end_month:12,nisa:true,sector:"銀行"},
-    {code:"2914",name:"JT",shares:100,buy_price:2800,cur_price:3150,annual_div:194,mid_div:97,mid_month:6,end_month:12,nisa:false,sector:"食品"},
-    {code:"5020",name:"ENEOS",shares:500,buy_price:480,cur_price:520,annual_div:22,mid_div:11,mid_month:6,end_month:12,nisa:false,sector:"エネルギー"},
-    {code:"1928",name:"積水ハウス",shares:100,buy_price:2700,cur_price:3050,annual_div:118,mid_div:59,mid_month:9,end_month:3,nisa:true,sector:"建設"},
-    {code:"8766",name:"東京海上",shares:100,buy_price:3200,cur_price:3800,annual_div:121,mid_div:60.5,mid_month:9,end_month:3,nisa:false,sector:"保険"},
-    {code:"4502",name:"武田薬品",shares:100,buy_price:3900,cur_price:4100,annual_div:188,mid_div:94,mid_month:9,end_month:3,nisa:false,sector:"医薬品"},
-    {code:"9434",name:"ソフトバンク",shares:200,buy_price:1500,cur_price:1650,annual_div:86,mid_div:43,mid_month:9,end_month:3,nisa:true,sector:"通信"},
-    {code:"7267",name:"ホンダ",shares:100,buy_price:3400,cur_price:3100,annual_div:68,mid_div:34,mid_month:6,end_month:12,nisa:false,sector:"自動車"}
-  ];
-}
+/* NOTE: 以前 getSampleData() という関数が架空のサンプル銘柄
+   (オリックス/KDDI/JT/武田薬品/ホンダ等 取得単価・株数付き) を返していたが、
+   API 失敗時のフォールバックとして勝手にユーザーのポートフォリオに混入する
+   バグの温床になっていたため完全撤去。
+   空で開始 → 設定タブから JSON/CSV 取り込みを促すフローに統一。 */
 
 /* ===== Zoom ===== */
 function setZoom(z) {
