@@ -1079,7 +1079,8 @@ function setEarningsDate(code, value, manual) {
 /* 決算日取得中の銘柄コード集合（UIで "取得中..." 表示） */
 window.fetchingEarnings = window.fetchingEarnings || new Set();
 
-/* 指定銘柄の「決算日」だけを最小限で取得（5秒タイムアウト・プロキシフォールバック） */
+/* 指定銘柄の「決算日」だけを最小限で取得
+   4サイト並列取得（Promise.any）+ 各5秒タイムアウト Fail Fast */
 async function fetchEarningsOnly(code, signal) {
   const per = 5000;
   const urls = [
@@ -1106,17 +1107,22 @@ async function fetchEarningsOnly(code, signal) {
     }
     return null;
   };
-  for (const u of urls) {
-    if (signal?.aborted) return null;
+  if (signal?.aborted) return null;
+  /* 4サイト並列に投げ、最初に有効な未来日を見つけたものを即採用 */
+  const attempts = urls.map(async (u) => {
     const res = await fetchTextClient(u, per, signal);
-    if (!res) continue;
+    if (!res) throw new Error('no response');
     const ed = parse(res.text);
-    if (ed) {
-      const d = new Date(ed); const now = new Date(); now.setHours(0,0,0,0);
-      if (!isNaN(d.getTime()) && d >= now) return ed;
-    }
+    if (!ed) throw new Error('no date');
+    const d = new Date(ed); const now = new Date(); now.setHours(0,0,0,0);
+    if (isNaN(d.getTime()) || d < now) throw new Error('past date');
+    return ed;
+  });
+  try {
+    return await Promise.any(attempts);
+  } catch (e) {
+    return null;
   }
-  return null;
 }
 
 /* 1件だけ決算日を再取得 — セルは自動的に「取得中...」→「結果」へ更新 */
@@ -1142,20 +1148,37 @@ async function refetchSingleEarnings(code) {
   return ok;
 }
 
-/* 全銘柄の決算日を順次取得 */
+/* 全銘柄の決算日を並列取得（5銘柄チャンク） */
 async function fetchAllEarnings() {
   const btn = document.getElementById('btnFetchAllEarnings');
   const st = document.getElementById('earningsFetchStatus');
   if (!btn) return;
   btn.disabled = true;
   const targets = stocks.filter(s => !s.earnings_date_manual);
-  let ok = 0, ng = 0;
-  for (let i = 0; i < targets.length; i++) {
-    const s = targets[i];
-    if (st) st.textContent = `${i+1}/${targets.length}: ${s.code} ${s.name||''} を取得中...`;
-    const got = await refetchSingleEarnings(s.code);
-    if (got) ok++; else ng++;
-    await new Promise(r => setTimeout(r, 300));
+  let ok = 0, ng = 0, completed = 0;
+  const CHUNK_SIZE = 5; /* 5銘柄を同時並列で取得 */
+  for (let i = 0; i < targets.length; i += CHUNK_SIZE) {
+    const chunk = targets.slice(i, i + CHUNK_SIZE);
+    if (st) st.textContent = `${completed+1}〜${Math.min(completed+chunk.length, targets.length)}/${targets.length}: ${chunk.map(s=>s.code).join(', ')} を並列取得中...`;
+    /* 各銘柄は個別 try-catch で失敗しても全体は止めない */
+    const results = await Promise.all(chunk.map(async (s) => {
+      try {
+        const got = await refetchSingleEarnings(s.code);
+        return got;
+      } catch (e) {
+        console.warn(`[${s.code}] 決算日取得失敗:`, e && e.message);
+        return false;
+      }
+    }));
+    for (const got of results) {
+      completed++;
+      if (got) ok++; else ng++;
+    }
+    if (st) st.textContent = `${completed}/${targets.length}: 成功${ok}件 / 失敗${ng}件`;
+    /* チャンク間の短い休憩（レート制限対策、150ms） */
+    if (i + CHUNK_SIZE < targets.length) {
+      await new Promise(r => setTimeout(r, 150));
+    }
   }
   if (st) st.textContent = `✅ 完了: 成功${ok}件 / 失敗${ng}件（失敗分はクリックで手動入力できます）`;
   btn.disabled = false;
@@ -3706,63 +3729,69 @@ document.getElementById('thresholdInput').addEventListener('change', e => {
 const savedThreshold = localStorage.getItem('threshold');
 if (savedThreshold) document.getElementById('thresholdInput').value = savedThreshold;
 
-/* === クライアント側 株価取得 === */
+/* === クライアント側 株価取得（並列プロキシ + 5秒タイムアウト Fail Fast） === */
 async function fetchPriceClient(code, externalSignal) {
+  if (externalSignal?.aborted) return null;
+  const targetUrl = `https://finance.yahoo.co.jp/quote/${code}.T`;
   const PROXIES = [
     url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
     url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    url => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
   ];
-  const targetUrl = `https://finance.yahoo.co.jp/quote/${code}.T`;
-  for (const makeUrl of PROXIES) {
-    if (externalSignal?.aborted) return null;
-    try {
-      const signals = [AbortSignal.timeout(10000)];
-      if (externalSignal) signals.push(externalSignal);
-      const resp = await fetch(makeUrl(targetUrl), {signal: AbortSignal.any(signals)});
-      if (!resp.ok) continue;
-      const html = await resp.text();
-      if (html.length < 100) continue; /* プロキシエラー回避 */
-      const m = html.match(/"price":\s*"?([\d,.]+)/);
-      if (m) {
-        const p = validateNumber(m[1], 'price');
-        if (p != null) return p;
-      }
-    } catch(e) {
-      if (externalSignal?.aborted) return null;
-      continue;
-    }
+  const per = 5000;
+  const attempts = PROXIES.map(async (makeUrl) => {
+    const signals = [AbortSignal.timeout(per)];
+    if (externalSignal) signals.push(externalSignal);
+    const resp = await fetch(makeUrl(targetUrl), {signal: AbortSignal.any(signals)});
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const html = await resp.text();
+    if (html.length < 100) throw new Error('empty');
+    const m = html.match(/"price":\s*"?([\d,.]+)/);
+    if (!m) throw new Error('no price match');
+    const p = validateNumber(m[1], 'price');
+    if (p == null) throw new Error('invalid price');
+    return p;
+  });
+  try {
+    return await Promise.any(attempts);
+  } catch (e) {
+    return null;
   }
-  return null;
 }
 
 async function updatePricesClient(statusEl, barEl, targetList) {
   const list = targetList || stocks;
   if (!list.length) return {updated: 0, failed: 0, cancelled: false};
-  let updated = 0, failed = 0;
+  let updated = 0, failed = 0, completed = 0;
   cancelFlag.update = false;
   window._updateAbort = new AbortController();
-  for (let i = 0; i < list.length; i++) {
+  const CHUNK_SIZE = 5; /* 株価は軽量なので 5 並列 */
+  for (let i = 0; i < list.length; i += CHUNK_SIZE) {
     if (cancelFlag.update) {
-      statusEl.textContent = `⏹ 中止: ${i}/${list.length}処理済（成功${updated}/失敗${failed}）`;
+      statusEl.textContent = `⏹ 中止: ${completed}/${list.length}処理済（成功${updated}/失敗${failed}）`;
       return {updated, failed, cancelled: true};
     }
-    const s = list[i];
-    statusEl.textContent = `${i+1}/${list.length}: ${s.code} ${s.name||''} 取得中...`;
-    if (barEl) barEl.style.width = Math.round((i+1)/list.length*100) + '%';
-    const price = await fetchPriceClient(s.code, window._updateAbort.signal);
-    if (cancelFlag.update) {
-      statusEl.textContent = `⏹ 中止: ${i}/${list.length}処理済（成功${updated}/失敗${failed}）`;
-      return {updated, failed, cancelled: true};
+    const chunk = list.slice(i, i + CHUNK_SIZE);
+    statusEl.textContent = `${completed+1}〜${Math.min(completed+chunk.length, list.length)}/${list.length}: ${chunk.map(s=>s.code).join(', ')} 並列取得中...`;
+    const results = await Promise.all(chunk.map(async (s) => {
+      try {
+        const price = await fetchPriceClient(s.code, window._updateAbort.signal);
+        return { s, price };
+      } catch (e) {
+        console.warn(`[${s.code}] 株価取得失敗:`, e && e.message);
+        return { s, price: null };
+      }
+    }));
+    for (const { s, price } of results) {
+      completed++;
+      if (price) { s.cur_price = price; updated++; }
+      else failed++;
     }
-    if (price) {
-      s.cur_price = price;
-      updated++;
-    } else {
-      failed++;
-    }
-    /* レート制限対策: 少し待つ（中止監視つき） */
-    if (i < list.length - 1) {
-      for (let w = 0; w < 6; w++) {
+    if (barEl) barEl.style.width = Math.round(completed/list.length*100) + '%';
+    statusEl.textContent = `${completed}/${list.length}: 成功${updated}/失敗${failed}`;
+    /* チャンク間のわずかな休憩 */
+    if (i + CHUNK_SIZE < list.length) {
+      for (let w = 0; w < 2; w++) {
         if (cancelFlag.update) break;
         await new Promise(r => setTimeout(r, 50));
       }
@@ -4313,36 +4342,48 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
    ・みんかぶの「PER(調整後)」は実績ベース独自指標のため使わない
    ・2ソースが20%超乖離したら needs_review フラグを立てる
 */
-/* CORS回避プロキシ（順に試行、どれか1つ成功すれば採用） */
+/* CORS回避プロキシ（全て並列に投げて、最初に成功したものを採用 — Fail Fast方式） */
 const CORS_PROXIES = [
   (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
   (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
   (u) => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u)
 ];
+/* Promise.any: 最初に resolve したもの採用 / 全部 reject で AggregateError → null
+   各プロキシは個別に per-ms のタイムアウト、全体は約 per-ms で打ち切り */
 async function fetchTextClient(url, timeoutMs, externalSignal) {
-  const per = timeoutMs || 12000;
-  for (const mk of CORS_PROXIES) {
-    try {
-      const signals = [AbortSignal.timeout(per)];
-      if (externalSignal) signals.push(externalSignal);
-      const r = await fetch(mk(url), { signal: AbortSignal.any(signals) });
-      if (!r.ok) continue;
-      const h = await r.text();
-      if (!h || h.length < 50) continue;
-      return { raw: h, text: h.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ') };
-    } catch (e) {
-      if (externalSignal?.aborted) return null;
-      /* 次のプロキシを試す */
-    }
+  const per = timeoutMs || 6000; /* デフォルト 6 秒で打ち切り */
+  if (externalSignal?.aborted) return null;
+  const attempts = CORS_PROXIES.map(async (mk) => {
+    const signals = [AbortSignal.timeout(per)];
+    if (externalSignal) signals.push(externalSignal);
+    const r = await fetch(mk(url), { signal: AbortSignal.any(signals) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const h = await r.text();
+    if (!h || h.length < 50) throw new Error('Empty response');
+    return { raw: h, text: h.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ') };
+  });
+  try {
+    return await Promise.any(attempts);
+  } catch (e) {
+    /* AggregateError: 全プロキシ失敗 or タイムアウト */
+    return null;
   }
-  return null;
 }
 
 async function enrichStockClient(code, externalSignal) {
   const info = {};
+  if (externalSignal?.aborted) return info;
+
+  /* --- 3サイト（yahoo / irbank / minkabu）を並列フェッチ（大幅高速化）--- */
+  const [yahoo, irbank, mk] = await Promise.all([
+    fetchTextClient(`https://finance.yahoo.co.jp/quote/${code}.T`, 6000, externalSignal),
+    fetchTextClient(`https://irbank.net/${code}`, 6000, externalSignal),
+    fetchTextClient(`https://minkabu.jp/stock/${code}/dividend`, 6000, externalSignal),
+  ]);
+  if (externalSignal?.aborted) return info;
+
   /* --- Yahooファイナンス: 会社予想PER、実績PBR、利回り --- */
   let yPer = null, yPbr = null, yYield = null;
-  const yahoo = await fetchTextClient(`https://finance.yahoo.co.jp/quote/${code}.T`, undefined, externalSignal);
   if (yahoo) {
     yPer   = safeExtract(yahoo.text, /PER\s*[（(]会社予想[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/, 'per');
     yPbr   = safeExtract(yahoo.text, /PBR\s*[（(]実績[）)][^倍]{0,40}?(\d+(?:\.\d+)?)\s*倍/, 'pbr');
@@ -4351,8 +4392,6 @@ async function enrichStockClient(code, externalSignal) {
 
   /* --- IRバンク: 予想PER(「予」付き)優先、なければ実績PER、PBR --- */
   let iPerForecast = null, iPerActual = null, iPbr = null;
-  if (externalSignal?.aborted) return info;
-  const irbank = await fetchTextClient(`https://irbank.net/${code}`, undefined, externalSignal);
   if (irbank) {
     iPerForecast = safeExtract(irbank.text, /PER[^倍]{0,25}?予\s*(\d+(?:\.\d+)?)\s*倍/, 'per');
     iPerActual   = safeExtract(irbank.text, /PER\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍/, 'per');
@@ -4384,12 +4423,7 @@ async function enrichStockClient(code, externalSignal) {
 
   if (yYield) info.yield = yYield;
 
-  /* --- 配当性向: みんかぶ配当ページから補助的に取得
-     ※「配当性向」直後にコロン・全角コロン・空白が来て、その直後に数字が来る場合のみ拾う
-     （meta descriptionに「配当性向、...」と列挙される誤マッチを防ぐ）
-  */
-  if (externalSignal?.aborted) return info;
-  const mk = await fetchTextClient(`https://minkabu.jp/stock/${code}/dividend`, undefined, externalSignal);
+  /* --- 配当性向: みんかぶ配当ページ（並列取得済みの mk を使用） --- */
   if (mk) {
     const pr = safeExtract(mk.text, /配当性向[：:\s]+(\d+(?:\.\d+)?)\s*%/, 'payout');
     if (pr != null) info.payout_ratio = pr;
@@ -4399,10 +4433,20 @@ async function enrichStockClient(code, externalSignal) {
     }
   }
 
-  /* --- 株価 --- */
-  if (externalSignal?.aborted) return info;
-  const price = await fetchPriceClient(code, externalSignal);
-  if (price) info.cur_price = price;
+  /* --- 株価: 既に並列取得済みの yahoo.raw から抽出（再フェッチ不要） --- */
+  if (yahoo && yahoo.raw) {
+    const m = yahoo.raw.match(/"price":\s*"?([\d,.]+)/);
+    if (m) {
+      const p = validateNumber(m[1], 'price');
+      if (p != null) info.cur_price = p;
+    }
+  }
+  /* Yahoo で取れなかった場合のみ別経路で再試行（極小コスト） */
+  if (!info.cur_price) {
+    if (externalSignal?.aborted) return info;
+    const price = await fetchPriceClient(code, externalSignal);
+    if (price) info.cur_price = price;
+  }
   if (info.yield && (info.cur_price || 0) > 0) {
     info.annual_div = Math.round((info.cur_price || 0) * info.yield / 100 * 10) / 10;
   }
@@ -4520,41 +4564,48 @@ async function enrichStocks(onlyMissing) {
       const targets = onlyMissing
         ? stocks.filter(s => !s.annual_div || !s.sector)
         : [...stocks];
-      let updated = 0;
-      for (let i = 0; i < targets.length; i++) {
+      let updated = 0, completed = 0, failed = 0;
+      const CHUNK_SIZE = 3; /* 3銘柄を同時並列で取得 */
+      for (let i = 0; i < targets.length; i += CHUNK_SIZE) {
         if (cancelFlag.enrich) {
-          status.textContent = `⏹ 中止: ${i}/${targets.length}処理済（成功${updated}件）`;
+          status.textContent = `⏹ 中止: ${completed}/${targets.length}処理済（成功${updated}件）`;
           status.style.color = 'var(--accent4)';
           savePortfolioToLocal();
           break;
         }
-        const s = targets[i];
-        const pct = Math.round((i+1)/targets.length*100);
+        const chunk = targets.slice(i, i + CHUNK_SIZE);
+        detail.textContent = `${completed+1}〜${Math.min(completed+chunk.length, targets.length)}/${targets.length}: ${chunk.map(s=>s.code).join(', ')} 並列取得中...`;
+        /* チャンク内は並列、各銘柄は個別 try-catch で失敗しても全体は止めない */
+        const results = await Promise.all(chunk.map(async (s) => {
+          try {
+            const info = await enrichStockClient(s.code, window._enrichAbort.signal);
+            return { s, info, error: null };
+          } catch (e) {
+            console.warn(`[${s.code}] enrichStockClient 失敗:`, e && e.message);
+            return { s, info: {}, error: e };
+          }
+        }));
+        for (const { s, info } of results) {
+          completed++;
+          if (info && Object.keys(info).length > 0) {
+            if (info.cur_price) s.cur_price = info.cur_price;
+            if (info.annual_div) s.annual_div = info.annual_div;
+            if (info.per) s.per = info.per;
+            if (info.pbr) s.pbr = info.pbr;
+            if (info.mix_coef) s.mix_coef = info.mix_coef;
+            if (info.payout_ratio) s.payout_ratio = info.payout_ratio;
+            if (info.earnings_date && !s.earnings_date_manual) s.earnings_date = info.earnings_date;
+            updated++;
+          } else {
+            failed++;
+          }
+        }
+        const pct = Math.round(completed/targets.length*100);
         bar.style.width = pct + '%';
-        detail.textContent = `${i+1}/${targets.length}: ${s.code} ${s.name||''} 取得中...`;
-        const info = await enrichStockClient(s.code, window._enrichAbort.signal);
-        if (cancelFlag.enrich) {
-          status.textContent = `⏹ 中止: ${i}/${targets.length}処理済（成功${updated}件）`;
-          status.style.color = 'var(--accent4)';
-          savePortfolioToLocal();
-          break;
-        }
-        if (Object.keys(info).length > 0) {
-          if (info.cur_price) s.cur_price = info.cur_price;
-          if (info.annual_div) s.annual_div = info.annual_div;
-          if (info.per) s.per = info.per;
-          if (info.pbr) s.pbr = info.pbr;
-          if (info.mix_coef) s.mix_coef = info.mix_coef;
-          if (info.payout_ratio) s.payout_ratio = info.payout_ratio;
-          if (info.earnings_date && !s.earnings_date_manual) s.earnings_date = info.earnings_date;
-          updated++;
-          detail.textContent = `${i+1}/${targets.length}: ${s.code} ${s.name||''} ✅`;
-        } else {
-          detail.textContent = `${i+1}/${targets.length}: ${s.code} ${s.name||''} ⚠ 取得失敗`;
-        }
-        /* レート制限対策: 中止監視つき */
-        if (i < targets.length - 1) {
-          for (let w = 0; w < 10; w++) {
+        detail.textContent = `${completed}/${targets.length} 完了（成功${updated}/失敗${failed}）`;
+        /* チャンク間のわずかな休憩（レート制限対策、100ms） */
+        if (i + CHUNK_SIZE < targets.length) {
+          for (let w = 0; w < 2; w++) {
             if (cancelFlag.enrich) break;
             await new Promise(r => setTimeout(r, 50));
           }
@@ -4562,7 +4613,7 @@ async function enrichStocks(onlyMissing) {
       }
       savePortfolioToLocal();
       bar.style.width = '100%';
-      status.textContent = `✅ ${updated}/${targets.length}銘柄を更新完了`;
+      status.textContent = `✅ ${updated}/${targets.length}銘柄を更新完了（失敗${failed}件）`;
       status.style.color = 'var(--green)';
       localStorage.setItem('lastPriceUpdate', new Date().toLocaleString('ja-JP'));
       const activeTab = document.querySelector('.nav-btn.active');
