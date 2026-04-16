@@ -455,12 +455,17 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
         </div>
       </div>
     </div>
-    <!-- 📊 配当・業績も含めて更新（月1推奨・遅い） -->
+    <!-- 📊 配当・業績も含めて更新（スマートキャッシュ：24h以内はキャッシュから読込） -->
     <div class="card settings-section">
       <h3>📊 配当・業績も含めて更新</h3>
-      <p style="font-size:.82em;color:var(--text-muted);margin-bottom:10px">配当金・PER・PBR・配当性向・連続増配実績までまとめて取り直します。<b>月1回・新規銘柄を追加したとき推奨</b>（数分かかります）</p>
+      <p style="font-size:.82em;color:var(--text-muted);margin-bottom:6px">配当金・PER・PBR・配当性向・連続増配実績までまとめて取得します。<b>24時間以内に取得済みの銘柄はキャッシュから瞬時に読み込み、株価だけ最新化</b>します（大幅高速化）。24時間以上経過 or 新規銘柄だけフルスクレイピングします。</p>
+      <p style="font-size:.78em;color:var(--text-muted);margin-bottom:10px">💡 キャッシュ有効期限: <b>24時間</b> / 株価は常に毎回最新化 / 配当・PER/PBR・業績は24h以内ならスキップ</p>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-primary" id="btnEnrichAll" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)">📊 全部更新する</button>
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:.82em;color:var(--text-muted);cursor:pointer">
+          <input type="checkbox" id="enrichForceRefresh" style="cursor:pointer">
+          強制再取得（キャッシュ無視）
+        </label>
         <button class="btn" id="btnEnrichStop" style="background:#ef4444;color:#fff;display:none">⏹ 中止</button>
         <span id="enrichStatus" style="font-size:.8em;color:var(--text-muted)"></span>
       </div>
@@ -1125,11 +1130,16 @@ async function fetchEarningsOnly(code, signal) {
   }
 }
 
-/* 1件だけ決算日を再取得 — セルは自動的に「取得中...」→「結果」へ更新 */
-async function refetchSingleEarnings(code) {
+/* 1件だけ決算日を再取得 — セルは自動的に「取得中...」→「結果」へ更新
+   forceRefresh=true 以外は24h キャッシュを尊重（有効期限内なら即 true を返して通信しない） */
+async function refetchSingleEarnings(code, forceRefresh) {
   const k = String(code);
   const s = stocks.find(st => String(st.code) === k);
   if (!s || s.earnings_date_manual) return false;
+  /* キャッシュ有効なら通信不要 */
+  if (!forceRefresh && isEarningsCacheFresh(s)) {
+    return true; /* キャッシュヒット */
+  }
   window.fetchingEarnings.add(k);
   // 該当セルだけスポット更新
   const cells = document.querySelectorAll(`[data-earnings-code="${k}"]`);
@@ -1139,6 +1149,7 @@ async function refetchSingleEarnings(code) {
     const ed = await fetchEarningsOnly(code);
     if (ed && !s.earnings_date_manual) {
       s.earnings_date = ed;
+      s._earnings_fetched_at = Date.now(); /* ★ キャッシュ記録 */
       ok = true;
     }
   } catch (e) { /* silent */ }
@@ -1148,23 +1159,31 @@ async function refetchSingleEarnings(code) {
   return ok;
 }
 
-/* 全銘柄の決算日を並列取得（5銘柄チャンク） */
-async function fetchAllEarnings() {
+/* 全銘柄の決算日を並列取得（5銘柄チャンク / 24hキャッシュ対応） */
+async function fetchAllEarnings(forceRefresh) {
   const btn = document.getElementById('btnFetchAllEarnings');
   const st = document.getElementById('earningsFetchStatus');
   if (!btn) return;
   btn.disabled = true;
-  const targets = stocks.filter(s => !s.earnings_date_manual);
-  let ok = 0, ng = 0, completed = 0;
-  const CHUNK_SIZE = 5; /* 5銘柄を同時並列で取得 */
-  for (let i = 0; i < targets.length; i += CHUNK_SIZE) {
-    const chunk = targets.slice(i, i + CHUNK_SIZE);
-    if (st) st.textContent = `${completed+1}〜${Math.min(completed+chunk.length, targets.length)}/${targets.length}: ${chunk.map(s=>s.code).join(', ')} を並列取得中...`;
-    /* 各銘柄は個別 try-catch で失敗しても全体は止めない */
+  const force = !!forceRefresh;
+  const allTargets = stocks.filter(s => !s.earnings_date_manual);
+  /* キャッシュ有効なものは通信せずスキップ */
+  const hitCache = [];
+  const needFetch = [];
+  for (const s of allTargets) {
+    if (!force && isEarningsCacheFresh(s)) hitCache.push(s);
+    else needFetch.push(s);
+  }
+  let ok = hitCache.length, ng = 0, completed = hitCache.length;
+  if (st) st.textContent = `対象 ${allTargets.length} 件: キャッシュ有効 ${hitCache.length} / 要取得 ${needFetch.length}`;
+
+  const CHUNK_SIZE = 5;
+  for (let i = 0; i < needFetch.length; i += CHUNK_SIZE) {
+    const chunk = needFetch.slice(i, i + CHUNK_SIZE);
+    if (st) st.textContent = `${completed+1}〜${Math.min(completed+chunk.length, allTargets.length)}/${allTargets.length}: ${chunk.map(s=>s.code).join(', ')} を並列取得中...`;
     const results = await Promise.all(chunk.map(async (s) => {
       try {
-        const got = await refetchSingleEarnings(s.code);
-        return got;
+        return await refetchSingleEarnings(s.code, force);
       } catch (e) {
         console.warn(`[${s.code}] 決算日取得失敗:`, e && e.message);
         return false;
@@ -1174,13 +1193,12 @@ async function fetchAllEarnings() {
       completed++;
       if (got) ok++; else ng++;
     }
-    if (st) st.textContent = `${completed}/${targets.length}: 成功${ok}件 / 失敗${ng}件`;
-    /* チャンク間の短い休憩（レート制限対策、150ms） */
-    if (i + CHUNK_SIZE < targets.length) {
+    if (st) st.textContent = `${completed}/${allTargets.length}: 成功${ok}件 / 失敗${ng}件`;
+    if (i + CHUNK_SIZE < needFetch.length) {
       await new Promise(r => setTimeout(r, 150));
     }
   }
-  if (st) st.textContent = `✅ 完了: 成功${ok}件 / 失敗${ng}件（失敗分はクリックで手動入力できます）`;
+  if (st) st.textContent = `✅ 完了: 成功${ok}件（うちキャッシュ${hitCache.length}件）/ 失敗${ng}件（失敗分はクリックで手動入力できます）`;
   btn.disabled = false;
 }
 
@@ -4342,6 +4360,38 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
    ・みんかぶの「PER(調整後)」は実績ベース独自指標のため使わない
    ・2ソースが20%超乖離したら needs_review フラグを立てる
 */
+/* ======== キャッシュ戦略 ========
+ * 株価（cur_price）: 毎回必ずフェッチして最新化
+ * 配当/PER/PBR/業績/セクター等: 24時間キャッシュ（変動が少ない）
+ * 決算日: 24時間キャッシュ（ただし past date 化した瞬間に失効）
+ * 手動入力値（earnings_date_manual）は永続（キャッシュ判定の外）
+ * ================================ */
+const ENRICH_CACHE_TTL_MS = 24 * 60 * 60 * 1000; /* 24 時間 */
+const EARNINGS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+/* enrich（配当/PER/PBR/業績）のキャッシュが有効かどうか */
+function isEnrichCacheFresh(s) {
+  if (!s || !s._enriched_at) return false;
+  const age = Date.now() - s._enriched_at;
+  if (age < 0 || age > ENRICH_CACHE_TTL_MS) return false;
+  /* 主要指標のいずれかが欠けていたらキャッシュ不十分とみなしてフルフェッチ */
+  const hasCore = (s.per != null) || (s.pbr != null) || (s.annual_div != null) || (s.yield != null);
+  return hasCore;
+}
+
+/* 決算日キャッシュが有効かどうか */
+function isEarningsCacheFresh(s) {
+  if (!s) return false;
+  if (s.earnings_date_manual) return true; /* 手動入力は常に優先 */
+  if (!s.earnings_date || !s._earnings_fetched_at) return false;
+  /* 既に過去日なら失効 */
+  const d = new Date(s.earnings_date);
+  const now = new Date(); now.setHours(0,0,0,0);
+  if (isNaN(d.getTime()) || d < now) return false;
+  const age = Date.now() - s._earnings_fetched_at;
+  return age >= 0 && age <= EARNINGS_CACHE_TTL_MS;
+}
+
 /* CORS回避プロキシ（全て並列に投げて、最初に成功したものを採用 — Fail Fast方式） */
 const CORS_PROXIES = [
   (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
@@ -4542,19 +4592,22 @@ async function enrichStockClient(code, externalSignal) {
   return info;
 }
 
-async function enrichStocks(onlyMissing) {
+async function enrichStocks(onlyMissing, forceRefresh) {
   const btn1 = document.getElementById('btnEnrichAll');
   const stopBtn = document.getElementById('btnEnrichStop');
   const status = document.getElementById('enrichStatus');
   const progress = document.getElementById('enrichProgress');
   const bar = document.getElementById('enrichBar');
   const detail = document.getElementById('enrichDetail');
+  /* UIのチェックボックスがONなら強制再取得 */
+  const forceCb = document.getElementById('enrichForceRefresh');
+  const force = !!forceRefresh || (forceCb && forceCb.checked);
   btn1.disabled = true;
   if (stopBtn) stopBtn.style.display = '';
   cancelFlag.enrich = false;
   progress.style.display = 'block';
   bar.style.width = '0%';
-  status.textContent = '更新開始...';
+  status.textContent = force ? '強制再取得で更新開始...' : 'キャッシュ判定で更新開始...';
   status.style.color = 'var(--accent2)';
 
   if (IS_STATIC) {
@@ -4564,18 +4617,67 @@ async function enrichStocks(onlyMissing) {
       const targets = onlyMissing
         ? stocks.filter(s => !s.annual_div || !s.sector)
         : [...stocks];
-      let updated = 0, completed = 0, failed = 0;
-      const CHUNK_SIZE = 3; /* 3銘柄を同時並列で取得 */
-      for (let i = 0; i < targets.length; i += CHUNK_SIZE) {
+
+      /* ===== キャッシュ判定でターゲットを2群に分類 =====
+       * needFull:  24h 以上経過 or 新規銘柄 → フルスクレイピング
+       * hitCache:  24h 以内 → 株価のみ更新（重いページには一切アクセスしない） */
+      const needFull = [];
+      const hitCache = [];
+      for (const s of targets) {
+        if (!force && isEnrichCacheFresh(s)) hitCache.push(s);
+        else needFull.push(s);
+      }
+      detail.textContent = `対象 ${targets.length} 件: キャッシュ有効 ${hitCache.length} / 要フル取得 ${needFull.length}`;
+
+      let updated = 0, completed = 0, failed = 0, cacheHits = 0;
+
+      /* ========= A. キャッシュ有効: 株価のみ更新（5銘柄並列） ========= */
+      const PRICE_CHUNK = 5;
+      for (let i = 0; i < hitCache.length; i += PRICE_CHUNK) {
+        if (cancelFlag.enrich) break;
+        const chunk = hitCache.slice(i, i + PRICE_CHUNK);
+        detail.textContent = `[キャッシュ] ${completed+1}〜${Math.min(completed+chunk.length, targets.length)}/${targets.length}: 株価のみ並列取得中...`;
+        const results = await Promise.all(chunk.map(async (s) => {
+          try {
+            const price = await fetchPriceClient(s.code, window._enrichAbort.signal);
+            return { s, price };
+          } catch (e) {
+            console.warn(`[${s.code}] 株価取得失敗(キャッシュ経路):`, e && e.message);
+            return { s, price: null };
+          }
+        }));
+        for (const { s, price } of results) {
+          completed++;
+          if (price) {
+            s.cur_price = price;
+            /* 年間配当は cur_price × yield / 100 で再計算（キャッシュのyield流用）*/
+            if (s.yield && price > 0) {
+              s.annual_div = Math.round(price * s.yield / 100 * 10) / 10;
+            }
+            cacheHits++; updated++;
+          } else {
+            /* 株価取得失敗時もキャッシュ値は保持（completedはカウント） */
+            cacheHits++;
+          }
+        }
+        const pct = Math.round(completed/targets.length*100);
+        bar.style.width = pct + '%';
+        if (i + PRICE_CHUNK < hitCache.length) {
+          await new Promise(r => setTimeout(r, 50));
+        }
+      }
+
+      /* ========= B. キャッシュ切れ・新規: フルスクレイピング（3銘柄並列） ========= */
+      const CHUNK_SIZE = 3;
+      for (let i = 0; i < needFull.length; i += CHUNK_SIZE) {
         if (cancelFlag.enrich) {
-          status.textContent = `⏹ 中止: ${completed}/${targets.length}処理済（成功${updated}件）`;
+          status.textContent = `⏹ 中止: ${completed}/${targets.length}処理済（成功${updated}件 / キャッシュ${cacheHits}件）`;
           status.style.color = 'var(--accent4)';
           savePortfolioToLocal();
           break;
         }
-        const chunk = targets.slice(i, i + CHUNK_SIZE);
-        detail.textContent = `${completed+1}〜${Math.min(completed+chunk.length, targets.length)}/${targets.length}: ${chunk.map(s=>s.code).join(', ')} 並列取得中...`;
-        /* チャンク内は並列、各銘柄は個別 try-catch で失敗しても全体は止めない */
+        const chunk = needFull.slice(i, i + CHUNK_SIZE);
+        detail.textContent = `[フル取得] ${completed+1}〜${Math.min(completed+chunk.length, targets.length)}/${targets.length}: ${chunk.map(s=>s.code).join(', ')} 並列取得中...`;
         const results = await Promise.all(chunk.map(async (s) => {
           try {
             const info = await enrichStockClient(s.code, window._enrichAbort.signal);
@@ -4594,7 +4696,16 @@ async function enrichStocks(onlyMissing) {
             if (info.pbr) s.pbr = info.pbr;
             if (info.mix_coef) s.mix_coef = info.mix_coef;
             if (info.payout_ratio) s.payout_ratio = info.payout_ratio;
-            if (info.earnings_date && !s.earnings_date_manual) s.earnings_date = info.earnings_date;
+            if (info.yield) s.yield = info.yield;
+            if (info.listed_years != null) s.listed_years = info.listed_years;
+            if (info.listing_date) s.listing_date = info.listing_date;
+            if (info.price_1m_change != null) s.price_1m_change = info.price_1m_change;
+            if (info.earnings_date && !s.earnings_date_manual) {
+              s.earnings_date = info.earnings_date;
+              s._earnings_fetched_at = Date.now();
+            }
+            /* ★ キャッシュ有効期限の起点 */
+            s._enriched_at = Date.now();
             updated++;
           } else {
             failed++;
@@ -4602,18 +4713,18 @@ async function enrichStocks(onlyMissing) {
         }
         const pct = Math.round(completed/targets.length*100);
         bar.style.width = pct + '%';
-        detail.textContent = `${completed}/${targets.length} 完了（成功${updated}/失敗${failed}）`;
-        /* チャンク間のわずかな休憩（レート制限対策、100ms） */
-        if (i + CHUNK_SIZE < targets.length) {
+        detail.textContent = `${completed}/${targets.length} 完了（キャッシュ${cacheHits}/新規${updated - cacheHits}/失敗${failed}）`;
+        if (i + CHUNK_SIZE < needFull.length) {
           for (let w = 0; w < 2; w++) {
             if (cancelFlag.enrich) break;
             await new Promise(r => setTimeout(r, 50));
           }
         }
       }
+
       savePortfolioToLocal();
       bar.style.width = '100%';
-      status.textContent = `✅ ${updated}/${targets.length}銘柄を更新完了（失敗${failed}件）`;
+      status.textContent = `✅ ${updated}/${targets.length}銘柄を更新完了（キャッシュ${cacheHits}件 / 新規${updated - cacheHits}件 / 失敗${failed}件）`;
       status.style.color = 'var(--green)';
       localStorage.setItem('lastPriceUpdate', new Date().toLocaleString('ja-JP'));
       const activeTab = document.querySelector('.nav-btn.active');
