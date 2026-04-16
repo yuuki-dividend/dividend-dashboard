@@ -3998,6 +3998,22 @@ function markProxyOk(name) {
 
 async function fetchPriceClient(code, externalSignal) {
   if (externalSignal?.aborted) return null;
+
+  /* === 最優先: サーバー側 API ===
+     CORS プロキシを経由しないため、ローカル python 版と同精度 */
+  if (await hasServerApi()) {
+    try {
+      const r = await fetch(`/api/price?code=${encodeURIComponent(code)}`, {
+        signal: externalSignal ? AbortSignal.any([AbortSignal.timeout(12000), externalSignal]) : AbortSignal.timeout(12000)
+      });
+      if (r.ok) {
+        const j = await r.json();
+        if (j && typeof j.price === 'number' && j.price > 0) return j.price;
+      }
+    } catch (e) { console.warn(`[${code}] /api/price 失敗 — CORSプロキシへフォールバック:`, e?.message); }
+  }
+  if (externalSignal?.aborted) return null;
+
   const PER_TIMEOUT = 8000; /* 1 プロキシ試行の上限 8 秒 */
   const targetUrl = `https://finance.yahoo.co.jp/quote/${code}.T`;
 
@@ -4077,16 +4093,77 @@ async function updatePricesClient(statusEl, barEl, targetList) {
   let updated = 0, failed = 0, completed = 0;
   cancelFlag.update = false;
   window._updateAbort = new AbortController();
-  /* 価格取得は順次プロキシ fallback 方式に変更したので、並列数を 4 に抑えて
-     プロキシ rate limit を回避。4 銘柄 × 最大 3 プロキシ = 12 requests が上限。
-     チャンク間に 200ms の小休止を入れ、CORS プロキシの連続リクエストを緩和。 */
+
+  /* === 最優先: サーバー側バッチ API (/api/prices) ===
+     1 往復で最大 60 銘柄の価格をサーバー側で並列取得。
+     ローカル python 版とほぼ同時間、CORS プロキシ完全バイパス
+     バッチ失敗時は処理済みを保持したまま、残り銘柄だけ従来経路で補完 */
+  let remainingList = list;
+  if (await hasServerApi()) {
+    try {
+      const CHUNK = 60; /* サーバー側 MAX_CODES=80。余裕を持って 60 */
+      const stillPending = [];
+      for (let i = 0; i < list.length; i += CHUNK) {
+        if (cancelFlag.update) {
+          statusEl.textContent = `⏹ 中止: ${completed}/${list.length}処理済（成功${updated}/失敗${failed}）`;
+          if (IS_STATIC) savePortfolioToLocal();
+          return {updated, failed, cancelled: true};
+        }
+        const chunk = list.slice(i, i + CHUNK);
+        const codes = chunk.map(s => s.code).join(',');
+        statusEl.textContent = `サーバー側で ${completed+1}〜${Math.min(completed+chunk.length, list.length)}/${list.length} を一括取得中...`;
+        let resp;
+        try {
+          resp = await fetch(`/api/prices?codes=${encodeURIComponent(codes)}`, {
+            signal: AbortSignal.any([AbortSignal.timeout(28000), window._updateAbort.signal])
+          });
+        } catch (e) {
+          console.warn('[updatePricesClient] /api/prices 呼出し失敗 — 残り銘柄を CORS 経路で処理:', e?.message);
+          stillPending.push(...list.slice(i)); /* 未処理ぶんを残す */
+          break;
+        }
+        if (!resp || !resp.ok) {
+          console.warn(`[updatePricesClient] /api/prices HTTP ${resp?.status} — 残りを CORS 経路で処理`);
+          stillPending.push(...list.slice(i));
+          break;
+        }
+        const payload = await resp.json();
+        const byCode = {};
+        for (const r of (payload.results || [])) byCode[r.code] = r;
+        for (const s of chunk) {
+          const r = byCode[s.code];
+          if (r && typeof r.price === 'number' && r.price > 0) {
+            s.cur_price = r.price; updated++; completed++;
+          } else {
+            /* 個別銘柄だけ失敗 → CORS 経路で再試行する候補へ */
+            stillPending.push(s);
+          }
+        }
+        if (barEl) barEl.style.width = Math.round(completed/list.length*100) + '%';
+        statusEl.textContent = `${completed}/${list.length}: 成功${updated}/失敗${failed}`;
+      }
+      remainingList = stillPending;
+      if (!remainingList.length) {
+        if (IS_STATIC) savePortfolioToLocal();
+        return {updated, failed, cancelled: false};
+      }
+      console.info(`[updatePricesClient] サーバー側で ${updated} 件成功、残り ${remainingList.length} 件を CORS 経路で補完します`);
+    } catch (e) {
+      console.warn('[updatePricesClient] サーバー側バッチ処理で例外 — 全件を CORS 経路で処理:', e?.message);
+      remainingList = list;
+    }
+  }
+
+  /* CORS プロキシ経路（サーバー API 未対応時 or 残り銘柄の補完）。
+     並列数 4・チャンク間 200ms スリープで rate limit を回避 */
+  const workList = remainingList;
   const CHUNK_SIZE = 4;
-  for (let i = 0; i < list.length; i += CHUNK_SIZE) {
+  for (let i = 0; i < workList.length; i += CHUNK_SIZE) {
     if (cancelFlag.update) {
       statusEl.textContent = `⏹ 中止: ${completed}/${list.length}処理済（成功${updated}/失敗${failed}）`;
       return {updated, failed, cancelled: true};
     }
-    const chunk = list.slice(i, i + CHUNK_SIZE);
+    const chunk = workList.slice(i, i + CHUNK_SIZE);
     statusEl.textContent = `${completed+1}〜${Math.min(completed+chunk.length, list.length)}/${list.length}: ${chunk.map(s=>s.code).join(', ')} 並列取得中...`;
     const results = await Promise.all(chunk.map(async (s) => {
       try {
@@ -4105,7 +4182,7 @@ async function updatePricesClient(statusEl, barEl, targetList) {
     if (barEl) barEl.style.width = Math.round(completed/list.length*100) + '%';
     statusEl.textContent = `${completed}/${list.length}: 成功${updated}/失敗${failed}`;
     /* チャンク間 200ms スリープ（プロキシへの連続ヒットを緩和） */
-    if (i + CHUNK_SIZE < list.length) {
+    if (i + CHUNK_SIZE < workList.length) {
       if (cancelFlag.update) break;
       await new Promise(r => setTimeout(r, 200));
     }
@@ -4730,8 +4807,67 @@ async function fetchTextClient(url, timeoutMs, externalSignal) {
   return result;
 }
 
+/* サーバー側 API (/api/enrich, /api/price, /api/prices) が利用可能かを
+   起動時に 1 度だけ判定するためのキャッシュ。
+   - ローカル python サーバー: Node API なし → false
+   - GitHub Pages (docs/): なし → false
+   - Vercel: あり → true */
+let __serverApiAvailable = null;
+async function hasServerApi() {
+  if (__serverApiAvailable !== null) return __serverApiAvailable;
+  if (IS_LOCAL) { __serverApiAvailable = false; return false; }
+  try {
+    const r = await fetch('/api/price?code=7203', {
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!r.ok) { __serverApiAvailable = false; return false; }
+    const j = await r.json();
+    __serverApiAvailable = (j && typeof j.price !== 'undefined');
+    if (__serverApiAvailable) console.info('[API] サーバー側スクレイピングAPIが有効 — CORSプロキシをバイパスします');
+    else console.info('[API] サーバー側APIが利用不可 — CORSプロキシ経路を使用します');
+    return __serverApiAvailable;
+  } catch (e) {
+    __serverApiAvailable = false;
+    console.info('[API] サーバー側API判定で失敗 — CORSプロキシ経路を使用:', e?.message);
+    return false;
+  }
+}
+
+/* サーバー API での enrich (高速・高精度) — 失敗時は null を返して呼び元が
+   従来の CORS プロキシ経路にフォールバックする */
+async function enrichViaServerApi(code, externalSignal) {
+  try {
+    const r = await fetch(`/api/enrich?code=${encodeURIComponent(code)}`, {
+      signal: externalSignal ? AbortSignal.any([AbortSignal.timeout(25000), externalSignal]) : AbortSignal.timeout(25000)
+    });
+    if (!r.ok) return null;
+    const info = await r.json();
+    if (info && typeof info === 'object' && !info.error) {
+      delete info._debug;
+      delete info._elapsed_ms;
+      delete info.code;
+      return info;
+    }
+  } catch (e) {
+    console.warn(`[${code}] /api/enrich 失敗 — CORSプロキシへフォールバック:`, e?.message);
+  }
+  return null;
+}
+
 async function enrichStockClient(code, externalSignal) {
   const info = {};
+  if (externalSignal?.aborted) return info;
+
+  /* === 最優先: サーバー側 API でサーバーサイドスクレイピング ===
+     CORS プロキシに依存しないため、ローカル python 版と同等の精度。
+     失敗時のみ従来の CORS 経路へフォールバック。 */
+  if (await hasServerApi()) {
+    const serverInfo = await enrichViaServerApi(code, externalSignal);
+    if (serverInfo && (serverInfo.cur_price != null || serverInfo.yield != null || serverInfo.per != null)) {
+      return serverInfo;
+    }
+    /* 取得量が乏しい場合は fallthrough して CORS 経路も試す */
+  }
   if (externalSignal?.aborted) return info;
 
   /* ETF/REIT ヒント — これに該当する銘柄は PER/PBR/自己資本比率 等が
@@ -5089,15 +5225,62 @@ async function enrichStocks(onlyMissing, forceRefresh) {
         return true;
       };
 
-      for (let i = 0; i < needFull.length; i += FULL_CHUNK) {
+      /* ===== B-0. サーバー側 /api/enrich_batch で一括取得（30銘柄ずつ）=====
+       * CORSプロキシ完全バイパス。ローカル python 並の品質・速度。
+       * 失敗 or 取得値が乏しい銘柄だけ、この後の個別フォールバック（B-1）に残す */
+      let stillNeedFull = needFull;
+      if (needFull.length && await hasServerApi()) {
+        const BATCH = 30;
+        const pendingAfterBatch = [];
+        for (let i = 0; i < needFull.length; i += BATCH) {
+          if (cancelFlag.enrich) break;
+          const chunk = needFull.slice(i, i + BATCH);
+          const codes = chunk.map(s => s.code).join(',');
+          detail.textContent = `[サーバー側一括取得] ${completed+1}〜${Math.min(completed+chunk.length,targets.length)}/${targets.length} (${chunk.length}件) 取得中...`;
+          let resp;
+          try {
+            resp = await fetch(`/api/enrich_batch?codes=${encodeURIComponent(codes)}`, {
+              signal: AbortSignal.any([AbortSignal.timeout(55000), window._enrichAbort.signal])
+            });
+          } catch (e) {
+            console.warn('[enrichStocks] /api/enrich_batch 失敗 — CORS経路で続行:', e?.message);
+            pendingAfterBatch.push(...chunk);
+            continue;
+          }
+          if (!resp.ok) {
+            console.warn(`[enrichStocks] /api/enrich_batch HTTP ${resp.status} — CORS経路へ`);
+            pendingAfterBatch.push(...chunk);
+            continue;
+          }
+          const payload = await resp.json();
+          const byCode = {};
+          for (const r of (payload.results || [])) byCode[r.code] = r;
+          for (const s of chunk) {
+            const info = byCode[s.code];
+            if (info && !info.error && (info.cur_price != null || info.yield != null || info.per != null)) {
+              if (applyInfoToStock(s, info)) updated++;
+              completed++;
+            } else {
+              /* 取得失敗 or 値が乏しい → CORS フォールバックで再試行 */
+              pendingAfterBatch.push(s);
+            }
+          }
+          bar.style.width = Math.round(completed/targets.length*100) + '%';
+          detail.textContent = `[サーバー側] ${completed}/${targets.length} 完了 / 未解決${pendingAfterBatch.length}`;
+          savePortfolioToLocal();
+        }
+        stillNeedFull = pendingAfterBatch;
+      }
+
+      for (let i = 0; i < stillNeedFull.length; i += FULL_CHUNK) {
         if (cancelFlag.enrich) {
           status.textContent = `⏹ 中止: ${completed}/${targets.length}処理済（成功${updated}件 / キャッシュ${cacheHits}件）`;
           status.style.color = 'var(--accent4)';
           savePortfolioToLocal();
           break;
         }
-        const chunk = needFull.slice(i, i + FULL_CHUNK);
-        detail.textContent = `[フル取得 ${FULL_CHUNK}並列] ${completed+1}〜${Math.min(completed+chunk.length,targets.length)}/${targets.length}: ${chunk.map(s=>s.code).join(', ')} 取得中...`;
+        const chunk = stillNeedFull.slice(i, i + FULL_CHUNK);
+        detail.textContent = `[個別フォールバック ${FULL_CHUNK}並列] ${completed+1}〜${Math.min(completed+chunk.length,targets.length)}/${targets.length}: ${chunk.map(s=>s.code).join(', ')} 取得中...`;
         const results = await Promise.all(chunk.map(async (s) => {
           try {
             const info = await enrichStockClient(s.code, window._enrichAbort.signal);
@@ -5118,7 +5301,7 @@ async function enrichStocks(onlyMissing, forceRefresh) {
         /* 各チャンク完了後に途中保存 */
         savePortfolioToLocal();
         /* チャンク間 500ms の休憩（中止応答用にも） */
-        if (i + FULL_CHUNK < needFull.length) {
+        if (i + FULL_CHUNK < stillNeedFull.length) {
           const steps = Math.floor(FULL_CHUNK_SLEEP_MS / 50);
           for (let w = 0; w < steps; w++) {
             if (cancelFlag.enrich) break;
@@ -5364,6 +5547,10 @@ loadData();
 fetch(IS_LOCAL ? '/api/screening' : './screening_data.json').then(r=>r.json()).then(d => { screeningData = d || {}; if(document.querySelector('[data-tab="dashboard"].active, .tab-btn.active')) switchTab('dashboard'); }).catch(()=>{});
 /* Fetch all listed stocks for checklist search */
 fetch(IS_LOCAL ? '/api/all_stocks' : './all_stocks.json').then(r=>r.json()).then(d => { allListedStocks = d || []; console.log('上場全銘柄: ' + allListedStocks.length + '件'); fillSectorsFromJpx(stocks); }).catch(()=>{});
+
+/* 起動時にサーバー側 API (/api/price) の有無を非同期で判定しておく。
+   結果は __serverApiAvailable にキャッシュされ、後続の enrich/price 呼び出しが即時分岐できる */
+try { hasServerApi(); } catch(_) {}
 
 /* ===== PWA: Service Worker & Offline Detection ===== */
 if ('serviceWorker' in navigator) {

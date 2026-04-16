@@ -2,6 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "trailingSlash": false,
+  "functions": {
+    "api/enrich.js":       { "maxDuration": 30 },
+    "api/enrich_batch.js": { "maxDuration": 60 },
+    "api/prices.js":       { "maxDuration": 30 },
+    "api/price.js":        { "maxDuration": 15 }
+  },
   "headers": [
     {
       "source": "/(.*)",

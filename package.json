@@ -1,0 +1,9 @@
+{
+  "name": "dividend-dashboard",
+  "version": "1.0.0",
+  "description": "高配当株ダッシュボード — Vercel Serverless Functions for server-side scraping",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}
