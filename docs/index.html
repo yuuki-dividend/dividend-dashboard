@@ -5160,9 +5160,8 @@ async function enrichStocks(onlyMissing, forceRefresh) {
           && s.end_month === 6 && s.mid_month === 12
           && (!s.mid_div || s.mid_div === 0) && !s.fiscal_year_end_month;
         const needsDividend = !s.annual_div_manual && (!s.annual_div || s.annual_div === 0);
-        const codeNum = parseInt(String(s.code).replace(/\D/g, ''), 10);
-        const isEtfReit = (codeNum >= 1300 && codeNum <= 2899) || (codeNum >= 8900 && codeNum <= 8999);
-        const needsYield = !s.yield_manual && !isEtfReit && (!s.yield || s.yield === 0);
+        /* ETF も含めて利回り 0 なら再取得対象にする (サーバー側に既知ETFテーブルがあるため) */
+        const needsYield = !s.yield_manual && (!s.yield || s.yield === 0);
         const mustRefresh = needsFiscalMonth || needsDividend || needsYield;
         if (!force && !mustRefresh && isEnrichCacheFresh(s)) hitCache.push(s);
         else needFull.push(s);

@@ -286,6 +286,19 @@ function isEtfOrReit(code) {
   return false;
 }
 
+// ---------- 既知 ETF の年間分配金テーブル ----------
+// みんかぶ/Yahoo/kabutan から利回りが取れない ETF 向けの静的フォールバック。
+// 配当月は 決算月(fiscal_months の末尾) 〜 決算月+2ヶ月で支払われる想定。
+// 値は年1回ごとの最新値を参考にした概算。必要に応じて年1回メンテ。
+const KNOWN_ETF_DIVIDENDS = {
+  '1343': { per_share_div: 93,  fiscal_months: [1, 7],  note: 'NEXT FUNDS 東証REIT指数' },
+  '1489': { per_share_div: 100, fiscal_months: [7],     note: 'NEXT FUNDS 日経平均高配当株50' },
+  '1478': { per_share_div: 80,  fiscal_months: [2, 8],  note: 'iシェアーズ MSCIジャパン高配当利回り' },
+  '1577': { per_share_div: 110, fiscal_months: [1, 4, 7, 10], note: 'NEXT FUNDS 野村日本株高配当70' },
+  '1698': { per_share_div: 75,  fiscal_months: [1, 7],  note: 'ダイワ上場投信-東証配当フォーカス100' },
+  '2564': { per_share_div: 130, fiscal_months: [1, 4, 7, 10], note: 'グローバルX MSCIスーパーディビィデンド-日本株式' },
+};
+
 // ---------- メイン enrich 関数 ----------
 async function enrichStock(code) {
   const info = {};
@@ -380,6 +393,7 @@ async function enrichStock(code) {
   // 配当額算出:
   //   ① minkabu の 1株配当（直接取得）
   //   ② 株価 × 利回り（server.py と同じ計算）
+  //   ③ ETF: 既知 ETF テーブルから分配金を引く（最終フォールバック）
   if (minkabu.per_share_div != null && minkabu.per_share_div > 0) {
     info.annual_div = minkabu.per_share_div;
     info.mid_div = Math.round(minkabu.per_share_div / 2 * 10) / 10;
@@ -388,6 +402,22 @@ async function enrichStock(code) {
     info.annual_div = Math.round(price * finalYield / 100 * 10) / 10;
     info.mid_div = Math.round(info.annual_div / 2 * 10) / 10;
     debug.div_source = 'yield_price';
+  } else if (isEtf && KNOWN_ETF_DIVIDENDS[code]) {
+    // ETF フォールバック: 3サイトどれからも取れなかった場合のみ
+    const etfData = KNOWN_ETF_DIVIDENDS[code];
+    info.annual_div = etfData.per_share_div;
+    info.mid_div = Math.round(etfData.per_share_div / etfData.fiscal_months.length * 10) / 10;
+    debug.div_source = 'known_etf_table';
+    debug.etf_note = etfData.note;
+    if (price && etfData.per_share_div > 0) {
+      info.yield = Math.round(etfData.per_share_div / price * 10000) / 100;
+    }
+    // ETF は年複数回分配があるので、末尾の決算月を end_month、もう1つを mid_month に
+    if (etfData.fiscal_months.length >= 1) {
+      const months = etfData.fiscal_months;
+      info.end_month_hint = months[months.length - 1];
+      if (months.length >= 2) info.mid_month_hint = months[0];
+    }
   }
 
   info._debug = debug;
