@@ -1,0 +1,34 @@
+# Python サーバー・スクリプト（Vercel静的デプロイでは不要）
+server.py
+run_screening.py
+update_all.py
+update_prices.py
+sync_from_sheet.py
+sync_from_sheets.py
+create_pptx.py
+nightly_update.sh
+deploy.sh
+
+# ローカル用ログ・バックアップ・中間ファイル
+*.log
+backups/
+*.empty.bak
+*.prev
+config.json
+config.json.example
+
+# 大きな補助データ（Vercelで配布不要なら）
+jpx_data.xls
+portfolio_report.pptx
+notebooklm_source.md
+
+# GitHub Pagesミラー（Vercelではindex.html直下を使うので不要）
+docs/
+
+# 保有ポートフォリオ（ブラウザ localStorage に閉じる運用 — 公開しない）
+stocks.json
+
+# Python キャッシュ
+__pycache__/
+*.pyc
+.DS_Store

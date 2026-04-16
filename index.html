@@ -204,6 +204,74 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
   .cal-grid{grid-template-columns:1fr}
 }
 
+/* Checklist card: 数値等幅 */
+.checklist-card{font-variant-numeric:tabular-nums}
+.checklist-card .metric-val{font-variant-numeric:tabular-nums;letter-spacing:.01em}
+
+/* Checklist セル（数値ボックス）の統一 */
+.checklist-card .cl-cell{padding:10px 8px;background:var(--bg-primary);border-radius:12px;text-align:center}
+.checklist-card .cl-cell .label{font-size:.82em;color:var(--text-secondary);font-weight:600;letter-spacing:.04em;margin-bottom:3px}
+.checklist-card .cl-cell .label.up{text-transform:uppercase;letter-spacing:.06em}
+.checklist-card .cl-cell .metric-val{font-size:1.2em;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.checklist-card .cl-cell.cl-cell-sm{padding:8px 6px}
+.checklist-card .cl-cell.cl-cell-sm .label{font-size:.74em}
+.checklist-card .cl-cell.cl-cell-sm .metric-val{font-size:1em;font-variant-numeric:tabular-nums}
+
+/* チェックリスト（条件チェック）行 */
+.checklist-card .cl-notes{background:rgba(148,163,184,.10);padding:10px 14px;border-radius:12px;margin-bottom:8px;font-size:.86em;color:var(--text-secondary);display:flex;flex-wrap:wrap;gap:4px 16px}
+.checklist-card .cl-notes .nt-ok{color:#16a34a;font-weight:700}
+.checklist-card .cl-notes .nt-ng{color:#ef4444;font-weight:700}
+.checklist-card .cl-notes .nt-warn{color:#f59e0b;font-weight:700}
+.checklist-card .cl-notes .nt-neutral{color:var(--text-muted)}
+
+/* 角丸の統一（カード内全要素） */
+.checklist-card .cl-cell,
+.checklist-card .cl-notes,
+.cl-empty-cta,
+.cl-progress{border-radius:12px}
+.cl-links .cl-main{border-radius:12px}
+.cl-links .cl-sub{border-radius:10px}
+.cl-links .cl-compare{border-radius:12px}
+
+/* Checklist 外部リンクボタン */
+.cl-links{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;padding-top:10px;border-top:1px dashed var(--border)}
+.cl-links .cl-main{padding:7px 16px;color:#fff;border:none;border-radius:22px;font-size:.78em;font-weight:700;text-decoration:none;cursor:pointer;transition:transform .15s,filter .15s;box-shadow:0 2px 6px rgba(0,0,0,.15);display:inline-flex;align-items:center;gap:5px}
+.cl-links .cl-main:hover{transform:translateY(-1px);filter:brightness(1.1)}
+.cl-links .cl-sub{padding:4px 10px;background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:16px;font-size:.68em;font-weight:500;text-decoration:none;transition:all .15s;display:inline-flex;align-items:center;gap:3px}
+.cl-links .cl-sub:hover{border-color:var(--accent2);color:var(--text-primary);background:var(--bg-primary)}
+.cl-links .cl-compare{padding:6px 14px;background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;border:none;border-radius:20px;font-size:.74em;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(6,182,212,.3)}
+.cl-links .cl-compare:hover{filter:brightness(1.1)}
+.cl-links .cl-sep{width:1px;height:20px;background:var(--border);margin:0 4px}
+.cl-links .cl-added{font-size:.65em;color:var(--text-muted);margin-left:auto}
+
+/* Checklist 空カード CTA */
+.cl-empty-cta{text-align:center;padding:24px 16px;background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(139,92,246,0.06));border:1px dashed var(--accent2);border-radius:12px;margin:12px 0 4px}
+.cl-empty-cta .cta-title{font-size:.95em;font-weight:700;margin-bottom:4px}
+.cl-empty-cta .cta-desc{font-size:.78em;color:var(--text-muted);margin-bottom:14px;line-height:1.55}
+.cl-empty-cta .cta-btn{padding:10px 22px;background:linear-gradient(135deg,#3b82f6,#06b6d4);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:.88em;cursor:pointer;box-shadow:0 4px 12px rgba(59,130,246,.3);transition:transform .15s}
+.cl-empty-cta .cta-btn:hover{transform:translateY(-1px)}
+.cl-empty-cta .cta-btn:disabled{opacity:.7;cursor:wait}
+
+/* Checklist 取得中プログレス */
+.cl-progress{display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg,rgba(6,182,212,0.08),rgba(59,130,246,0.08));border:1px solid rgba(6,182,212,0.3);border-radius:10px;margin:10px 0;font-size:.85em;color:var(--text-secondary)}
+.cl-progress .cl-spinner{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+
+/* Checklist 更新ボタン（🔄）ホバー強調 */
+.cl-refresh{background:var(--bg-primary);border:1px solid var(--border);color:var(--accent2);cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1em;transition:all .2s;position:relative}
+.cl-refresh:hover{background:var(--accent-light);border-color:var(--accent2);color:var(--accent2);transform:rotate(45deg);box-shadow:0 0 0 4px rgba(59,130,246,.12)}
+.cl-refresh:active{transform:rotate(90deg) scale(.92)}
+.cl-refresh.spinning{animation:spin .8s linear infinite;border-color:var(--accent2)}
+.cl-refresh:disabled{opacity:.6;cursor:wait}
+
+/* Checklist ローディング中のカード全体 */
+.checklist-card.is-loading .cl-content{opacity:.55;pointer-events:none;filter:saturate(.7)}
+.checklist-card.is-loading{position:relative}
+.cl-loading-overlay{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:3;background:var(--bg-card);border:1px solid rgba(6,182,212,.4);border-radius:999px;padding:8px 16px;display:flex;align-items:center;gap:8px;font-size:.82em;font-weight:600;color:var(--accent2);box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.cl-loading-overlay .cl-spinner{width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:spin .8s linear infinite}
+
+/* 未取得プレースホルダー */
+.metric-empty{color:var(--text-muted);font-weight:500;font-size:.78em;letter-spacing:.04em;opacity:.75}
+
 /* Help tab role icons */
 #helpTabRoles svg{width:18px;height:18px;display:block}
 
@@ -251,6 +319,21 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
 
   <!-- Tab 1: Dashboard -->
   <div class="tab-content" id="tab-dashboard">
+    <div id="onboardingBanner" style="display:none;margin-bottom:14px;padding:16px 20px;background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(139,92,246,.08));border:1px solid var(--accent2);border-radius:12px">
+      <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
+        <div style="font-size:2em;line-height:1">👋</div>
+        <div style="flex:1;min-width:260px">
+          <div style="font-size:1.05em;font-weight:700;color:var(--accent2);margin-bottom:6px">ようこそ！ポートフォリオ未設定です</div>
+          <div style="font-size:.88em;color:var(--text-secondary);line-height:1.6">
+            このアプリはあなたのデータを <b>このブラウザ内のみ</b> に保存します（サーバーには一切送信されません）。<br>
+            まずは「設定」タブから <b>stocks.json のアップロード</b> または <b>CSV取り込み</b> で保有銘柄を登録してください。
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="switchTab('settings')" style="padding:6px 16px;font-size:.85em">⚙️ 設定画面を開く</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div id="welcomeCard"></div>
     <div class="summary-grid" id="summaryCards"></div>
     <div id="dataTimestamps"></div>
@@ -264,6 +347,7 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
       <div class="card chart-card"><h3>時価評価額（守/攻）</h3><canvas id="defCycValChart"></canvas></div>
       <div class="card chart-card"><h3>配当総額（守/攻）</h3><canvas id="defCycDivChart"></canvas></div>
     </div>
+    <div id="portfolioInsightPanel"></div>
     <div class="chart-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
       <div class="card chart-card"><h3>利回り分布</h3><canvas id="yieldDistChart"></canvas></div>
       <div class="card chart-card"><h3>配当シミュレーション（20年）</h3><canvas id="divSimChart"></canvas></div>
@@ -286,6 +370,10 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
     <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
       <input type="text" id="portfolioSearch" placeholder="コード or 銘柄名で検索..." style="flex:1;min-width:200px;padding:8px 14px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:10px;font-size:.88em">
       <select id="portfolioSectorFilter" style="padding:8px 12px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:10px;font-size:.88em"><option value="">全セクター</option></select>
+    </div>
+    <div style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button id="btnFetchAllEarnings" class="btn btn-outline" style="padding:6px 14px;font-size:.82em">📅 決算日を一括取得</button>
+      <span id="earningsFetchStatus" style="font-size:.78em;color:var(--text-muted)"></span>
     </div>
     <div class="card table-wrap" id="portfolioTableWrap"></div>
     <button id="btnToggleCols" class="btn btn-outline" style="position:fixed;bottom:20px;right:24px;z-index:50;padding:8px 18px;font-size:.84em;backdrop-filter:blur(8px);box-shadow:0 2px 12px rgba(0,0,0,.4)">詳細列を表示</button>
@@ -416,6 +504,20 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
       <h3>エクスポート</h3>
       <div class="settings-row"><button class="btn btn-outline" id="btnExportCSV">ポートフォリオCSVダウンロード</button></div>
       <div class="settings-row"><button class="btn btn-outline" id="btnExportTax">確定申告用データ (CSV)</button></div>
+    </div>
+    <div class="card settings-section" style="border-left:4px solid #06b6d4">
+      <h3>💾 データのバックアップ / 復元</h3>
+      <p style="font-size:.85em;color:var(--text-muted);margin:4px 0 12px">
+        ポートフォリオ・チェックリスト・お気に入り・メモ・設定を含む<b>完全バックアップ</b>を JSON ファイルとして保存／復元します。
+      </p>
+      <div class="settings-row" style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-outline" id="btnFullBackupExport" style="background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;border:none">⬇ バックアップをダウンロード (JSON)</button>
+        <label class="btn btn-outline" style="cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none">
+          ⬆ バックアップから復元
+          <input type="file" id="fullBackupImportFile" accept="application/json,.json" style="display:none">
+        </label>
+      </div>
+      <p style="font-size:.75em;color:var(--text-muted);margin-top:8px">※ 復元時は現在のデータが上書きされます（実行前に確認ダイアログあり）</p>
     </div>
     <div class="card settings-section">
       <h3>このアプリについて</h3>
@@ -618,6 +720,77 @@ function importPortfolioJSON(file) {
   };
   reader.readAsText(file);
 }
+
+/* ===== 完全バックアップ（JSON）=====
+   stocks + checklistItems + favorites + memo + threshold + theme まで一括保存／復元 */
+function exportFullBackup() {
+  const memos = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('memo_')) memos[k] = localStorage.getItem(k);
+  }
+  const backup = {
+    version: 2,
+    exported_at: new Date().toISOString(),
+    stocks: stocks,
+    checklistItems: JSON.parse(localStorage.getItem('checklistItems') || '[]'),
+    favorites: JSON.parse(localStorage.getItem('favoritesCodes') || '[]'),
+    memos: memos,
+    threshold: localStorage.getItem('threshold') || '3.5',
+    theme: localStorage.getItem('theme') || 'light'
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'dividend-dashboard-backup_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importFullBackup(file) {
+  if (!confirm('バックアップを復元すると、現在のデータ（ポートフォリオ・チェックリスト・お気に入り・メモ等）は上書きされます。続行しますか？')) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      // 旧形式（Array = stocks のみ）との互換
+      if (Array.isArray(data)) {
+        stocks = data;
+        savePortfolioToLocal();
+        alert('旧形式のバックアップを読み込みました (' + stocks.length + '銘柄)');
+        switchTab('dashboard');
+        return;
+      }
+      if (!data || typeof data !== 'object') { alert('不正なバックアップファイルです'); return; }
+      let restored = [];
+      if (Array.isArray(data.stocks)) {
+        stocks = data.stocks;
+        savePortfolioToLocal();
+        restored.push(`ポートフォリオ ${stocks.length}銘柄`);
+      }
+      if (Array.isArray(data.checklistItems)) {
+        localStorage.setItem('checklistItems', JSON.stringify(data.checklistItems));
+        restored.push(`チェックリスト ${data.checklistItems.length}件`);
+      }
+      if (Array.isArray(data.favorites)) {
+        localStorage.setItem('favoritesCodes', JSON.stringify(data.favorites));
+        restored.push(`お気に入り ${data.favorites.length}件`);
+      }
+      if (data.memos && typeof data.memos === 'object') {
+        let mc = 0;
+        Object.entries(data.memos).forEach(([k, v]) => {
+          if (k.startsWith('memo_') && typeof v === 'string') { localStorage.setItem(k, v); mc++; }
+        });
+        if (mc) restored.push(`メモ ${mc}件`);
+      }
+      if (typeof data.threshold === 'string') localStorage.setItem('threshold', data.threshold);
+      if (typeof data.theme === 'string') localStorage.setItem('theme', data.theme);
+      alert('✅ 復元完了：\n  ' + (restored.join('\n  ') || '復元対象なし') + '\n\nページをリロードします。');
+      location.reload();
+    } catch(err) { alert('バックアップの解析に失敗しました: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
 const TABS = [
   {id:'dashboard',label:'ダッシュボード',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>'},
   {id:'portfolio',label:'ポートフォリオ',icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>'},
@@ -646,6 +819,142 @@ function getPLRate(s) { const c = getCost(s); return c === 0 ? 0 : (getPL(s) / c
 function getBookYield(s) { return s.buy_price ? safeDiv(s.annual_div || 0, s.buy_price) * 100 : 0; }
 function getCurYield(s) { const p = getPrice(s); return p ? safeDiv(s.annual_div || 0, p) * 100 : 0; }
 function getSector(s) { return s.sector || '未分類'; }
+
+/* ===== 決算日ユーティリティ =====
+   手動入力した次回決算日（YYYY-MM-DD）を stocks / checklistItems の対象オブジェクトに保持。
+   days: 残日数。未設定なら null。
+   alert: 30日以内なら true。 */
+function earningsDaysUntil(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.round((d - today) / 86400000);
+}
+function setEarningsDate(code, value, manual) {
+  const s = stocks.find(st => String(st.code) === String(code));
+  if (s) {
+    if (value) { s.earnings_date = value; if (manual) s.earnings_date_manual = true; }
+    else { delete s.earnings_date; delete s.earnings_date_manual; }
+    savePortfolioToLocal();
+  }
+  // チェックリスト側にも反映
+  try {
+    const list = JSON.parse(localStorage.getItem('checklistItems') || '[]');
+    const ci = list.find(x => String(x.code) === String(code));
+    if (ci) {
+      if (value) { ci.earnings_date = value; if (manual) ci.earnings_date_manual = true; }
+      else { delete ci.earnings_date; delete ci.earnings_date_manual; }
+      localStorage.setItem('checklistItems', JSON.stringify(list));
+    }
+  } catch(e) {}
+  if (typeof renderPortfolio === 'function' && document.querySelector('.tab-content.active')?.id === 'tab-portfolio') renderPortfolio();
+  if (typeof renderChecklistTable === 'function') renderChecklistTable();
+}
+
+/* 決算日取得中の銘柄コード集合（UIで "取得中..." 表示） */
+window.fetchingEarnings = window.fetchingEarnings || new Set();
+
+/* 指定銘柄の「決算日」だけを最小限で取得（5秒タイムアウト・プロキシフォールバック） */
+async function fetchEarningsOnly(code, signal) {
+  const per = 5000;
+  const urls = [
+    `https://finance.yahoo.co.jp/quote/${code}.T`,
+    `https://minkabu.jp/stock/${code}/dividend`,
+    `https://irbank.net/${code}`,
+    `https://kabutan.jp/stock/?code=${code}`
+  ];
+  const parse = (txt) => {
+    if (!txt) return null;
+    const patterns = [
+      /(?:次回)?決算発表予定日?[^0-9]{0,25}(\d{4})[\/\-年\.](\d{1,2})[\/\-月\.](\d{1,2})/,
+      /次回(?:本|中間|第[1-4]四半期)?決算発表[^0-9]{0,25}(\d{4})[\/\-年\.](\d{1,2})[\/\-月\.](\d{1,2})/,
+      /決算発表日?[^0-9]{0,15}(\d{4})[\/\-年\.](\d{1,2})[\/\-月\.](\d{1,2})/
+    ];
+    for (const p of patterns) {
+      const m = txt.match(p);
+      if (m) {
+        const y = +m[1], mo = +m[2], da = +m[3];
+        if (y >= 2020 && y <= 2100 && mo >= 1 && mo <= 12 && da >= 1 && da <= 31) {
+          return `${y}-${String(mo).padStart(2,'0')}-${String(da).padStart(2,'0')}`;
+        }
+      }
+    }
+    return null;
+  };
+  for (const u of urls) {
+    if (signal?.aborted) return null;
+    const res = await fetchTextClient(u, per, signal);
+    if (!res) continue;
+    const ed = parse(res.text);
+    if (ed) {
+      const d = new Date(ed); const now = new Date(); now.setHours(0,0,0,0);
+      if (!isNaN(d.getTime()) && d >= now) return ed;
+    }
+  }
+  return null;
+}
+
+/* 1件だけ決算日を再取得 — セルは自動的に「取得中...」→「結果」へ更新 */
+async function refetchSingleEarnings(code) {
+  const k = String(code);
+  const s = stocks.find(st => String(st.code) === k);
+  if (!s || s.earnings_date_manual) return false;
+  window.fetchingEarnings.add(k);
+  // 該当セルだけスポット更新
+  const cells = document.querySelectorAll(`[data-earnings-code="${k}"]`);
+  cells.forEach(c => { c.outerHTML = `<span data-earnings-code="${k}" style="display:inline-block;padding:2px 6px;color:var(--accent2)"><span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> 取得中...</span>`; });
+  let ok = false;
+  try {
+    const ed = await fetchEarningsOnly(code);
+    if (ed && !s.earnings_date_manual) {
+      s.earnings_date = ed;
+      ok = true;
+    }
+  } catch (e) { /* silent */ }
+  window.fetchingEarnings.delete(k);
+  if (ok) savePortfolioToLocal();
+  if (typeof renderPortfolio === 'function') renderPortfolio();
+  return ok;
+}
+
+/* 全銘柄の決算日を順次取得 */
+async function fetchAllEarnings() {
+  const btn = document.getElementById('btnFetchAllEarnings');
+  const st = document.getElementById('earningsFetchStatus');
+  if (!btn) return;
+  btn.disabled = true;
+  const targets = stocks.filter(s => !s.earnings_date_manual);
+  let ok = 0, ng = 0;
+  for (let i = 0; i < targets.length; i++) {
+    const s = targets[i];
+    if (st) st.textContent = `${i+1}/${targets.length}: ${s.code} ${s.name||''} を取得中...`;
+    const got = await refetchSingleEarnings(s.code);
+    if (got) ok++; else ng++;
+    await new Promise(r => setTimeout(r, 300));
+  }
+  if (st) st.textContent = `✅ 完了: 成功${ok}件 / 失敗${ng}件（失敗分はクリックで手動入力できます）`;
+  btn.disabled = false;
+}
+
+/* テーブルセルを「表示」→「date入力」にインラインで切り替え */
+function editEarningsDateCell(code, cellEl) {
+  const cur = (stocks.find(s => String(s.code) === String(code))?.earnings_date) || '';
+  cellEl.innerHTML = `<input type="date" value="${cur}" autofocus
+    onblur="this.dataset.committed || setEarningsDate('${code}', this.value, true)"
+    onkeydown="if(event.key==='Enter'){this.dataset.committed=1;setEarningsDate('${code}', this.value, true);}if(event.key==='Escape'){this.dataset.committed=1;renderPortfolio();}"
+    style="font-size:.8em;padding:2px 4px;background:var(--bg-card);border:1px solid var(--accent2);border-radius:4px;color:var(--text-primary);width:130px">`;
+  const inp = cellEl.querySelector('input');
+  if (inp) inp.focus();
+}
+function earningsBadgeHtml(dateStr) {
+  const d = earningsDaysUntil(dateStr);
+  if (d == null) return '';
+  if (d < 0) return '';  // 過去日は表示しない
+  if (d <= 7) return `<span title="次回決算: ${dateStr}" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7em;font-weight:700;white-space:nowrap">⚠️ 決算${d}日後</span>`;
+  if (d <= 30) return `<span title="次回決算: ${dateStr}" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:2px 8px;border-radius:10px;font-size:.7em;font-weight:700;white-space:nowrap">⚠️ 決算接近(${d}日)</span>`;
+  return `<span title="次回決算: ${dateStr}" style="background:var(--bg-primary);border:1px solid var(--border);color:var(--text-muted);padding:2px 8px;border-radius:10px;font-size:.7em;white-space:nowrap">📅 決算 ${d}日後</span>`;
+}
 function getValuationLabel(mix) {
   if (!mix || mix <= 0) return '-';
   if (mix <= 11.25) return '①超割安';
@@ -659,6 +968,248 @@ function getValuationColor(mix) {
   if (mix <= 22.5) return 'background:#dcfce7;color:#166534';
   if (mix <= 40) return 'background:#fef9c3;color:#854d0e';
   return 'background:#fee2e2;color:#991b1b';
+}
+
+/* ===== 銘柄チェック：動的アドバイス生成（リベ大流） =====
+ * 戻り値: [{level: 'danger'|'warning'|'info'|'success', icon, text}]
+ * 重要度順にソート。最も深刻なものを先頭に。
+ */
+function generateChecklistAdvice(item) {
+  const out = [];
+  const pr   = parseFloat(item.payout_ratio);
+  const mix  = item.mix_coef || 0;
+  const per  = item.per || 0;
+  const pbr  = item.pbr || 0;
+  const yld  = item.yield || 0;
+  const trend = item.div_trend || '';
+  const eq   = item.equity_ratio;            // 自己資本比率
+  const om3  = item.op_margin_avg3;           // 3年平均営業利益率
+  const om   = item.op_margin;
+  const margin = (om3 != null) ? om3 : om;
+  const sector = item.sector || '';
+  const isFin = /銀行|証券|保険|その他金融/.test(sector);  // 金融は自己資本比率の閾値が異なる
+  const isCyclical = /鉄鋼|非鉄金属|海運|空運|鉱業|輸送用機器|機械|化学|石油|石炭|ガラス|土石|パルプ|紙|繊維|ゴム/.test(sector);
+  const epsYoy = item.eps_yoy;                                 // EPS YoY比（null許容）
+  const price1m = item.price_1m_change;                        // 1ヶ月株価変動率（%、null許容）
+
+  /* ====== DANGER（赤・最優先） ====== */
+  // 上場5年未満 → 過去不況時の配当維持実績が検証できない
+  if (item.listed_years != null && item.listed_years < 5) {
+    out.push({level:'danger', icon:'⚠️', text:
+      `【注意：上場浅い（実績不足）】上場から${item.listed_years.toFixed(1)}年（${item.listing_date||''}）。`+
+      `コロナショック等の過去暴落時における配当維持実績が確認できません。`+
+      `IR BANKで「1株配当」履歴が何年分あるかを必ず確認し、短期的な高利回りに惑わされないよう慎重に判断してください。`});
+  }
+  if (!isNaN(pr) && pr > 100) {
+    out.push({level:'danger', icon:'🚨', text:
+      `配当性向${pr.toFixed(0)}%は利益超過の還元です。内部留保を切り崩している可能性が高く、減配リスク大。`+
+      `IR BANKで「1株あたり利益（EPS）」と「1株あたり配当」の過去5年推移を必ず確認し、利益回復の見込みがあるか判断してください。`});
+  }
+  if (item.eps_loss_warning) {
+    out.push({level:'danger', icon:'🚨', text:
+      `過去5年でEPSが赤字に転落した実績あり。累進配当を掲げていても業績悪化局面で減配リスクが顕在化します。`+
+      `IR BANKの「決算書」タブで赤字年度の特別損失要因（一過性 or 構造的）を確認してください。`});
+  }
+  if (item.financial_warning || (eq != null && !isFin && eq < 20)) {
+    out.push({level:'danger', icon:'🚨', text:
+      `自己資本比率${eq != null ? eq.toFixed(0)+'%' : '20%未満'}は財務健全性に懸念があります。`+
+      `IR BANKの「貸借対照表」で有利子負債／純資産比率と直近の自己資本比率推移を確認し、財務悪化トレンドでないかチェックしてください。`});
+  }
+  if (yld > 7) {
+    out.push({level:'danger', icon:'🪤', text:
+      `利回り${yld.toFixed(1)}%は高配当トラップの可能性大。特別配当・記念配当が含まれていないか、`+
+      `株探の「配当」タブで年度別内訳（普通配当/特別配当）と来期予想配当を必ず確認してください。`});
+  }
+
+  /* ====== WARNING（黄） ====== */
+  if (item.nonop_warning) {
+    const div = item.ord_op_divergence;
+    out.push({level:'warning', icon:'⚠️', text:
+      `経常利益が営業利益を${div != null ? div.toFixed(0)+'%' : '20%以上'}上回り、本業以外（資産売却・為替差益・持分法損益）が利益の主因です。`+
+      `バフェット・コードの「営業外損益」内訳で一過性かどうか判断してください。`});
+  }
+  if (item.shrink_warning) {
+    const c = item.rev_cagr;
+    out.push({level:'warning', icon:'📉', text:
+      `売上が年率${c != null ? c.toFixed(1) : '-10'}% で減少しています。`+
+      `IR BANKで「売上高」推移と中期経営計画のセグメント別売上目標を確認し、市場縮小か競争力低下かを切り分けてください。`});
+  }
+  if (!isNaN(pr) && pr > 70 && pr <= 100 && !item.eps_loss_warning) {
+    out.push({level:'warning', icon:'⚠️', text:
+      `配当性向${pr.toFixed(0)}%で増配余力は限定的です。`+
+      (trend.includes('増配')
+        ? `非減配維持に積極的ですが、業績悪化時の減配リスクに注意。バフェット・コードでEPS予想と配当維持シナリオを確認してください。`
+        : `IR BANKで営業利益の成長余地と配当方針（DOE/累進）を確認してください。`)});
+  }
+  if (margin != null && margin < 5 && !item.muscular) {
+    out.push({level:'warning', icon:'⚠️', text:
+      `営業利益率${margin.toFixed(1)}%は低水準です。価格決定力が弱く市況依存度が高い可能性があります。`+
+      `バフェット・コードの「セグメント別利益率」で主力事業の収益性を確認してください。`});
+  }
+  if (mix > 40 && yld >= 3.75) {
+    out.push({level:'warning', icon:'💸', text:
+      `ミックス係数${mix.toFixed(1)}は割高水準（PER ${per?per.toFixed(1):'-'} × PBR ${pbr?pbr.toFixed(2):'-'}）。`+
+      `業績悪化でPERが膨らんでいる可能性があるので、IR BANKで直近4四半期の営業利益推移が一時要因か構造問題かを確認してください。`});
+  }
+  if (per > 30 && yld >= 3.75 && !item.muscular) {
+    out.push({level:'warning', icon:'⚠️', text:
+      `PER${per.toFixed(0)}倍と高水準です。利益が一時的に落ち込んでいる可能性があり、見かけの高配当に減配リスクが潜む状態。`+
+      `バフェット・コードで通期EPS予想と配当の整合性を確認してください。`});
+  }
+  // 配当性向50%超（70%以下のレンジ）→ 成長鈍化でリスク顕在化
+  if (!isNaN(pr) && pr > 50 && pr <= 70) {
+    out.push({level:'warning', icon:'⚠️', text:
+      `配当性向${pr.toFixed(0)}%は50%を超えています。利益成長が鈍化すると減配リスクが高まるため、`+
+      `IR BANKで「1株あたり利益(EPS)」の過去5年推移が右肩上がりか注視してください。`});
+  }
+  // サービス業×高利回り（人材ビジネス等の業績変動リスク）
+  // 上場日が取れなくても必ず発火するフォールバック
+  if (/サービス業/.test(sector) && yld > 5) {
+    out.push({level:'warning', icon:'⚠️', text:
+      `人材主力のビジネスモデルかつ高利回りです。業績変動リスクに注意してください。`+
+      `サービス業は景気後退時に案件数が急減しやすく、EPSが乱高下する傾向があります。`+
+      `IR BANKで過去5年の営業利益・EPS推移の振れ幅を確認してください。`});
+  }
+  // 利回り5%超（7%以下）→ 市場が業績先行きを不安視している可能性
+  if (yld > 5 && yld <= 7 && !(out.some(a => a.text.includes('高配当トラップ')))) {
+    out.push({level:'warning', icon:'⚠️', text:
+      `利回り${yld.toFixed(1)}%は高水準で、市場が業績先行きを不安視している可能性があります。`+
+      `一過性の利益（資産売却益・特別配当など）による配当でないか、株探の配当内訳と IR BANK の決算資料で確認してください。`});
+  }
+  // 自己資本比率 < 40%（金融業は例外：ビジネスモデル上低くなるのが正常）
+  // 銀行業・保険業・証券/商品先物取引業・その他金融業は除外
+  const isFinSector = /銀行|保険|証券|商品先物|その他金融/.test(sector);
+  if (!isFinSector && eq != null && eq >= 20 && eq < 40) {
+    out.push({level:'warning', icon:'⚠️', text:
+      `自己資本比率が<b>${eq.toFixed(0)}%</b>と、リベ大で推奨されている40%を下回っています。`+
+      `借入金など負債の割合が大きいため、金利上昇時の利益圧迫リスクに注意してください。`+
+      `IR BANKの「貸借対照表」で有利子負債／純資産比率と金利負担が利益を圧迫していないか再確認してください。`});
+  }
+
+  // 「増配データなし」の理由を上場年数で出し分け（💡注意）
+  const hasDivHistory = trend && (trend.includes('連続増配') || trend.includes('非減配'));
+  if (!hasDivHistory) {
+    if (item.listed_years != null && item.listed_years < 5) {
+      out.push({level:'info', icon:'💡', text:
+        `上場から日が浅い（<b>${item.listed_years.toFixed(1)}年</b>）ため、長期の連続増配データがありません。`+
+        `不況時（コロナショック等）の配当維持実績が未知数な点に留意してください。`+
+        `IR BANKで上場来の配当推移と、直近の業績悪化局面における配当方針を確認してください。`});
+    } else {
+      out.push({level:'info', icon:'💡', text:
+        `連続増配のデータが確認できません。過去に減配を挟んでいるなど、配当が不安定な可能性があるため、`+
+        `IR BANK等で過去10年の配当推移を必ず確認してください。特にリーマンショック・コロナショック時の減配歴と減配率の大きさが判断材料になります。`});
+    }
+  }
+  // セクターリスク：景気敏感業種
+  if (isCyclical) {
+    out.push({level:'warning', icon:'🔄', text:
+      `${sector}は景気敏感業種（シクリカル）に分類されます。不況時には業績が急落し減配リスクが顕在化しやすいため、`+
+      `同一セクターへの集中投資を避け、ディフェンシブ業種（食品・医薬・通信など）と分散保有してください。`+
+      `IR BANKでリーマンショック時・コロナショック時の営業利益推移と配当維持実績を必ず確認してください。`});
+  }
+  // 一過性利益の疑い：EPS YoYが2倍以上
+  if (epsYoy != null && epsYoy >= 2.0) {
+    out.push({level:'warning', icon:'⚠️', text:
+      `直近EPSが前年比 ${epsYoy.toFixed(2)}倍と異常に上昇しています。一過性の利益（資産売却益・為替差益・税務還付など）`+
+      `による増益の可能性があり、翌期以降に反動減が起きると配当継続性にも影響します。`+
+      `IR BANKの「決算書」タブで特別利益の内訳、バフェット・コードの「営業外損益」で一過性かどうか精査してください。`});
+  }
+  // 株価急落：直近1ヶ月で10%以上下落
+  if (price1m != null && price1m <= -10) {
+    out.push({level:'warning', icon:'📉', text:
+      `直近1ヶ月で株価が${price1m.toFixed(1)}%下落しています。株価下落による見かけ上の利回り上昇の可能性があり、`+
+      `業績下方修正・不祥事・セクター全体の悪材料が発生していないか、Yahoo!ファイナンスの「ニュース」と`+
+      `適時開示情報（TDnet）で直近の開示内容を必ず確認してください。`});
+  }
+
+
+  // 証券業：業績連動型配当の特性に注意
+  if (/証券|商品先物/.test(sector)) {
+    out.push({level:'info', icon:'💡', text:
+      `証券業は相場環境によって業績が大きく変動し、配当も連動して乱高下しやすい（業績連動型配当）傾向があります。`+
+      `安定した配当収入を目的とする場合は、ポートフォリオの主力にするのは避けましょう。`});
+  }
+  // 超低PBR × 高利回り：東証改善要請による一時的な還元強化の可能性
+  if (pbr > 0 && pbr < 0.6 && yld >= 4.5) {
+    out.push({level:'info', icon:'💡', text:
+      `PBRが<b>${pbr.toFixed(2)}倍</b>と非常に低く、東証からの改善要請などにより一時的に株主還元（増配など）を強化している可能性があります。`+
+      `本業の利益が伴っているか、IR BANKの「営業利益」「EPS」推移と「中期経営計画」の株主還元方針を確認してください。`});
+  }
+
+  /* ====== INFO（青・中立／補足） ====== */
+  if (item.muscular) {
+    const mn = item.muscular_note ||
+      `売上は縮小傾向ですが、営業利益率の改善とEPS伸長から「収益構造の改善（筋肉質化）」と判定。`;
+    out.push({level:'info', icon:'🏋️', text: mn +
+      `IR BANKの「セグメント別損益」でどの事業が利益貢献しているかを確認してください。`});
+  }
+  if (mix > 0 && mix <= 22.5 && yld < 3.75 && out.length === 0) {
+    out.push({level:'info', icon:'💡', text:
+      `ミックス係数${mix.toFixed(1)}と割安ですが利回り${yld.toFixed(2)}%は控えめ。`+
+      `株価下落で利回りが3.75%を超えるタイミング（株価 ${item.price ? Math.round(item.price * yld / 3.75).toLocaleString() : '-'}円目安）を待つ戦略も有効です。`});
+  }
+
+  /* ====== SUCCESS（緑・好材料） ====== */
+  if (yld >= 3.75 && !isNaN(pr) && pr <= 50 && trend.includes('連続増配')) {
+    out.push({level:'success', icon:'✨', text:
+      `高利回り${yld.toFixed(2)}%・配当性向${pr.toFixed(0)}%・${trend}と三拍子揃った優良銘柄。`+
+      `今後も増配余力が高く、長期保有のコア候補。バフェット・コードでDOE方針があるか確認するとなお良し。`});
+  } else if (yld >= 3.75 && mix > 0 && mix <= 22.5 && !isNaN(pr) && pr <= 70 && out.length === 0) {
+    out.push({level:'success', icon:'✅', text:
+      `利回り${yld.toFixed(2)}%・ミックス係数${mix.toFixed(1)}・配当性向${pr.toFixed(0)}%すべて良好。`+
+      `買い時として有望です。最終確認として IR BANKで営業CFが3年連続プラスかチェックしてください。`});
+  }
+
+  /* ====== フォールバック（必ずポジティブコメントを出す） ====== */
+  if (out.length === 0) {
+    out.push({level:'success', icon:'✅', text:
+      `財務指標は現在のところ安定しています。主要チェック項目に大きな懸念はありません。`+
+      `最終判断として IR BANKで「売上高・営業利益・EPS・1株配当」の過去5年推移と「自己資本比率」「営業CF」を確認してください。`});
+  } else if (!out.some(a => a.level === 'success' || a.level === 'info')) {
+    // 警告のみで終わらせない：小さな好材料があれば併記
+    const positives = [];
+    if (yld >= 3.75) positives.push(`利回り${yld.toFixed(2)}%`);
+    if (!isNaN(pr) && pr > 0 && pr <= 50) positives.push(`配当性向${pr.toFixed(0)}%で余力大`);
+    if (eq != null && eq >= 40) positives.push(`自己資本${eq.toFixed(0)}%で財務健全`);
+    if (trend && trend.includes('連続増配')) positives.push(trend);
+    if (margin != null && margin >= 10) positives.push(`営業利益率${margin.toFixed(1)}%`);
+    if (positives.length) {
+      out.push({level:'success', icon:'✅', text:
+        `好材料として ${positives.slice(0,3).join('・')} が挙げられます。上記の注意点と併せて総合判断してください。`});
+    }
+  }
+
+  /* 重要度ソート（danger > warning > info > success） */
+  const order = {danger:0, warning:1, info:2, success:3};
+  out.sort((a,b) => order[a.level] - order[b.level]);
+  return out.slice(0, 4);  // 上位4件まで
+}
+
+/* アドバイスブロックの描画（level別のカラー＋アイコン） */
+function renderAdviceBlock(advice) {
+  if (!advice || !advice.length) return '';
+  // 旧データ（文字列配列）との互換性
+  const items = advice.map(a => typeof a === 'string'
+    ? {level:'info', icon:'💡', text:a}
+    : a);
+  const top = items[0].level;  // ブロック全体の色は最重要レベル
+  const themes = {
+    danger:  {bg:'linear-gradient(135deg,rgba(239,68,68,.12),rgba(239,68,68,.04))', border:'#ef4444', label:'🚨 重要な警告'},
+    warning: {bg:'linear-gradient(135deg,rgba(245,158,11,.12),rgba(245,158,11,.04))', border:'#f59e0b', label:'⚠️ 注意点'},
+    info:    {bg:'linear-gradient(135deg,rgba(6,182,212,.08),rgba(59,130,246,.06))',  border:'#06b6d4', label:'💡 インサイト'},
+    success: {bg:'linear-gradient(135deg,rgba(34,197,94,.12),rgba(34,197,94,.04))',   border:'#22c55e', label:'✨ 好材料'}
+  };
+  const th = themes[top] || themes.info;
+  const rowColors = {danger:'#ef4444', warning:'#f59e0b', info:'#06b6d4', success:'#22c55e'};
+  const rows = items.map(a => `
+    <div style="display:flex;gap:8px;padding:7px 0;border-top:1px dashed rgba(0,0,0,.08);align-items:flex-start">
+      <span style="flex-shrink:0;font-size:1em;color:${rowColors[a.level]};margin-top:2px">${a.icon}</span>
+      <span style="line-height:1.65;font-size:.9em">${a.text}</span>
+    </div>`).join('');
+  return `<div style="margin:10px 0;padding:10px 14px 12px;border-radius:12px;background:${th.bg};border-left:4px solid ${th.border}">
+    <div style="font-size:.72em;font-weight:700;color:${th.border};letter-spacing:.05em;margin-bottom:2px">${th.label}</div>
+    ${rows.replace('border-top:1px dashed rgba(0,0,0,.08);', '')}
+  </div>`;
 }
 
 /* Monthly dividend: mid_div in mid_month, remainder in end_month */
@@ -825,6 +1376,10 @@ function switchTab(id) {
   const tab = document.getElementById('tab-' + id);
   if (tab) tab.classList.add('active');
 
+  /* オンボーディングバナー: stocksが空ならダッシュボードで表示、入ったら自動で消す */
+  const onboard = document.getElementById('onboardingBanner');
+  if (onboard) onboard.style.display = (id === 'dashboard' && (!stocks || stocks.length === 0)) ? '' : 'none';
+
   window.scrollTo(0, 0);
   destroyCharts();
   if (id === 'dashboard') renderDashboard();
@@ -918,6 +1473,131 @@ function resetWelcome() {
 }
 
 /* ===== Tab 1: Dashboard ===== */
+/* ===== ポートフォリオ分析インサイト =====
+   セクター比率・守/攻バランス・利回り分布を解析し、最大3件のカード型アドバイスを描画 */
+function renderPortfolioInsights(sectorMap) {
+  const el = document.getElementById('portfolioInsightPanel');
+  if (!el) return;
+  if (!stocks || !stocks.length) { el.innerHTML = ''; return; }
+
+  // 景気敏感セクター定義（銘柄チェックのisCyclicalと整合）
+  const CYCLICAL_RE = /鉄鋼|非鉄金属|海運|空運|鉱業|輸送用機器|機械|化学|石油|石炭|ガラス|土石|パルプ|紙|繊維|ゴム|証券|不動産|銀行|建設/;
+  const DEFENSIVE_RE = /食料品|医薬品|電気・ガス|情報・通信|サービス|小売/;
+
+  const totalVal = Object.values(sectorMap).reduce((a,v)=>a+v, 0);
+  if (totalVal <= 0) { el.innerHTML = ''; return; }
+
+  let cycVal = 0, defVal = 0;
+  Object.entries(sectorMap).forEach(([sec, v]) => {
+    if (CYCLICAL_RE.test(sec)) cycVal += v;
+    else if (DEFENSIVE_RE.test(sec)) defVal += v;
+  });
+  const cycPct = cycVal / totalVal * 100;
+  const defPct = defVal / totalVal * 100;
+
+  // 最大セクター
+  const sortedSec = Object.entries(sectorMap).sort((a,b) => b[1] - a[1]);
+  const topSec = sortedSec[0] || ['', 0];
+  const topSecPct = topSec[1] / totalVal * 100;
+
+  // 利回り分布
+  let hi = 0, mid = 0, total = 0;
+  stocks.forEach(s => {
+    const mv = getMarketVal(s);
+    if (mv <= 0) return;
+    total += mv;
+    const y = parseFloat(s.yield || s.cur_yield || 0);
+    if (y >= 6) hi += mv;
+    else if (y >= 3 && y < 5) mid += mv;
+  });
+  const hiPct = total > 0 ? hi / total * 100 : 0;
+  const midPct = total > 0 ? mid / total * 100 : 0;
+
+  const insights = [];
+
+  /* 1. 守り/攻めバランス（景気敏感 60%以上で警告） */
+  if (cycPct >= 60) {
+    insights.push({level:'warning', icon:'⚠️',
+      title:'景気敏感セクターの比率が高め',
+      text:`景気敏感セクターの比率が高め（現在<b>約${cycPct.toFixed(0)}%</b>）です。`+
+        `好景気時は高配当ですが、不況時の減配リスクが高い状態です。`+
+        `次は「情報・通信業」や「食料品」など、不況に強いディフェンシブ銘柄の組み入れを検討してバランスを整えましょう。`});
+  } else if (cycPct >= 40 && cycPct <= 60 && defPct >= 30) {
+    insights.push({level:'success', icon:'✅',
+      title:'攻めと守りのバランス良好',
+      text:`攻め<b>${cycPct.toFixed(1)}%</b> / 守り<b>${defPct.toFixed(1)}%</b> と絶妙なバランスです。`+
+        `暴落時にも強いポートフォリオが構築できています。この配分を維持しつつ、連続増配銘柄の買い増しでコアを厚くするのが有効です。`});
+  }
+
+  /* 2. セクター集中リスク（15%超で注意 / 20%超は警告） */
+  for (const [sec, v] of sortedSec.slice(0, 3)) {
+    const p = v / totalVal * 100;
+    if (p >= 20) {
+      insights.push({level:'warning', icon:'⚠️',
+        title:`${sec}の集中リスク`,
+        text:`<b>${sec}</b>の比率が<b>${p.toFixed(1)}%</b>と、リベ大で推奨されているセクター分散基準（上限20%）を超えています。`+
+          `同セクター全体が下落した際に資産と配当の両方が同時に減る「共振リスク」が顕在化します。`+
+          `新規投資は他セクターへ振り向け、必要に応じて一部利益確定も検討してください。`});
+    } else if (p >= 15) {
+      insights.push({level:'info', icon:'💡',
+        title:`${sec}の比率に注意`,
+        text:`<b>${sec}</b>の比率が<b>${p.toFixed(1)}%</b>と15%を超えています。`+
+          `リベ大が提示する基準である「1セクターの上限20%以下に分散する」ことが推奨されています。これ以上の同セクターの買い増しは慎重に行いましょう。`});
+    }
+  }
+
+  /* 3. 利回り分布の健全性 */
+  if (hiPct > 20) {
+    insights.push({level:'warning', icon:'⚠️',
+      title:'超高利回り銘柄の比率が高め',
+      text:`利回り<b>6%以上</b>の超高配当銘柄が<b>${hiPct.toFixed(1)}%</b>含まれています。`+
+        `見せかけの高利回り（罠銘柄）が混ざっていないか、改めて業績推移と配当性向を確認し、一過性の特別配当や株価急落が原因でないか精査してください。`});
+  } else if (midPct > 50) {
+    insights.push({level:'success', icon:'✅',
+      title:'利回り分布が健全',
+      text:`利回りのボリュームゾーンが<b>3〜5%</b>に<b>${midPct.toFixed(1)}%</b>と集中しており、`+
+        `持続可能性の高い現実的なポートフォリオです。過度なリスクを取らずインカムゲインを積み上げる理想的な形です。`});
+  }
+
+  /* 常に最低1件は表示（裏で計算だけで終わらせない） */
+  if (!insights.length) {
+    insights.push({level:'success', icon:'✅',
+      title:'バランス評価：安定運用中',
+      text:`攻め<b>${cycPct.toFixed(1)}%</b> / 守り<b>${defPct.toFixed(1)}%</b>、最大セクター「<b>${topSec[0]||'-'}</b>」<b>${topSecPct.toFixed(1)}%</b>、利回り3〜5%帯<b>${midPct.toFixed(1)}%</b>。大きな偏りはなく、現在のポートフォリオは安定しています。`});
+  }
+
+  // 重要度順にソートして上位3件
+  const order = {warning:0, info:1, success:2};
+  insights.sort((a,b) => order[a.level] - order[b.level]);
+  const top = insights.slice(0, 3);
+
+  const themes = {
+    warning: {bg:'linear-gradient(135deg,rgba(244,63,94,.16),rgba(251,113,133,.06))',  border:'#ef4444', iconBg:'rgba(244,63,94,.22)',   titleColor:'#dc2626'},
+    info:    {bg:'linear-gradient(135deg,rgba(251,191,36,.20),rgba(253,224,71,.08))',  border:'#f59e0b', iconBg:'rgba(251,191,36,.28)', titleColor:'#b45309'},
+    success: {bg:'linear-gradient(135deg,rgba(34,197,94,.15),rgba(132,204,22,.06))',   border:'#22c55e', iconBg:'rgba(34,197,94,.22)',  titleColor:'#15803d'}
+  };
+
+  const cards = top.map(ins => {
+    const th = themes[ins.level] || themes.info;
+    return `<div style="background:${th.bg};border-left:6px solid ${th.border};border-radius:14px;padding:14px 18px;display:flex;gap:14px;align-items:flex-start;box-shadow:0 2px 8px rgba(0,0,0,.04)">
+      <div style="flex-shrink:0;width:40px;height:40px;border-radius:50%;background:${th.iconBg};display:flex;align-items:center;justify-content:center;font-size:1.3em">${ins.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.92em;font-weight:800;color:${th.titleColor};margin-bottom:6px;letter-spacing:.02em">${ins.title}</div>
+        <div style="font-size:.88em;line-height:1.75;color:var(--text-secondary)">${ins.text}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="card" style="margin:12px 0;padding:16px 18px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px dashed var(--border)">
+      <span style="font-size:1.2em">🧭</span>
+      <h3 style="margin:0;font-size:1em;font-weight:700">AIからのポートフォリオ・インサイト</h3>
+      <span style="font-size:.72em;color:var(--text-muted);margin-left:auto">自動分析 ${top.length}件</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">${cards}</div>
+  </div>`;
+}
+
 function renderDashboard() {
   renderWelcomeCard();
   if (!stocks.length) {
@@ -957,7 +1637,7 @@ function renderDashboard() {
     {label:'損益', value:fmtYen(Math.round(totalPL)), sub:fmtPct(plRate), cls: totalPL >= 0 ? 'text-green' : 'text-red'},
     {label:'年間配当(税引前)', value:fmtYen(Math.round(totalDivPre))},
     {label:'年間配当(税引後)', value:fmtYen(Math.round(totalDivPost))},
-    {label:'平均簿価利回り', value:fmtPct(avgBookYield)},
+    {label:'平均買値利回り(YOC)', value:fmtPct(avgBookYield), cls: avgBookYield > avgCurYield ? 'text-green' : ''},
     {label:'平均現在利回り', value:fmtPct(avgCurYield)},
     {label:'銘柄数', value:stocks.length + '銘柄'},
     nextDivMonth >= 0
@@ -1055,6 +1735,9 @@ function renderDashboard() {
     sectorMap[sec] = (sectorMap[sec] || 0) + getMarketVal(s);
     sectorDivMap[sec] = (sectorDivMap[sec] || 0) + getAnnualDiv(s);
   });
+
+  /* ★ ポートフォリオ・インサイトパネル（動的アドバイス） */
+  renderPortfolioInsights(sectorMap);
   const sectorLabels = Object.keys(sectorMap);
   const palette = ['#f472b6','#06b6d4','#34d399','#fbbf24','#fb923c','#a78bfa','#22d3ee','#f87171','#84cc16','#e879f9','#38bdf8','#facc15'];
 
@@ -1128,11 +1811,6 @@ function renderDashboard() {
     barsHtml += '<span><span style="background:#f59e0b20;color:#f59e0b;padding:1px 5px;border-radius:4px">攻</span> 景気敏感（鉄鋼・機械・金融・不動産・建設など）</span>';
     barsHtml += '</div>';
 
-    if (defensiveTotal < 50) {
-      barsHtml += `<div style="margin-top:8px;padding:8px 12px;background:rgba(239,68,68,0.1);border-radius:8px;font-size:0.8em;color:#ef4444">⚠ ディフェンシブ ${defensiveTotal.toFixed(1)}% / 景気敏感 ${cyclicalTotal.toFixed(1)}% — ディフェンシブ50%未満のため景気変動リスクに注意</div>`;
-    } else {
-      barsHtml += `<div style="margin-top:8px;padding:8px 12px;background:rgba(34,197,94,0.1);border-radius:8px;font-size:0.8em;color:#22c55e">✓ ディフェンシブ ${defensiveTotal.toFixed(1)}% / 景気敏感 ${cyclicalTotal.toFixed(1)}% — バランス良好</div>`;
-    }
     sectorBalanceEl.innerHTML = barsHtml;
 
     /* Defensive vs Cyclical: compute by value AND by dividend */
@@ -1535,13 +2213,14 @@ function renderPortfolio() {
     {key:'pl',label:'含み損益',get:s=>getPL(s),core:true},
     {key:'plr',label:'含み損益率%',get:s=>getPLRate(s),core:true},
     {key:'div_per',label:'年間配当/株',get:s=>s.annual_div||0},
-    {key:'book_yield',label:'簿価利回り%',get:s=>getBookYield(s),core:true},
+    {key:'book_yield',label:'買値利回り(YOC)%',get:s=>getBookYield(s),core:true},
     {key:'cur_yield',label:'現在利回り%',get:s=>getCurYield(s),core:true},
     {key:'per',label:'PER',get:s=>s.per||0},
     {key:'pbr',label:'PBR',get:s=>s.pbr||0},
     {key:'mix_coef',label:'ミックス係数',get:s=>s.mix_coef||0},
     {key:'valuation',label:'割安度',get:s=>{const m=s.mix_coef||0;return m<=0?99:m}},
-    {key:'sector',label:'セクター',get:s=>getSector(s)}
+    {key:'sector',label:'セクター',get:s=>getSector(s)},
+    {key:'earnings',label:'次回決算日',get:s=>s.earnings_date||'',core:true}
   ];
   const visibleCols = showExtraCols ? cols : cols.filter(c => c.core);
 
@@ -1586,12 +2265,39 @@ function renderPortfolio() {
       market: fmtYen(Math.round(getMarketVal(s))),
       pl: `<span class="${plCls}">${fmtYen(Math.round(pl))}</span>`,
       plr: `<span class="${plCls}">${fmtPct(getPLRate(s))}</span>`,
-      div_per: fmtYen(s.annual_div||0), book_yield: fmtPct(getBookYield(s)),
+      div_per: fmtYen(s.annual_div||0),
+      book_yield: (() => {
+        const y = getBookYield(s); const cy = getCurYield(s);
+        if (y <= 0) return '-';
+        // YOC が現在利回りを上回る → 含み益が出つつ配当妙味増 = 嬉しい強調（緑・オレンジ）
+        const diff = y - cy;
+        let color = 'var(--text-primary)'; let weight = 400; let icon = '';
+        if (diff > 0.5) { color = '#22c55e'; weight = 800; icon = '🎉'; }
+        else if (diff > 0) { color = '#f59e0b'; weight = 700; icon = '↑'; }
+        return `<span style="color:${color};font-weight:${weight};font-variant-numeric:tabular-nums" title="買値利回り (YOC) = 年間配当 / 取得単価">${icon ? icon+' ' : ''}${y.toFixed(2)}%</span>`;
+      })(),
       cur_yield: fmtPct(getCurYield(s)),
       per: s.per ? s.per.toFixed(1) : '-', pbr: s.pbr ? s.pbr.toFixed(2) : '-',
       mix_coef: s.mix_coef ? s.mix_coef.toFixed(2) : '-',
       valuation: `<span style="${getValuationColor(s.mix_coef)};padding:4px 8px;border-radius:4px;font-weight:600;font-size:.78rem">${getValuationLabel(s.mix_coef)}</span>`,
-      sector: getSector(s)
+      sector: getSector(s),
+      earnings: (() => {
+        const d = s.earnings_date || '';
+        const manual = !!s.earnings_date_manual;
+        const loading = (window.fetchingEarnings && window.fetchingEarnings.has(String(s.code)));
+        // セル全体をクリッカブルに（クリックで <input type="date"> にインライン切替）
+        const click = `onclick="event.stopPropagation(); editEarningsDateCell('${s.code}', this)"`;
+        const clickable = `data-earnings-code="${s.code}" style="cursor:pointer;display:inline-block;padding:2px 6px;border-radius:4px" title="クリックで手動入力／上書き" ${click}`;
+        const mark = manual ? '<span style="font-size:.65em;color:var(--text-muted);margin-left:4px" title="手動入力">✏</span>' : '';
+        if (loading) return `<span data-earnings-code="${s.code}" style="display:inline-block;padding:2px 6px;color:var(--accent2)"><span class="spin" style="display:inline-block;animation:spin 1s linear infinite">⏳</span> 取得中...</span>`;
+        if (!d) return `<span ${clickable}><span style="color:var(--text-muted)">-（クリックで入力）</span></span>`;
+        const days = earningsDaysUntil(d);
+        const disp = d.replace(/-/g, '/');
+        if (days == null || days < 0) return `<span ${clickable}><span style="color:var(--text-muted);font-variant-numeric:tabular-nums">${disp}</span>${mark}</span>`;
+        if (days <= 7)  return `<span ${clickable}><span style="color:#ef4444;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums">⚠️ ${disp}<span style="font-size:.75em;margin-left:4px">(${days}日)</span></span>${mark}</span>`;
+        if (days <= 14) return `<span ${clickable}><span style="color:#f59e0b;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums">⚠️ ${disp}<span style="font-size:.75em;margin-left:4px">(${days}日)</span></span>${mark}</span>`;
+        return `<span ${clickable}><span style="color:var(--text-secondary);white-space:nowrap;font-variant-numeric:tabular-nums">${disp}</span>${mark}</span>`;
+      })()
     };
   };
 
@@ -1613,7 +2319,7 @@ function renderPortfolio() {
     pl: `<span class="${tp>=0?'text-green':'text-red'}">${fmtYen(Math.round(tp))}</span>`,
     plr: `<span class="${tp>=0?'text-green':'text-red'}">${fmtPct(tpr)}</span>`,
     div_per: '-', book_yield: fmtPct(safeDiv(td,tc)*100), cur_yield: fmtPct(safeDiv(td,tm)*100),
-    per: '-', pbr: '-', mix_coef: '-', valuation: '-', sector: '-'
+    per: '-', pbr: '-', mix_coef: '-', valuation: '-', sector: '-', earnings: ''
   };
   html += '</tr><tr class="totals-row">';
   visibleCols.forEach((c, i) => {
@@ -1656,6 +2362,8 @@ document.getElementById('btnToggleCols').addEventListener('click', () => {
   document.getElementById('btnToggleCols').textContent = showExtraCols ? '詳細列を隠す' : '詳細列を表示';
   renderPortfolio();
 });
+const _btnFetchAllEarn = document.getElementById('btnFetchAllEarnings');
+if (_btnFetchAllEarn) _btnFetchAllEarn.addEventListener('click', () => fetchAllEarnings());
 
 function showDetail(s) {
   if (!s) return;
@@ -2144,6 +2852,7 @@ document.getElementById('simTargetYield').addEventListener('input', calcBuyTimin
 /* ===== Tab 6: Checklist ===== */
 let checklistItems = JSON.parse(localStorage.getItem('checklistItems') || '[]');
 let favoritesCodes = JSON.parse(localStorage.getItem('favoritesCodes') || '[]');
+const checklistRefetching = new Set();
 
 function toggleFavorite(code) {
   const idx = favoritesCodes.indexOf(code);
@@ -2236,10 +2945,9 @@ function addToChecklist() {
   };
 
   /* Score the stock */
-  let score = 0; let notes = []; let advice = [];
+  let score = 0; let notes = [];
   const pr = parseFloat(item.payout_ratio);
   const mix = item.mix_coef || 0;
-  const per = item.per || 0;
 
   /* Basic checks */
   if (item.yield >= 3.75) { score++; notes.push('✓ 利回り3.75%以上'); } else { notes.push('× 利回り3.75%未満'); }
@@ -2247,45 +2955,15 @@ function addToChecklist() {
   if (item.div_trend.includes('連続増配') || item.div_trend.includes('非減配')) { score++; notes.push('✓ ' + item.div_trend); } else if (item.div_trend.includes('減配')) { notes.push('⚠ ' + item.div_trend); } else { notes.push('- 増配データなし'); }
   if (item.yield > 7) { score--; notes.push('⚠ 超高利回り（罠リスク）'); }
 
-  /* Contextual advice */
-  if (mix > 0 && mix <= 22.5 && !isNaN(pr) && pr > 70) {
-    advice.push('割安度は良好ですが、配当性向が高く利益の余力が少ないです。IR BANKで業績推移を確認し、今後も配当を維持できるかチェックしてください。');
-  }
-  if (mix > 0 && mix <= 22.5 && item.yield < 3.75) {
-    advice.push('割安ですが利回りが低めです。株価が下がって利回りが上がるタイミングを待つのも手です。');
-  }
-  if (mix > 40 && item.yield >= 3.75) {
-    advice.push('利回りは魅力的ですが、ミックス係数が割高です。PERが一時的に高い（業績悪化）可能性があるので、IR BANKで直近の業績が一時的な落ち込みか構造的な問題かを確認してください。');
-  }
-  if (per > 30 && item.yield >= 3.75) {
-    advice.push('PERが' + per.toFixed(0) + '倍と高水準です。利益が一時的に落ちている可能性があり、高配当に見えても減配リスクがあります。バフェット・コードで利益推移を確認してください。');
-  }
-  if (!isNaN(pr) && pr > 100) {
-    advice.push('配当性向が100%超で、利益以上の配当を出しています。内部留保を切り崩している状態なので、長期的に維持困難な可能性が高いです。');
-  }
-  if (!isNaN(pr) && pr > 70 && pr <= 100 && item.div_trend.includes('非減配')) {
-    advice.push('配当性向が高めですが非減配を維持しています。株主還元に積極的な可能性がありますが、業績悪化時の減配リスクに注意してください。');
-  }
-  if (item.yield >= 3.75 && !isNaN(pr) && pr <= 50 && item.div_trend.includes('連続増配')) {
-    advice.push('高利回り・低配当性向・連続増配と三拍子揃っています。今後も増配余力があり、長期保有に向いた銘柄です。');
-  }
-  if (item.yield >= 3.75 && mix > 0 && mix <= 22.5 && !isNaN(pr) && pr <= 70) {
-    advice.push('利回り・割安度・配当性向すべて良好です。買い時として有望な銘柄です。');
-  }
-  if (item.yield > 5 && item.yield <= 7 && (!item.div_trend || item.div_trend === '-')) {
-    advice.push('高利回りですが増配実績が不明です。投資の森やIR BANKで過去の配当履歴を確認し、減配歴がないかチェックしてください。');
-  }
-  if (item.yield > 7) {
-    advice.push('利回りが極端に高く、高配当トラップの可能性があります。特別配当や記念配当が含まれていないか、株探で確認してください。');
-  }
-  if (advice.length === 0 && mix > 0) {
-    advice.push('大きな懸念点はありません。IR BANKで直近の業績推移と配当履歴を確認して最終判断してください。');
-  }
-
   item.score = score;
   item.notes = notes;
-  item.advice = advice;
-  item.verdict = score >= 3 ? '◎優良' : score >= 2 ? '○候補' : score >= 1 ? '△要確認' : '×見送り';
+  item.advice = generateChecklistAdvice(item);
+  // 判定（経常>営業の乖離・財務懸念がある場合は△要確認に降格）
+  let verdict = score >= 3 ? '◎優良' : score >= 2 ? '○候補' : score >= 1 ? '△要確認' : '×見送り';
+  if ((item.nonop_warning || item.financial_warning || item.eps_loss_warning) && (verdict === '◎優良' || verdict === '○候補')) {
+    verdict = '△要確認';
+  }
+  item.verdict = verdict;
 
   checklistItems.push(item);
   localStorage.setItem('checklistItems', JSON.stringify(checklistItems));
@@ -2320,6 +2998,10 @@ async function fetchAndUpdateChecklistItem(code) {
         if (info.mix_coef > 0) item.mix_coef = info.mix_coef;
         if (info.payout_ratio > 0) item.payout_ratio = info.payout_ratio;
         if (info.annual_div > 0) item.annual_div = info.annual_div;
+        if (info.listed_years != null) item.listed_years = info.listed_years;
+        if (info.listing_date) item.listing_date = info.listing_date;
+        if (info.price_1m_change != null) item.price_1m_change = info.price_1m_change;
+        if (info.earnings_date && !item.earnings_date_manual) item.earnings_date = info.earnings_date;
         localStorage.setItem('checklistItems', JSON.stringify(checklistItems));
         renderChecklist();
       }
@@ -2357,24 +3039,19 @@ async function fetchAndUpdateChecklistItem(code) {
     if (info.annual_div > 0) item.annual_div = info.annual_div;
 
     /* Re-score */
-    let score = 0; let notes = []; let advice = [];
+    let score = 0; let notes = [];
     const pr = parseFloat(item.payout_ratio);
-    const mix = item.mix_coef || 0;
-    const per = item.per || 0;
-
     if (item.yield >= 3.75) { score++; notes.push('✓ 利回り3.75%以上'); } else { notes.push('× 利回り3.75%未満'); }
     if (!isNaN(pr) && pr > 0 && pr <= 70) { score++; notes.push('✓ 配当性向70%以下'); } else if (!isNaN(pr) && pr > 70) { notes.push('× 配当性向70%超'); } else { notes.push('- 配当性向データなし'); }
     if (item.div_trend && (item.div_trend.includes('連続増配') || item.div_trend.includes('非減配'))) { score++; notes.push('✓ ' + item.div_trend); } else if (item.div_trend && item.div_trend.includes('減配')) { notes.push('⚠ ' + item.div_trend); } else { notes.push('- 増配データなし'); }
     if (item.yield > 7) { score--; notes.push('⚠ 超高利回り（罠リスク）'); }
-    if (mix > 0 && mix <= 22.5 && !isNaN(pr) && pr <= 70 && item.yield >= 3.75) advice.push('利回り・割安度・配当性向すべて良好。買い時として有望です。');
-    if (mix > 40 && item.yield >= 3.75) advice.push('利回りは魅力的ですが、ミックス係数が割高です。IR BANKで業績推移を確認してください。');
-    if (!isNaN(pr) && pr > 100) advice.push('配当性向が100%超。利益以上の配当で維持困難な可能性。');
-    if (advice.length === 0) advice.push('IR BANKで業績推移と配当履歴を確認して最終判断してください。');
 
     item.score = score;
     item.notes = notes;
-    item.advice = advice;
-    item.verdict = score >= 3 ? '◎優良' : score >= 2 ? '○候補' : score >= 1 ? '△要確認' : '×見送り';
+    item.advice = generateChecklistAdvice(item);
+    let v = score >= 3 ? '◎優良' : score >= 2 ? '○候補' : score >= 1 ? '△要確認' : '×見送り';
+    if ((item.nonop_warning || item.financial_warning || item.eps_loss_warning) && (v === '◎優良' || v === '○候補')) v = '△要確認';
+    item.verdict = v;
 
     localStorage.setItem('checklistItems', JSON.stringify(checklistItems));
     renderChecklistTable();
@@ -2431,6 +3108,8 @@ function renderChecklistTable() {
 
   let h = '';
   checklistItems.forEach(item => {
+    /* 毎レンダリングでアドバイスを再計算（旧アイテムにも適用） */
+    item.advice = generateChecklistAdvice(item);
     const verdictColor = item.verdict.includes('優良') ? '#22c55e' : item.verdict.includes('候補') ? '#3b82f6' : item.verdict.includes('確認') ? '#f59e0b' : '#ef4444';
     const verdictBg = item.verdict.includes('優良') ? '#22c55e20' : item.verdict.includes('候補') ? '#3b82f620' : item.verdict.includes('確認') ? '#f59e0b20' : '#ef444420';
 
@@ -2439,8 +3118,13 @@ function renderChecklistTable() {
     const payoutWarn = !isNaN(payoutNum) && payoutNum > 70;
     const trendBadge = item.div_trend.includes('連続増配') ? 'background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff' : item.div_trend.includes('非減配') ? 'background:#93c5fd;color:#1e3a5f' : 'background:var(--border);color:var(--text-secondary)';
 
-    h += `<div data-checklist-code="${item.code}" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:14px;box-shadow:var(--shadow);position:relative;overflow:hidden;transition:outline .3s">
-      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,${verdictColor},${verdictColor}88,transparent)"></div>
+    const isLoading = checklistRefetching.has(String(item.code));
+    const hasData = !!(item.price > 0 || item.yield > 0 || item.per || item.pbr || (item.payout_ratio && item.payout_ratio !== '-'));
+    const EMPTY = '<span class="metric-empty">未取得</span>';
+    h += `<div class="checklist-card ${isLoading ? 'is-loading' : ''}" data-checklist-code="${item.code}" style="background:var(--bg-card);border:1px solid var(--border);border-left:5px solid ${verdictColor};border-radius:16px;padding:20px;margin-bottom:14px;box-shadow:var(--shadow);position:relative;overflow:hidden;transition:outline .3s,border-color .3s">
+      <div style="position:absolute;top:0;left:5px;right:0;height:3px;background:linear-gradient(90deg,${verdictColor},${verdictColor}88,transparent)"></div>
+      ${isLoading ? `<div class="cl-loading-overlay"><div class="cl-spinner"></div><span>データ取得中...</span></div>` : ''}
+      <div class="cl-content">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
         <div>
           <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
@@ -2451,61 +3135,86 @@ function renderChecklistTable() {
             ${item.owned ? '<span style="background:linear-gradient(135deg,#f59e0b20,#f59e0b10);color:#f59e0b;padding:2px 10px;border-radius:20px;font-size:0.72em;font-weight:600;border:1px solid #f59e0b40">保有中' + (item.shares ? ' ' + item.shares + '株' : '') + (item.buy_price ? ' @' + fmt(Math.round(item.buy_price)) + '円' : '') + '</span>' : ''}
             <span style="background:var(--accent-light);color:var(--accent);padding:2px 10px;border-radius:20px;font-size:0.72em;font-weight:500">${item.sector}</span>
             <span style="${trendBadge};padding:2px 10px;border-radius:20px;font-size:0.72em;font-weight:600">${item.div_trend || '-'}</span>
+            ${item.muscular ? `<span title="${(item.muscular_note||'').replace(/"/g,'&quot;')}" style="background:linear-gradient(135deg,#a855f7,#ec4899);color:#fff;padding:2px 10px;border-radius:20px;font-size:0.72em;font-weight:700;box-shadow:0 2px 6px rgba(168,85,247,.3);cursor:help">🏋️ 筋肉質化</span>` : ''}
+            ${(() => {
+              const d = item.earnings_date || (stocks.find(s => String(s.code) === String(item.code))?.earnings_date);
+              return earningsBadgeHtml(d);
+            })()}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <span style="background:${verdictBg};color:${verdictColor};padding:6px 16px;border-radius:20px;font-weight:700;font-size:0.9em;white-space:nowrap">${item.verdict}</span>
-          <button onclick="refetchChecklistItem('${item.code}', this)" style="background:var(--bg-primary);border:1px solid var(--border);color:var(--accent2);cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1em;transition:all .2s" title="この銘柄だけ再取得">🔄</button>
+          <button class="cl-refresh ${isLoading ? 'spinning' : ''}" onclick="refetchChecklistItem('${item.code}', this)" ${isLoading ? 'disabled' : ''} title="この銘柄だけ再取得">🔄</button>
           <button onclick="toggleFavorite(${item.code})" style="background:${isFavorite(item.code) ? '#fbbf2430' : 'var(--bg-primary)'};border:1px solid ${isFavorite(item.code) ? '#fbbf24' : 'var(--border)'};color:${isFavorite(item.code) ? '#fbbf24' : 'var(--text-muted)'};cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1em;transition:all .2s" title="お気に入り">★</button>
           <button onclick="removeFromChecklist(${item.code})" style="background:var(--bg-primary);border:1px solid var(--border);color:var(--text-muted);cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1em;transition:all .2s" title="削除">×</button>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px">
-        <div style="text-align:center;padding:10px 6px;background:var(--bg-primary);border-radius:10px">
-          <div style="font-size:0.75em;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">株価</div>
-          <div style="font-size:1.2em;font-weight:700">${item.price > 0 ? fmtYen(Math.round(item.price)) : '-'}</div>
+      ${item.judge_summary ? `<div style="margin:-4px 0 12px;padding:8px 12px;background:linear-gradient(90deg,${verdictColor}15,transparent);border-left:3px solid ${verdictColor};border-radius:6px;font-size:.82em;color:var(--text-secondary);line-height:1.5"><span style="font-weight:600;color:${verdictColor};margin-right:6px">なぜこの判定？</span>${item.judge_summary}</div>` : ''}
+      ${(!hasData && !isLoading) ? `<div class="cl-empty-cta">
+          <div class="cta-title">📊 この銘柄のデータがまだありません</div>
+          <div class="cta-desc">IR BANK・バフェット・コード・投資の森から<br>最新の株価／PER／配当性向などを取得します</div>
+          <button class="cta-btn" onclick="refetchChecklistItem('${item.code}', this)">⚡ 最新データを取得して分析を開始する</button>
+        </div>` : `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px">
+        <div class="cl-cell">
+          <div class="label up">株価</div>
+          <div class="metric-val">${item.price > 0 ? fmtYen(Math.round(item.price)) : EMPTY}</div>
         </div>
-        <div style="text-align:center;padding:10px 6px;background:var(--bg-primary);border-radius:10px">
-          <div style="font-size:0.75em;color:var(--text-muted);letter-spacing:0.5px;margin-bottom:2px">利回り</div>
-          <div style="font-size:1.2em;font-weight:700;color:${item.yield>=3.75?'#22c55e':'var(--text-primary)'}">${item.yield > 0 ? item.yield.toFixed(2)+'%' : '-'}</div>
+        <div class="cl-cell">
+          <div class="label">利回り</div>
+          <div class="metric-val" style="color:${item.yield>=3.75?'#22c55e':'var(--text-primary)'}">${item.yield > 0 ? item.yield.toFixed(2)+'%' : EMPTY}</div>
         </div>
-        <div style="text-align:center;padding:10px 6px;background:var(--bg-primary);border-radius:10px">
-          <div style="font-size:0.75em;color:var(--text-muted);letter-spacing:0.5px;margin-bottom:2px">配当性向</div>
-          <div style="font-size:1.2em;font-weight:700;color:${payoutWarn?'#ef4444':'var(--text-primary)'}">${payoutDisplay}</div>
+        <div class="cl-cell">
+          <div class="label">配当性向</div>
+          <div class="metric-val" style="color:${payoutWarn?'#ef4444':'var(--text-primary)'}">${(payoutDisplay && payoutDisplay !== '-') ? payoutDisplay : EMPTY}</div>
         </div>
-        <div style="text-align:center;padding:10px 6px;border-radius:10px;${getValuationColor(item.mix_coef) || 'background:var(--bg-primary)'}">
-          <div style="font-size:0.75em;opacity:0.8;letter-spacing:0.5px;margin-bottom:2px">割安度</div>
-          <div style="font-size:1.2em;font-weight:700">${getValuationLabel(item.mix_coef)}</div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">
-        <div style="text-align:center;padding:8px 6px;background:var(--bg-primary);border-radius:10px">
-          <div style="font-size:0.6em;color:var(--text-muted)">PER</div>
-          <div style="font-weight:600;font-size:0.95em">${item.per ? item.per.toFixed(1)+'<span style="font-size:0.7em;color:var(--text-muted)">倍</span>' : '-'}</div>
-        </div>
-        <div style="text-align:center;padding:8px 6px;background:var(--bg-primary);border-radius:10px">
-          <div style="font-size:0.6em;color:var(--text-muted)">PBR</div>
-          <div style="font-weight:600;font-size:0.95em">${item.pbr ? item.pbr.toFixed(2)+'<span style="font-size:0.7em;color:var(--text-muted)">倍</span>' : '-'}</div>
-        </div>
-        <div style="text-align:center;padding:8px 6px;background:var(--bg-primary);border-radius:10px">
-          <div style="font-size:0.6em;color:var(--text-muted)">ミックス係数</div>
-          <div style="font-weight:600;font-size:0.95em">${item.mix_coef ? item.mix_coef.toFixed(2) : '-'}</div>
+        <div class="cl-cell" style="${getValuationColor(item.mix_coef) || ''}">
+          <div class="label">割安度</div>
+          <div class="metric-val">${item.mix_coef ? getValuationLabel(item.mix_coef) : EMPTY}</div>
         </div>
       </div>
-      <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:8px;padding:10px 12px;background:var(--bg-primary);border-radius:8px">
-        ${(item.notes||[]).map(n => '<span style="margin-right:12px;white-space:nowrap">' + n + '</span>').join('')}
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+        <div class="cl-cell cl-cell-sm">
+          <div class="label">PER</div>
+          <div class="metric-val">${item.per ? item.per.toFixed(1)+'<span style="font-size:.7em;color:var(--text-muted);font-weight:500">倍</span>' : EMPTY}</div>
+        </div>
+        <div class="cl-cell cl-cell-sm">
+          <div class="label">PBR</div>
+          <div class="metric-val">${item.pbr ? item.pbr.toFixed(2)+'<span style="font-size:.7em;color:var(--text-muted);font-weight:500">倍</span>' : EMPTY}</div>
+        </div>
+        <div class="cl-cell cl-cell-sm">
+          <div class="label">ミックス係数</div>
+          <div class="metric-val">${item.mix_coef ? item.mix_coef.toFixed(2) : EMPTY}</div>
+        </div>
       </div>
-      ${(item.advice && item.advice.length) ? '<div style="font-size:0.92em;margin-bottom:10px;padding:12px 14px;border-radius:10px;background:linear-gradient(135deg,rgba(6,182,212,0.08),rgba(244,114,182,0.08));border-left:3px solid var(--accent);line-height:1.8">' + (item.advice||[]).map(a => '<div style="margin-bottom:6px">💡 ' + a + '</div>').join('') + '</div>' : ''}
-      <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
-        <button onclick="openCompareModal('${item.code}', '${(item.name||'').replace(/'/g,"\\'")}')" style="padding:4px 12px;background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;border:none;border-radius:20px;font-size:0.7em;font-weight:600;cursor:pointer">🔍 他サイトと比較</button>
-        <a href="https://irbank.net/${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#1565C0;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600;transition:opacity .2s">IR BANK</a>
-        <a href="https://www.buffett-code.com/company/${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#2e7d32;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">バフェット・コード</a>
-        <a href="https://kabutan.jp/stock/?code=${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#d32f2f;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">株探</a>
-        <a href="https://kabutan.jp/stock/news?code=${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#e91e63;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">📰 ニュース</a>
-        <a href="https://nikkeiyosoku.com/stock/${item.code}/" target="_blank" rel="noopener" style="padding:4px 12px;background:#f57c00;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">投資の森</a>
-        <a href="https://minkabu.jp/stock/${item.code}" target="_blank" rel="noopener" style="padding:4px 12px;background:#0277bd;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">みんかぶ</a>
-        <a href="https://finance.yahoo.co.jp/quote/${item.code}.T" target="_blank" rel="noopener" style="padding:4px 12px;background:#6a1b9a;color:#fff;border-radius:20px;font-size:0.7em;text-decoration:none;font-weight:600">Yahoo!ファイナンス</a>
-        <span style="font-size:0.65em;color:var(--text-muted);margin-left:auto">${item.added}</span>
+      <div class="cl-notes">
+        ${(item.notes||[]).map(n => {
+          const cls = n.startsWith('✓') ? 'nt-ok' : n.startsWith('×') ? 'nt-ng' : n.startsWith('⚠') ? 'nt-warn' : 'nt-neutral';
+          const sym = n.charAt(0);
+          const rest = n.slice(1).trimStart();
+          return `<span style="white-space:nowrap"><span class="${cls}">${sym}</span> ${rest}</span>`;
+        }).join('')}
+      </div>
+      `}
+      ${renderAdviceBlock(item.advice)}
+      <div style="display:flex;align-items:center;gap:8px;margin:8px 0;padding:6px 10px;background:var(--bg-primary);border:1px dashed var(--border);border-radius:8px">
+        <span style="font-size:.78em;color:var(--text-muted);white-space:nowrap">📅 次回決算日:</span>
+        <input type="date" value="${item.earnings_date || ''}" onchange="setEarningsDate('${item.code}', this.value)" style="font-size:.8em;padding:3px 6px;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;color:var(--text-primary)">
+        <span>${earningsBadgeHtml(item.earnings_date)}</span>
+        <span style="font-size:.7em;color:var(--text-muted);margin-left:auto">※1ヶ月以内で⚠️表示</span>
+      </div>
+      <div class="cl-links">
+        <button class="cl-compare" onclick="openCompareModal('${item.code}', '${(item.name||'').replace(/'/g,"\\'")}')">🔍 4サイト比較</button>
+        <a class="cl-main" href="https://irbank.net/${item.code}" target="_blank" rel="noopener" style="background:#1565C0">IR BANK</a>
+        <a class="cl-main" href="https://www.buffett-code.com/company/${item.code}" target="_blank" rel="noopener" style="background:#2e7d32">バフェット・コード</a>
+        <a class="cl-main" href="https://nikkeiyosoku.com/stock/${item.code}/" target="_blank" rel="noopener" style="background:#f57c00">投資の森</a>
+        <span class="cl-sep"></span>
+        <a class="cl-sub" href="https://kabutan.jp/stock/?code=${item.code}" target="_blank" rel="noopener">株探</a>
+        <a class="cl-sub" href="https://kabutan.jp/stock/news?code=${item.code}" target="_blank" rel="noopener">📰 ニュース</a>
+        <a class="cl-sub" href="https://minkabu.jp/stock/${item.code}" target="_blank" rel="noopener">みんかぶ</a>
+        <a class="cl-sub" href="https://finance.yahoo.co.jp/quote/${item.code}.T" target="_blank" rel="noopener">Yahoo!</a>
+        <span class="cl-added">${item.added}</span>
+      </div>
       </div>
     </div>`;
   });
@@ -2519,6 +3228,8 @@ async function refetchChecklistItem(code, btn) {
   if (!item) return;
   const originalText = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  checklistRefetching.add(String(code));
+  renderChecklistTable();
   try {
     const info = await enrichStockClient(code);
     if (info && Object.keys(info).length > 0) {
@@ -2531,6 +3242,10 @@ async function refetchChecklistItem(code, btn) {
       if (info.pbr) item.pbr = info.pbr;
       if (info.mix_coef) item.mix_coef = info.mix_coef;
       if (info.payout_ratio) item.payout_ratio = info.payout_ratio;
+      if (info.listed_years != null) item.listed_years = info.listed_years;
+      if (info.listing_date) item.listing_date = info.listing_date;
+      if (info.price_1m_change != null) item.price_1m_change = info.price_1m_change;
+      if (info.earnings_date && !item.earnings_date_manual) item.earnings_date = info.earnings_date;
       /* 保有銘柄にもあれば反映 */
       const ps = stocks.find(s => s.code == code);
       if (ps) {
@@ -2539,6 +3254,7 @@ async function refetchChecklistItem(code, btn) {
         if (info.per) ps.per = info.per;
         if (info.pbr) ps.pbr = info.pbr;
         if (info.mix_coef) ps.mix_coef = info.mix_coef;
+        if (info.earnings_date && !ps.earnings_date_manual) ps.earnings_date = info.earnings_date;
         if (IS_STATIC) savePortfolioToLocal();
       }
       localStorage.setItem('checklistItems', JSON.stringify(checklistItems));
@@ -2548,6 +3264,9 @@ async function refetchChecklistItem(code, btn) {
     }
   } catch (e) {
     if (btn) { btn.textContent = '⚠'; setTimeout(() => { btn.disabled = false; btn.textContent = originalText; }, 1500); }
+  } finally {
+    checklistRefetching.delete(String(code));
+    renderChecklistTable();
   }
 }
 
@@ -2686,6 +3405,16 @@ document.getElementById('btnExportTax').addEventListener('click', () => {
   a.download = 'tax_data_' + new Date().toISOString().slice(0,10) + '.csv';
   a.click();
   URL.revokeObjectURL(a.href);
+});
+
+/* 完全バックアップ（JSON）のエクスポート／インポート */
+const _btnFullBkExport = document.getElementById('btnFullBackupExport');
+if (_btnFullBkExport) _btnFullBkExport.addEventListener('click', exportFullBackup);
+const _fullBkImport = document.getElementById('fullBackupImportFile');
+if (_fullBkImport) _fullBkImport.addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0];
+  if (f) importFullBackup(f);
+  e.target.value = '';
 });
 
 document.getElementById('fileUpload').addEventListener('change', e => {
@@ -2949,31 +3678,52 @@ function handleCsvFile(file) {
 /* === クライアント側CSVパース（柔軟版） === */
 function parsePortfolioCsv(text) {
   /* 全角→半角変換 */
-  const zen2han = s => s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+  const zen2han = s => (s == null ? '' : String(s))
+    .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
     .replace(/，/g, ',').replace(/．/g, '.').replace(/　/g, ' ');
+  /* 数値クリーンアップ:
+     ・null/undefined/非文字列を安全化
+     ・ダブル/シングルクォート、全角/半角カンマ、円・株・口・%・％、各種空白(タブ・全角スペース・NBSP)を除去
+     ・前後トリム後に parseFloat。失敗したら 0 */
   const cleanNum = s => {
-    const n = zen2han(s || '0').replace(/[,円株口%％\s]/g, '');
-    const v = parseFloat(n);
-    return isNaN(v) ? 0 : v;
+    try {
+      if (s == null) return 0;
+      let n = zen2han(s);
+      n = n.replace(/["'`]/g, '')
+           .replace(/[,，]/g, '')
+           .replace(/[円株口%％]/g, '')
+           .replace(/[\s\u00A0\u3000\t\r\n]/g, '')
+           .trim();
+      if (!n) return 0;
+      const v = parseFloat(n);
+      return isNaN(v) ? 0 : v;
+    } catch (e) { return 0; }
   };
 
-  /* CSV正しくパース（引用符対応） */
+  /* CSV正しくパース（引用符対応） — 不正入力でも例外を投げない */
   function parseCsvLine(line, delim) {
-    const cols = []; let cur = ''; let inQuote = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (inQuote) {
-        if (c === '"' && line[i+1] === '"') { cur += '"'; i++; }
-        else if (c === '"') inQuote = false;
-        else cur += c;
-      } else {
-        if (c === '"') inQuote = true;
-        else if (c === delim) { cols.push(cur.trim()); cur = ''; }
-        else cur += c;
+    try {
+      if (line == null) return [];
+      const cols = []; let cur = ''; let inQuote = false;
+      const s = String(line);
+      for (let i = 0; i < s.length; i++) {
+        const c = s[i];
+        if (inQuote) {
+          if (c === '"' && s[i+1] === '"') { cur += '"'; i++; }
+          else if (c === '"') inQuote = false;
+          else cur += c;
+        } else {
+          if (c === '"') inQuote = true;
+          else if (c === delim) { cols.push(cur.trim()); cur = ''; }
+          else cur += c;
+        }
       }
+      cols.push(cur.trim());
+      return cols;
+    } catch (e) {
+      console.warn('[CSV Parse] parseCsvLine エラー行スキップ:', e.message, '行:', line);
+      return [];
     }
-    cols.push(cur.trim());
-    return cols;
   }
 
   const rawText = zen2han(text);
@@ -3037,55 +3787,78 @@ function parsePortfolioCsv(text) {
 
   const result = [];
   const startLine = headerFound ? 1 : 0;
-  let skipped = 0;
+  let skipped = 0, errored = 0;
 
   for (let li = startLine; li < lines.length; li++) {
-    const cols = parseCsvLine(lines[li], delim);
-    const maxCol = Math.max(codeCol, nameCol, sharesCol, buyCol, curCol);
-    if (cols.length <= maxCol) { skipped++; continue; }
+    try {
+      /* ----- 冒頭で空行・明らかに不正な行をスキップ ----- */
+      const rawLine = lines[li];
+      if (rawLine == null) { skipped++; continue; }
+      const trimmed = String(rawLine).trim();
+      if (!trimmed) { skipped++; continue; }                       // 空行
+      if (/^[\s,、\t]+$/.test(trimmed)) { skipped++; continue; }   // 区切りだけの行
+      if (/^[#※＊*]/.test(trimmed)) { skipped++; continue; }       // コメント/注記行
 
-    const codeStr = (cols[codeCol] || '').replace(/[^\d]/g, '');
-    const code = parseInt(codeStr);
-    if (isNaN(code) || code < 1000 || code > 99999) { skipped++; continue; }
+      const cols = parseCsvLine(rawLine, delim);
+      if (!cols || cols.length === 0) { skipped++; continue; }
 
-    const name = (cols[nameCol] || '').replace(/^"|"$/g, '');
-    const shares = Math.round(cleanNum(cols[sharesCol]));
-    const buyPrice = cleanNum(cols[buyCol]);
-    const curPrice = cleanNum(cols[curCol]);
+      /* ----- 証券コード列が空欄・非4桁数字なら無視 ----- */
+      const rawCodeCell = codeCol >= 0 && codeCol < cols.length ? cols[codeCol] : '';
+      const codeStr = String(rawCodeCell || '').replace(/[^\d]/g, '');
+      if (!codeStr) { skipped++; continue; }                                // 証券コード空欄
+      if (!/^\d{4,5}$/.test(codeStr)) { skipped++; continue; }              // 4〜5桁の数字のみ許可
+      const code = parseInt(codeStr, 10);
+      if (isNaN(code) || code < 1000 || code > 99999) { skipped++; continue; }
 
-    /* 株数0でも取得単価があればOK、両方0ならスキップ */
-    if (shares === 0 && buyPrice === 0 && curPrice === 0) { skipped++; continue; }
+      /* ----- 残りの列がない場合でも、コードだけは拾えるようにフォールバック ----- */
+      const name = String(cols[nameCol] || '').replace(/^["']|["']$/g, '').trim();
+      const shares = Math.round(cleanNum(cols[sharesCol]));
+      const buyPrice = cleanNum(cols[buyCol]);
+      const curPrice = cleanNum(cols[curCol]);
 
-    result.push({
-      code, name, shares,
-      buy_price: buyPrice || curPrice, /* 取得単価がなければ現在値で代替 */
-      cur_price: curPrice || buyPrice,
-      annual_div: 0, mid_div: 0, mid_month: 12, end_month: 6,
-      nisa: '課税', sector: ''
-    });
+      /* 株数も価格も全く無いなら無効行として無視（ヘッダー的な行など） */
+      if (shares === 0 && buyPrice === 0 && curPrice === 0) { skipped++; continue; }
+
+      result.push({
+        code, name, shares,
+        buy_price: buyPrice || curPrice, /* 取得単価がなければ現在値で代替 */
+        cur_price: curPrice || buyPrice,
+        annual_div: 0, mid_div: 0, mid_month: 12, end_month: 6,
+        nisa: '課税', sector: ''
+      });
+    } catch (e) {
+      /* 1行の例外で全体を止めない。ログだけ残して次へ */
+      errored++;
+      console.warn(`[CSV Parse] ${li+1}行目の処理でエラー、スキップしました:`, e.message, lines[li]);
+      continue;
+    }
   }
 
   /* もし結果が0件なら、全列を走査して4-5桁数字を探すフォールバック */
   if (result.length === 0 && lines.length > 0) {
     console.log('[CSV Parse] 標準パース失敗、フォールバック: 全列から銘柄コード検索');
     for (let li = 0; li < lines.length; li++) {
-      const cols = parseCsvLine(lines[li], delim);
-      /* 各列をスキャンして4-5桁数字を探す */
-      for (let ci = 0; ci < cols.length; ci++) {
-        const v = cols[ci].replace(/[^\d]/g, '');
-        if (/^\d{4,5}$/.test(v)) {
-          const code = parseInt(v);
+      try {
+        const raw = lines[li];
+        if (!raw || !String(raw).trim()) continue;
+        const cols = parseCsvLine(raw, delim);
+        if (!cols || cols.length === 0) continue;
+        /* 各列をスキャンして4-5桁数字を探す */
+        for (let ci = 0; ci < cols.length; ci++) {
+          const v = String(cols[ci] || '').replace(/[^\d]/g, '');
+          if (!/^\d{4,5}$/.test(v)) continue;
+          const code = parseInt(v, 10);
+          if (isNaN(code) || code < 1000 || code > 99999) continue;
           /* コード列の後ろから名前・数値を取得 */
           const remaining = cols.filter((_, j) => j !== ci);
-          const nameCandidate = remaining.find(c => c && !/^[\d,.\-+%]+$/.test(c.replace(/[\s円株口]/g, '')));
-          const nums = remaining.filter(c => {
-            const n = parseFloat(c.replace(/[,円株口%\s]/g, ''));
-            return !isNaN(n) && n > 0;
-          }).map(c => parseFloat(c.replace(/[,円株口%\s]/g, '')));
+          const nameCandidate = remaining.find(c => c && !/^[\d,.\-+%]+$/.test(String(c).replace(/[\s円株口]/g, '')));
+          const nums = remaining
+            .map(c => cleanNum(c))
+            .filter(n => !isNaN(n) && n > 0);
           if (nums.length >= 1) {
             result.push({
-              code, name: nameCandidate || ('銘柄' + code),
-              shares: nums.length >= 3 ? Math.round(nums[0]) : (nums.length >= 1 ? Math.round(nums[0]) : 0),
+              code, name: (nameCandidate || ('銘柄' + code)).replace(/^["']|["']$/g, '').trim(),
+              shares: nums.length >= 3 ? Math.round(nums[0]) : Math.round(nums[0]),
               buy_price: nums.length >= 3 ? nums[1] : (nums.length >= 2 ? nums[1] : nums[0]),
               cur_price: nums.length >= 3 ? nums[2] : (nums.length >= 2 ? nums[1] : nums[0]),
               annual_div: 0, mid_div: 0, mid_month: 12, end_month: 6,
@@ -3094,11 +3867,17 @@ function parsePortfolioCsv(text) {
           }
           break; /* この行では最初に見つかったコードのみ */
         }
+      } catch (e) {
+        errored++;
+        console.warn(`[CSV Parse] フォールバック ${li+1}行目でエラー、スキップ:`, e.message);
+        continue;
       }
     }
   }
 
-  console.log(`[CSV Parse] ${result.length}銘柄取り込み, ${skipped}行スキップ, 区切り:${delim === '\t' ? 'TAB' : 'COMMA'}, ヘッダー:${headerFound ? 'あり' : 'なし'}, コード列:${codeCol}`);
+  console.log(`[CSV Parse] ${result.length}銘柄取り込み, ${skipped}行スキップ, ${errored}行エラースキップ, 区切り:${delim === '\t' ? 'TAB' : 'COMMA'}, ヘッダー:${headerFound ? 'あり' : 'なし'}, コード列:${codeCol}`);
+  /* 取り込み件数・エラー件数をグローバルで参照できるようにして、statusメッセージで活用 */
+  window._lastCsvImportStats = { imported: result.length, skipped, errored, total: lines.length };
   return result;
 }
 
@@ -3235,8 +4014,12 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
           try { await fetch('/api/stocks', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(stocks) }); } catch(e) {}
         }
         savePortfolioToLocal();
-        status.textContent = `✅ ${imported.length}銘柄を取り込みました（合計${stocks.length}銘柄）`;
-        status.style.color = 'var(--green)';
+        const st = window._lastCsvImportStats || {};
+        const extra = [];
+        if (st.skipped > 0) extra.push(`${st.skipped}行スキップ`);
+        if (st.errored > 0) extra.push(`${st.errored}行はエラーのためスキップ（コンソール参照）`);
+        status.textContent = `✅ ${imported.length}銘柄を取り込みました（合計${stocks.length}銘柄）${extra.length ? ' / ' + extra.join(' / ') : ''}`;
+        status.style.color = st.errored > 0 ? 'var(--accent4)' : 'var(--green)';
         if (importMode === 'paste') document.getElementById('mfPasteArea').value = '';
         else { pendingCsvText = ''; document.getElementById('csvFileName').style.display = 'none'; }
         const activeTab = document.querySelector('.nav-btn.active');
@@ -3256,15 +4039,29 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
    ・みんかぶの「PER(調整後)」は実績ベース独自指標のため使わない
    ・2ソースが20%超乖離したら needs_review フラグを立てる
 */
+/* CORS回避プロキシ（順に試行、どれか1つ成功すれば採用） */
+const CORS_PROXIES = [
+  (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+  (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  (u) => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u)
+];
 async function fetchTextClient(url, timeoutMs, externalSignal) {
-  try {
-    const signals = [AbortSignal.timeout(timeoutMs || 12000)];
-    if (externalSignal) signals.push(externalSignal);
-    const r = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(url), { signal: AbortSignal.any(signals) });
-    if (!r.ok) return null;
-    const h = await r.text();
-    return { raw: h, text: h.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ') };
-  } catch (e) { return null; }
+  const per = timeoutMs || 12000;
+  for (const mk of CORS_PROXIES) {
+    try {
+      const signals = [AbortSignal.timeout(per)];
+      if (externalSignal) signals.push(externalSignal);
+      const r = await fetch(mk(url), { signal: AbortSignal.any(signals) });
+      if (!r.ok) continue;
+      const h = await r.text();
+      if (!h || h.length < 50) continue;
+      return { raw: h, text: h.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ') };
+    } catch (e) {
+      if (externalSignal?.aborted) return null;
+      /* 次のプロキシを試す */
+    }
+  }
+  return null;
 }
 
 async function enrichStockClient(code, externalSignal) {
@@ -3336,6 +4133,94 @@ async function enrichStockClient(code, externalSignal) {
     info.annual_div = Math.round((info.cur_price || 0) * info.yield / 100 * 10) / 10;
   }
   if (info.per && info.pbr) info.mix_coef = Math.round(info.per * info.pbr * 100) / 100;
+
+  /* --- 上場年月日（Yahoo / IRバンクのどちらか） --- */
+  let listed = null;
+  const tryParse = (txt) => {
+    if (!txt) return null;
+    let m = txt.match(/上場(?:年月日|日)[^\d]{0,12}(\d{4})\s*[年\/\-\.]\s*(\d{1,2})/);
+    if (!m) m = txt.match(/上場[：:\s]{0,4}(\d{4})\s*[年\/\-\.]\s*(\d{1,2})/);
+    return m ? {y: +m[1], mo: +m[2]} : null;
+  };
+  if (yahoo) listed = tryParse(yahoo.text);
+  if (!listed && irbank) listed = tryParse(irbank.text);
+  if (listed && listed.y >= 1949 && listed.y <= (new Date()).getFullYear()) {
+    const now = new Date();
+    const years = (now.getFullYear() - listed.y) + (now.getMonth() + 1 - listed.mo) / 12;
+    info.listed_years = Math.round(years * 10) / 10;
+    info.listing_date = `${listed.y}-${String(listed.mo).padStart(2,'0')}`;
+  }
+
+  /* --- 1ヶ月騰落率（Yahoo / みんかぶテキスト内に「騰落率 1ヶ月」が入っている場合） --- */
+  const parse1m = (txt) => {
+    if (!txt) return null;
+    // "騰落率 1ヶ月 +3.21%" / "1ヶ月騰落率 -12.5%" などのパターンを網羅
+    const patterns = [
+      /騰落率[^%]{0,10}?1\s*[ヶ箇か]?月[^%]{0,20}?([+\-－−]?\d+(?:\.\d+)?)\s*%/,
+      /1\s*[ヶ箇か]?月[^%]{0,10}?騰落[率]?[^%]{0,20}?([+\-－−]?\d+(?:\.\d+)?)\s*%/,
+      /1ヵ月前比[^%]{0,20}?([+\-－−]?\d+(?:\.\d+)?)\s*%/
+    ];
+    for (const p of patterns) {
+      const m = txt.match(p);
+      if (m) {
+        const v = parseFloat(m[1].replace(/[−－]/g,'-'));
+        if (!isNaN(v) && v > -90 && v < 200) return v;
+      }
+    }
+    return null;
+  };
+  let pc = null;
+  if (yahoo) pc = parse1m(yahoo.text);
+  if (pc == null && mk) pc = parse1m(mk.text);
+  if (pc != null) info.price_1m_change = pc;
+
+  /* --- 次回決算発表予定日（Yahoo / みんかぶ / IRバンク / 株探から探索） --- */
+  try {
+    const parseEarnings = (txt, src) => {
+      if (!txt) return null;
+      // パターン: 「次回決算発表」「決算発表予定日」「決算発表」直後の日付
+      // YYYY/MM/DD, YYYY-MM-DD, YYYY年MM月DD日 を許容
+      const patterns = [
+        /(?:次回)?決算発表予定日?[^0-9]{0,25}(\d{4})[\/\-年\.](\d{1,2})[\/\-月\.](\d{1,2})/,
+        /次回(?:本|中間|第[1-41-4]四半期)?決算発表[^0-9]{0,25}(\d{4})[\/\-年\.](\d{1,2})[\/\-月\.](\d{1,2})/,
+        /決算発表日?[^0-9]{0,15}(\d{4})[\/\-年\.](\d{1,2})[\/\-月\.](\d{1,2})/,
+        /(?:本決算|中間|四半期)?発表予定日?[^0-9]{0,15}(\d{4})[\/\-年\.](\d{1,2})[\/\-月\.](\d{1,2})/
+      ];
+      for (const p of patterns) {
+        const m = txt.match(p);
+        if (m) {
+          const y = +m[1], mo = +m[2], da = +m[3];
+          if (y >= 2020 && y <= 2100 && mo >= 1 && mo <= 12 && da >= 1 && da <= 31) {
+            const iso = `${y}-${String(mo).padStart(2,'0')}-${String(da).padStart(2,'0')}`;
+            console.debug(`[${code}] 決算日取得成功 (${src}): ${iso}`);
+            return iso;
+          }
+        }
+      }
+      return null;
+    };
+    let ed = null, src = null;
+    if (yahoo) { ed = parseEarnings(yahoo.text, 'yahoo'); if (ed) src = 'yahoo'; }
+    if (!ed && mk) { ed = parseEarnings(mk.text, 'minkabu'); if (ed) src = 'minkabu'; }
+    if (!ed && irbank) { ed = parseEarnings(irbank.text, 'irbank'); if (ed) src = 'irbank'; }
+    // 株探（kabutan）からも試行
+    if (!ed) {
+      if (externalSignal?.aborted) return info;
+      const kab = await fetchTextClient(`https://kabutan.jp/stock/?code=${code}`, undefined, externalSignal);
+      if (kab) { ed = parseEarnings(kab.text, 'kabutan'); if (ed) src = 'kabutan'; }
+      else console.warn(`[${code}] 決算日取得: kabutan fetchTextClient が null（CORSまたはネットワークエラーの可能性）`);
+    }
+    if (ed) {
+      const d = new Date(ed); const now = new Date(); now.setHours(0,0,0,0);
+      if (!isNaN(d.getTime()) && d >= now) info.earnings_date = ed;
+      else console.debug(`[${code}] 決算日 ${ed} は過去日のため破棄`);
+    } else {
+      console.warn(`[${code}] 決算日取得失敗: 全4サイト（yahoo/minkabu/irbank/kabutan）で発表日の記載を検出できませんでした。ページ構造の変更、または該当銘柄のページに記載がない可能性があります。`);
+    }
+  } catch (error) {
+    console.error(`[${code}] 決算日取得エラー:`, error);
+  }
+
   return info;
 }
 
@@ -3387,6 +4272,7 @@ async function enrichStocks(onlyMissing) {
           if (info.pbr) s.pbr = info.pbr;
           if (info.mix_coef) s.mix_coef = info.mix_coef;
           if (info.payout_ratio) s.payout_ratio = info.payout_ratio;
+          if (info.earnings_date && !s.earnings_date_manual) s.earnings_date = info.earnings_date;
           updated++;
           detail.textContent = `${i+1}/${targets.length}: ${s.code} ${s.name||''} ✅`;
         } else {
@@ -3556,21 +4442,20 @@ function saveMemo(code, text) {
 async function loadData() {
   try {
     if (IS_STATIC) {
-      // Static mode: load from localStorage first, then fallback to stocks.json
+      /* Static (Vercel / GitHub Pages) モード:
+         プライバシー保護のため、リモートの stocks.json は**一切フェッチしない**。
+         ポートフォリオは完全にブラウザ内 localStorage に閉じる。
+         初回利用時は空配列のまま、設定画面の「JSONアップロード」または
+         CSV取り込みからユーザー自身がデータを入れる運用。 */
       const localData = loadPortfolioFromLocal();
       if (localData && localData.length > 0) {
         stocks = localData;
-        console.log('[Static] localStorageからポートフォリオ読み込み:', stocks.length + '銘柄');
+        console.log('[Static] localStorage からポートフォリオ読み込み:', stocks.length + '銘柄');
       } else {
-        const resp = await fetch('./stocks.json');
-        if (resp.ok) {
-          const data = await resp.json();
-          stocks = Array.isArray(data) ? data : (data.stocks || []);
-          if (stocks.length > 0) savePortfolioToLocal();
-        }
-        if (stocks.length === 0) {
-          console.log('[Static] ポートフォリオが空です。設定画面からJSONをインポートしてください。');
-        }
+        stocks = [];
+        console.log('[Static] ポートフォリオ未設定。設定タブから stocks.json アップロード または CSV取り込みで初期化してください。');
+        /* 初回セットアップ案内バナーを画面に出す（以後、データが入ったら自動で消える） */
+        window._showOnboardingBanner = true;
       }
     } else {
       // Server mode: fetch from API

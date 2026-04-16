@@ -319,6 +319,21 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
 
   <!-- Tab 1: Dashboard -->
   <div class="tab-content" id="tab-dashboard">
+    <div id="onboardingBanner" style="display:none;margin-bottom:14px;padding:16px 20px;background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(139,92,246,.08));border:1px solid var(--accent2);border-radius:12px">
+      <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
+        <div style="font-size:2em;line-height:1">👋</div>
+        <div style="flex:1;min-width:260px">
+          <div style="font-size:1.05em;font-weight:700;color:var(--accent2);margin-bottom:6px">ようこそ！ポートフォリオ未設定です</div>
+          <div style="font-size:.88em;color:var(--text-secondary);line-height:1.6">
+            このアプリはあなたのデータを <b>このブラウザ内のみ</b> に保存します（サーバーには一切送信されません）。<br>
+            まずは「設定」タブから <b>stocks.json のアップロード</b> または <b>CSV取り込み</b> で保有銘柄を登録してください。
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="switchTab('settings')" style="padding:6px 16px;font-size:.85em">⚙️ 設定画面を開く</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div id="welcomeCard"></div>
     <div class="summary-grid" id="summaryCards"></div>
     <div id="dataTimestamps"></div>
@@ -355,6 +370,10 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
     <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
       <input type="text" id="portfolioSearch" placeholder="コード or 銘柄名で検索..." style="flex:1;min-width:200px;padding:8px 14px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:10px;font-size:.88em">
       <select id="portfolioSectorFilter" style="padding:8px 12px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:10px;font-size:.88em"><option value="">全セクター</option></select>
+    </div>
+    <div style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button id="btnFetchAllEarnings" class="btn btn-outline" style="padding:6px 14px;font-size:.82em">📅 決算日を一括取得</button>
+      <span id="earningsFetchStatus" style="font-size:.78em;color:var(--text-muted)"></span>
     </div>
     <div class="card table-wrap" id="portfolioTableWrap"></div>
     <button id="btnToggleCols" class="btn btn-outline" style="position:fixed;bottom:20px;right:24px;z-index:50;padding:8px 18px;font-size:.84em;backdrop-filter:blur(8px);box-shadow:0 2px 12px rgba(0,0,0,.4)">詳細列を表示</button>
@@ -833,6 +852,91 @@ function setEarningsDate(code, value, manual) {
   if (typeof renderChecklistTable === 'function') renderChecklistTable();
 }
 
+/* 決算日取得中の銘柄コード集合（UIで "取得中..." 表示） */
+window.fetchingEarnings = window.fetchingEarnings || new Set();
+
+/* 指定銘柄の「決算日」だけを最小限で取得（5秒タイムアウト・プロキシフォールバック） */
+async function fetchEarningsOnly(code, signal) {
+  const per = 5000;
+  const urls = [
+    `https://finance.yahoo.co.jp/quote/${code}.T`,
+    `https://minkabu.jp/stock/${code}/dividend`,
+    `https://irbank.net/${code}`,
+    `https://kabutan.jp/stock/?code=${code}`
+  ];
+  const parse = (txt) => {
+    if (!txt) return null;
+    const patterns = [
+      /(?:次回)?決算発表予定日?[^0-9]{0,25}(\d{4})[\/\-年\.](\d{1,2})[\/\-月\.](\d{1,2})/,
+      /次回(?:本|中間|第[1-4]四半期)?決算発表[^0-9]{0,25}(\d{4})[\/\-年\.](\d{1,2})[\/\-月\.](\d{1,2})/,
+      /決算発表日?[^0-9]{0,15}(\d{4})[\/\-年\.](\d{1,2})[\/\-月\.](\d{1,2})/
+    ];
+    for (const p of patterns) {
+      const m = txt.match(p);
+      if (m) {
+        const y = +m[1], mo = +m[2], da = +m[3];
+        if (y >= 2020 && y <= 2100 && mo >= 1 && mo <= 12 && da >= 1 && da <= 31) {
+          return `${y}-${String(mo).padStart(2,'0')}-${String(da).padStart(2,'0')}`;
+        }
+      }
+    }
+    return null;
+  };
+  for (const u of urls) {
+    if (signal?.aborted) return null;
+    const res = await fetchTextClient(u, per, signal);
+    if (!res) continue;
+    const ed = parse(res.text);
+    if (ed) {
+      const d = new Date(ed); const now = new Date(); now.setHours(0,0,0,0);
+      if (!isNaN(d.getTime()) && d >= now) return ed;
+    }
+  }
+  return null;
+}
+
+/* 1件だけ決算日を再取得 — セルは自動的に「取得中...」→「結果」へ更新 */
+async function refetchSingleEarnings(code) {
+  const k = String(code);
+  const s = stocks.find(st => String(st.code) === k);
+  if (!s || s.earnings_date_manual) return false;
+  window.fetchingEarnings.add(k);
+  // 該当セルだけスポット更新
+  const cells = document.querySelectorAll(`[data-earnings-code="${k}"]`);
+  cells.forEach(c => { c.outerHTML = `<span data-earnings-code="${k}" style="display:inline-block;padding:2px 6px;color:var(--accent2)"><span style="display:inline-block;animation:spin 1s linear infinite">⏳</span> 取得中...</span>`; });
+  let ok = false;
+  try {
+    const ed = await fetchEarningsOnly(code);
+    if (ed && !s.earnings_date_manual) {
+      s.earnings_date = ed;
+      ok = true;
+    }
+  } catch (e) { /* silent */ }
+  window.fetchingEarnings.delete(k);
+  if (ok) savePortfolioToLocal();
+  if (typeof renderPortfolio === 'function') renderPortfolio();
+  return ok;
+}
+
+/* 全銘柄の決算日を順次取得 */
+async function fetchAllEarnings() {
+  const btn = document.getElementById('btnFetchAllEarnings');
+  const st = document.getElementById('earningsFetchStatus');
+  if (!btn) return;
+  btn.disabled = true;
+  const targets = stocks.filter(s => !s.earnings_date_manual);
+  let ok = 0, ng = 0;
+  for (let i = 0; i < targets.length; i++) {
+    const s = targets[i];
+    if (st) st.textContent = `${i+1}/${targets.length}: ${s.code} ${s.name||''} を取得中...`;
+    const got = await refetchSingleEarnings(s.code);
+    if (got) ok++; else ng++;
+    await new Promise(r => setTimeout(r, 300));
+  }
+  if (st) st.textContent = `✅ 完了: 成功${ok}件 / 失敗${ng}件（失敗分はクリックで手動入力できます）`;
+  btn.disabled = false;
+}
+
 /* テーブルセルを「表示」→「date入力」にインラインで切り替え */
 function editEarningsDateCell(code, cellEl) {
   const cur = (stocks.find(s => String(s.code) === String(code))?.earnings_date) || '';
@@ -1271,6 +1375,10 @@ function switchTab(id) {
   });
   const tab = document.getElementById('tab-' + id);
   if (tab) tab.classList.add('active');
+
+  /* オンボーディングバナー: stocksが空ならダッシュボードで表示、入ったら自動で消す */
+  const onboard = document.getElementById('onboardingBanner');
+  if (onboard) onboard.style.display = (id === 'dashboard' && (!stocks || stocks.length === 0)) ? '' : 'none';
 
   window.scrollTo(0, 0);
   destroyCharts();
@@ -2176,10 +2284,12 @@ function renderPortfolio() {
       earnings: (() => {
         const d = s.earnings_date || '';
         const manual = !!s.earnings_date_manual;
+        const loading = (window.fetchingEarnings && window.fetchingEarnings.has(String(s.code)));
         // セル全体をクリッカブルに（クリックで <input type="date"> にインライン切替）
         const click = `onclick="event.stopPropagation(); editEarningsDateCell('${s.code}', this)"`;
-        const clickable = `style="cursor:pointer;display:inline-block;padding:2px 6px;border-radius:4px" title="クリックで手動入力／上書き" ${click}`;
+        const clickable = `data-earnings-code="${s.code}" style="cursor:pointer;display:inline-block;padding:2px 6px;border-radius:4px" title="クリックで手動入力／上書き" ${click}`;
         const mark = manual ? '<span style="font-size:.65em;color:var(--text-muted);margin-left:4px" title="手動入力">✏</span>' : '';
+        if (loading) return `<span data-earnings-code="${s.code}" style="display:inline-block;padding:2px 6px;color:var(--accent2)"><span class="spin" style="display:inline-block;animation:spin 1s linear infinite">⏳</span> 取得中...</span>`;
         if (!d) return `<span ${clickable}><span style="color:var(--text-muted)">-（クリックで入力）</span></span>`;
         const days = earningsDaysUntil(d);
         const disp = d.replace(/-/g, '/');
@@ -2252,6 +2362,8 @@ document.getElementById('btnToggleCols').addEventListener('click', () => {
   document.getElementById('btnToggleCols').textContent = showExtraCols ? '詳細列を隠す' : '詳細列を表示';
   renderPortfolio();
 });
+const _btnFetchAllEarn = document.getElementById('btnFetchAllEarnings');
+if (_btnFetchAllEarn) _btnFetchAllEarn.addEventListener('click', () => fetchAllEarnings());
 
 function showDetail(s) {
   if (!s) return;
@@ -3566,31 +3678,52 @@ function handleCsvFile(file) {
 /* === クライアント側CSVパース（柔軟版） === */
 function parsePortfolioCsv(text) {
   /* 全角→半角変換 */
-  const zen2han = s => s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+  const zen2han = s => (s == null ? '' : String(s))
+    .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
     .replace(/，/g, ',').replace(/．/g, '.').replace(/　/g, ' ');
+  /* 数値クリーンアップ:
+     ・null/undefined/非文字列を安全化
+     ・ダブル/シングルクォート、全角/半角カンマ、円・株・口・%・％、各種空白(タブ・全角スペース・NBSP)を除去
+     ・前後トリム後に parseFloat。失敗したら 0 */
   const cleanNum = s => {
-    const n = zen2han(s || '0').replace(/[,円株口%％\s]/g, '');
-    const v = parseFloat(n);
-    return isNaN(v) ? 0 : v;
+    try {
+      if (s == null) return 0;
+      let n = zen2han(s);
+      n = n.replace(/["'`]/g, '')
+           .replace(/[,，]/g, '')
+           .replace(/[円株口%％]/g, '')
+           .replace(/[\s\u00A0\u3000\t\r\n]/g, '')
+           .trim();
+      if (!n) return 0;
+      const v = parseFloat(n);
+      return isNaN(v) ? 0 : v;
+    } catch (e) { return 0; }
   };
 
-  /* CSV正しくパース（引用符対応） */
+  /* CSV正しくパース（引用符対応） — 不正入力でも例外を投げない */
   function parseCsvLine(line, delim) {
-    const cols = []; let cur = ''; let inQuote = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (inQuote) {
-        if (c === '"' && line[i+1] === '"') { cur += '"'; i++; }
-        else if (c === '"') inQuote = false;
-        else cur += c;
-      } else {
-        if (c === '"') inQuote = true;
-        else if (c === delim) { cols.push(cur.trim()); cur = ''; }
-        else cur += c;
+    try {
+      if (line == null) return [];
+      const cols = []; let cur = ''; let inQuote = false;
+      const s = String(line);
+      for (let i = 0; i < s.length; i++) {
+        const c = s[i];
+        if (inQuote) {
+          if (c === '"' && s[i+1] === '"') { cur += '"'; i++; }
+          else if (c === '"') inQuote = false;
+          else cur += c;
+        } else {
+          if (c === '"') inQuote = true;
+          else if (c === delim) { cols.push(cur.trim()); cur = ''; }
+          else cur += c;
+        }
       }
+      cols.push(cur.trim());
+      return cols;
+    } catch (e) {
+      console.warn('[CSV Parse] parseCsvLine エラー行スキップ:', e.message, '行:', line);
+      return [];
     }
-    cols.push(cur.trim());
-    return cols;
   }
 
   const rawText = zen2han(text);
@@ -3654,55 +3787,78 @@ function parsePortfolioCsv(text) {
 
   const result = [];
   const startLine = headerFound ? 1 : 0;
-  let skipped = 0;
+  let skipped = 0, errored = 0;
 
   for (let li = startLine; li < lines.length; li++) {
-    const cols = parseCsvLine(lines[li], delim);
-    const maxCol = Math.max(codeCol, nameCol, sharesCol, buyCol, curCol);
-    if (cols.length <= maxCol) { skipped++; continue; }
+    try {
+      /* ----- 冒頭で空行・明らかに不正な行をスキップ ----- */
+      const rawLine = lines[li];
+      if (rawLine == null) { skipped++; continue; }
+      const trimmed = String(rawLine).trim();
+      if (!trimmed) { skipped++; continue; }                       // 空行
+      if (/^[\s,、\t]+$/.test(trimmed)) { skipped++; continue; }   // 区切りだけの行
+      if (/^[#※＊*]/.test(trimmed)) { skipped++; continue; }       // コメント/注記行
 
-    const codeStr = (cols[codeCol] || '').replace(/[^\d]/g, '');
-    const code = parseInt(codeStr);
-    if (isNaN(code) || code < 1000 || code > 99999) { skipped++; continue; }
+      const cols = parseCsvLine(rawLine, delim);
+      if (!cols || cols.length === 0) { skipped++; continue; }
 
-    const name = (cols[nameCol] || '').replace(/^"|"$/g, '');
-    const shares = Math.round(cleanNum(cols[sharesCol]));
-    const buyPrice = cleanNum(cols[buyCol]);
-    const curPrice = cleanNum(cols[curCol]);
+      /* ----- 証券コード列が空欄・非4桁数字なら無視 ----- */
+      const rawCodeCell = codeCol >= 0 && codeCol < cols.length ? cols[codeCol] : '';
+      const codeStr = String(rawCodeCell || '').replace(/[^\d]/g, '');
+      if (!codeStr) { skipped++; continue; }                                // 証券コード空欄
+      if (!/^\d{4,5}$/.test(codeStr)) { skipped++; continue; }              // 4〜5桁の数字のみ許可
+      const code = parseInt(codeStr, 10);
+      if (isNaN(code) || code < 1000 || code > 99999) { skipped++; continue; }
 
-    /* 株数0でも取得単価があればOK、両方0ならスキップ */
-    if (shares === 0 && buyPrice === 0 && curPrice === 0) { skipped++; continue; }
+      /* ----- 残りの列がない場合でも、コードだけは拾えるようにフォールバック ----- */
+      const name = String(cols[nameCol] || '').replace(/^["']|["']$/g, '').trim();
+      const shares = Math.round(cleanNum(cols[sharesCol]));
+      const buyPrice = cleanNum(cols[buyCol]);
+      const curPrice = cleanNum(cols[curCol]);
 
-    result.push({
-      code, name, shares,
-      buy_price: buyPrice || curPrice, /* 取得単価がなければ現在値で代替 */
-      cur_price: curPrice || buyPrice,
-      annual_div: 0, mid_div: 0, mid_month: 12, end_month: 6,
-      nisa: '課税', sector: ''
-    });
+      /* 株数も価格も全く無いなら無効行として無視（ヘッダー的な行など） */
+      if (shares === 0 && buyPrice === 0 && curPrice === 0) { skipped++; continue; }
+
+      result.push({
+        code, name, shares,
+        buy_price: buyPrice || curPrice, /* 取得単価がなければ現在値で代替 */
+        cur_price: curPrice || buyPrice,
+        annual_div: 0, mid_div: 0, mid_month: 12, end_month: 6,
+        nisa: '課税', sector: ''
+      });
+    } catch (e) {
+      /* 1行の例外で全体を止めない。ログだけ残して次へ */
+      errored++;
+      console.warn(`[CSV Parse] ${li+1}行目の処理でエラー、スキップしました:`, e.message, lines[li]);
+      continue;
+    }
   }
 
   /* もし結果が0件なら、全列を走査して4-5桁数字を探すフォールバック */
   if (result.length === 0 && lines.length > 0) {
     console.log('[CSV Parse] 標準パース失敗、フォールバック: 全列から銘柄コード検索');
     for (let li = 0; li < lines.length; li++) {
-      const cols = parseCsvLine(lines[li], delim);
-      /* 各列をスキャンして4-5桁数字を探す */
-      for (let ci = 0; ci < cols.length; ci++) {
-        const v = cols[ci].replace(/[^\d]/g, '');
-        if (/^\d{4,5}$/.test(v)) {
-          const code = parseInt(v);
+      try {
+        const raw = lines[li];
+        if (!raw || !String(raw).trim()) continue;
+        const cols = parseCsvLine(raw, delim);
+        if (!cols || cols.length === 0) continue;
+        /* 各列をスキャンして4-5桁数字を探す */
+        for (let ci = 0; ci < cols.length; ci++) {
+          const v = String(cols[ci] || '').replace(/[^\d]/g, '');
+          if (!/^\d{4,5}$/.test(v)) continue;
+          const code = parseInt(v, 10);
+          if (isNaN(code) || code < 1000 || code > 99999) continue;
           /* コード列の後ろから名前・数値を取得 */
           const remaining = cols.filter((_, j) => j !== ci);
-          const nameCandidate = remaining.find(c => c && !/^[\d,.\-+%]+$/.test(c.replace(/[\s円株口]/g, '')));
-          const nums = remaining.filter(c => {
-            const n = parseFloat(c.replace(/[,円株口%\s]/g, ''));
-            return !isNaN(n) && n > 0;
-          }).map(c => parseFloat(c.replace(/[,円株口%\s]/g, '')));
+          const nameCandidate = remaining.find(c => c && !/^[\d,.\-+%]+$/.test(String(c).replace(/[\s円株口]/g, '')));
+          const nums = remaining
+            .map(c => cleanNum(c))
+            .filter(n => !isNaN(n) && n > 0);
           if (nums.length >= 1) {
             result.push({
-              code, name: nameCandidate || ('銘柄' + code),
-              shares: nums.length >= 3 ? Math.round(nums[0]) : (nums.length >= 1 ? Math.round(nums[0]) : 0),
+              code, name: (nameCandidate || ('銘柄' + code)).replace(/^["']|["']$/g, '').trim(),
+              shares: nums.length >= 3 ? Math.round(nums[0]) : Math.round(nums[0]),
               buy_price: nums.length >= 3 ? nums[1] : (nums.length >= 2 ? nums[1] : nums[0]),
               cur_price: nums.length >= 3 ? nums[2] : (nums.length >= 2 ? nums[1] : nums[0]),
               annual_div: 0, mid_div: 0, mid_month: 12, end_month: 6,
@@ -3711,11 +3867,17 @@ function parsePortfolioCsv(text) {
           }
           break; /* この行では最初に見つかったコードのみ */
         }
+      } catch (e) {
+        errored++;
+        console.warn(`[CSV Parse] フォールバック ${li+1}行目でエラー、スキップ:`, e.message);
+        continue;
       }
     }
   }
 
-  console.log(`[CSV Parse] ${result.length}銘柄取り込み, ${skipped}行スキップ, 区切り:${delim === '\t' ? 'TAB' : 'COMMA'}, ヘッダー:${headerFound ? 'あり' : 'なし'}, コード列:${codeCol}`);
+  console.log(`[CSV Parse] ${result.length}銘柄取り込み, ${skipped}行スキップ, ${errored}行エラースキップ, 区切り:${delim === '\t' ? 'TAB' : 'COMMA'}, ヘッダー:${headerFound ? 'あり' : 'なし'}, コード列:${codeCol}`);
+  /* 取り込み件数・エラー件数をグローバルで参照できるようにして、statusメッセージで活用 */
+  window._lastCsvImportStats = { imported: result.length, skipped, errored, total: lines.length };
   return result;
 }
 
@@ -3852,8 +4014,12 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
           try { await fetch('/api/stocks', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(stocks) }); } catch(e) {}
         }
         savePortfolioToLocal();
-        status.textContent = `✅ ${imported.length}銘柄を取り込みました（合計${stocks.length}銘柄）`;
-        status.style.color = 'var(--green)';
+        const st = window._lastCsvImportStats || {};
+        const extra = [];
+        if (st.skipped > 0) extra.push(`${st.skipped}行スキップ`);
+        if (st.errored > 0) extra.push(`${st.errored}行はエラーのためスキップ（コンソール参照）`);
+        status.textContent = `✅ ${imported.length}銘柄を取り込みました（合計${stocks.length}銘柄）${extra.length ? ' / ' + extra.join(' / ') : ''}`;
+        status.style.color = st.errored > 0 ? 'var(--accent4)' : 'var(--green)';
         if (importMode === 'paste') document.getElementById('mfPasteArea').value = '';
         else { pendingCsvText = ''; document.getElementById('csvFileName').style.display = 'none'; }
         const activeTab = document.querySelector('.nav-btn.active');
@@ -3873,15 +4039,29 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
    ・みんかぶの「PER(調整後)」は実績ベース独自指標のため使わない
    ・2ソースが20%超乖離したら needs_review フラグを立てる
 */
+/* CORS回避プロキシ（順に試行、どれか1つ成功すれば採用） */
+const CORS_PROXIES = [
+  (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+  (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  (u) => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u)
+];
 async function fetchTextClient(url, timeoutMs, externalSignal) {
-  try {
-    const signals = [AbortSignal.timeout(timeoutMs || 12000)];
-    if (externalSignal) signals.push(externalSignal);
-    const r = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(url), { signal: AbortSignal.any(signals) });
-    if (!r.ok) return null;
-    const h = await r.text();
-    return { raw: h, text: h.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ') };
-  } catch (e) { return null; }
+  const per = timeoutMs || 12000;
+  for (const mk of CORS_PROXIES) {
+    try {
+      const signals = [AbortSignal.timeout(per)];
+      if (externalSignal) signals.push(externalSignal);
+      const r = await fetch(mk(url), { signal: AbortSignal.any(signals) });
+      if (!r.ok) continue;
+      const h = await r.text();
+      if (!h || h.length < 50) continue;
+      return { raw: h, text: h.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ') };
+    } catch (e) {
+      if (externalSignal?.aborted) return null;
+      /* 次のプロキシを試す */
+    }
+  }
+  return null;
 }
 
 async function enrichStockClient(code, externalSignal) {
@@ -4262,21 +4442,20 @@ function saveMemo(code, text) {
 async function loadData() {
   try {
     if (IS_STATIC) {
-      // Static mode: load from localStorage first, then fallback to stocks.json
+      /* Static (Vercel / GitHub Pages) モード:
+         プライバシー保護のため、リモートの stocks.json は**一切フェッチしない**。
+         ポートフォリオは完全にブラウザ内 localStorage に閉じる。
+         初回利用時は空配列のまま、設定画面の「JSONアップロード」または
+         CSV取り込みからユーザー自身がデータを入れる運用。 */
       const localData = loadPortfolioFromLocal();
       if (localData && localData.length > 0) {
         stocks = localData;
-        console.log('[Static] localStorageからポートフォリオ読み込み:', stocks.length + '銘柄');
+        console.log('[Static] localStorage からポートフォリオ読み込み:', stocks.length + '銘柄');
       } else {
-        const resp = await fetch('./stocks.json');
-        if (resp.ok) {
-          const data = await resp.json();
-          stocks = Array.isArray(data) ? data : (data.stocks || []);
-          if (stocks.length > 0) savePortfolioToLocal();
-        }
-        if (stocks.length === 0) {
-          console.log('[Static] ポートフォリオが空です。設定画面からJSONをインポートしてください。');
-        }
+        stocks = [];
+        console.log('[Static] ポートフォリオ未設定。設定タブから stocks.json アップロード または CSV取り込みで初期化してください。');
+        /* 初回セットアップ案内バナーを画面に出す（以後、データが入ったら自動で消える） */
+        window._showOnboardingBanner = true;
       }
     } else {
       // Server mode: fetch from API
