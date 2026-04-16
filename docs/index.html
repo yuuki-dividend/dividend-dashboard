@@ -5388,9 +5388,19 @@ async function enrichStocks(onlyMissing, forceRefresh) {
       }
       if (etfFixed > 0) savePortfolioToLocal();
 
+      /* ポートフォリオ内の既知ETFで利回りが取れている件数（サーバー経由 or クライアント補完の合算） */
+      const etfKnownInPortfolio = stocks.filter(s => CLIENT_KNOWN_ETF[String(s.code)]).length;
+      const etfHealthyCount = stocks.filter(s => CLIENT_KNOWN_ETF[String(s.code)] && s.yield > 0).length;
+      const etfStillZero = etfKnownInPortfolio - etfHealthyCount;
+
       savePortfolioToLocal();
       bar.style.width = '100%';
-      const etfMsg = etfFixed > 0 ? ` / ETF補完${etfFixed}件` : '';
+      let etfMsg = '';
+      if (etfKnownInPortfolio > 0) {
+        etfMsg = ` / ETF利回り${etfHealthyCount}/${etfKnownInPortfolio}件反映`;
+        if (etfFixed > 0) etfMsg += `(うち${etfFixed}件はクライアント補完)`;
+        if (etfStillZero > 0) etfMsg += ` ⚠️${etfStillZero}件未取得`;
+      }
       status.textContent = `✅ ${updated}/${targets.length}銘柄を更新完了（キャッシュ${cacheHits}件 / 新規${updated - cacheHits}件 / 失敗${failed}件${etfMsg}）`;
       status.style.color = 'var(--green)';
       localStorage.setItem('lastPriceUpdate', new Date().toLocaleString('ja-JP'));
@@ -5441,6 +5451,27 @@ async function enrichStocks(onlyMissing, forceRefresh) {
       }
       const r2 = await fetch('/api/stocks');
       if (r2.ok) { stocks = await r2.json(); if (!Array.isArray(stocks)) stocks = stocks.stocks || []; }
+
+      /* ローカル側でも ETF 既知テーブルで利回り 0 のものを補完（サーバー python 未更新対策の最終安全網） */
+      const LOCAL_KNOWN_ETF = { '1343': 93, '1489': 100, '1478': 80, '1577': 110, '1698': 75, '2564': 130 };
+      let etfFixedLocal = 0;
+      for (const s of stocks) {
+        const perShare = LOCAL_KNOWN_ETF[String(s.code)];
+        if (!perShare) continue;
+        if (!s.annual_div_manual && (!s.annual_div || s.annual_div === 0)) { s.annual_div = perShare; etfFixedLocal++; }
+        if (!s.yield_manual && (!s.yield || s.yield === 0) && s.cur_price > 0) {
+          s.yield = Math.round((perShare / s.cur_price) * 10000) / 100;
+          etfFixedLocal++;
+        }
+      }
+      if (etfFixedLocal > 0) {
+        try {
+          await fetch('/api/stocks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(stocks) });
+        } catch(e) { console.warn('[ETF fallback] /api/stocks POST 失敗:', e?.message); }
+        const prev = status.textContent || '';
+        status.textContent = `${prev} / ETF利回りクライアント補完${etfFixedLocal}件`;
+      }
+
       const nowStr = new Date().toLocaleString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
       localStorage.setItem('lastPriceUpdate', nowStr);
       const activeTab = document.querySelector('.nav-btn.active');

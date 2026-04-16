@@ -96,6 +96,26 @@ def _get_sector(code):
     return _sector_cache.get(str(code), "")
 
 
+# === ETF/REIT 判定と既知 ETF テーブル（scrape.js と同期） ===
+def _is_etf_or_reit(code):
+    try:
+        n = int(str(code).strip())
+    except Exception:
+        return False
+    return (1300 <= n <= 2899) or (8900 <= n <= 8999)
+
+# みんかぶ/Yahoo から利回りが取れない ETF 向けの静的フォールバック。
+# api/_lib/scrape.js の KNOWN_ETF_DIVIDENDS と同じ値を保持する。
+KNOWN_ETF_DIVIDENDS = {
+    1343: {"per_share_div": 93,  "fiscal_months": [1, 7],           "note": "NEXT FUNDS 東証REIT指数"},
+    1489: {"per_share_div": 100, "fiscal_months": [7],              "note": "NEXT FUNDS 日経平均高配当株50"},
+    1478: {"per_share_div": 80,  "fiscal_months": [2, 8],           "note": "iシェアーズ MSCIジャパン高配当利回り"},
+    1577: {"per_share_div": 110, "fiscal_months": [1, 4, 7, 10],    "note": "NEXT FUNDS 野村日本株高配当70"},
+    1698: {"per_share_div": 75,  "fiscal_months": [1, 7],           "note": "ダイワ上場投信-東証配当フォーカス100"},
+    2564: {"per_share_div": 130, "fiscal_months": [1, 4, 7, 10],    "note": "グローバルX MSCIスーパーディビィデンド-日本株式"},
+}
+
+
 def fetch_stock_info(code):
     """Yahoo Finance + minkabu から株価・PER・PBR・配当情報を取得
     kabutan不使用 — HTML構造変更に強い安定ソース構成:
@@ -286,8 +306,13 @@ def fetch_stock_info(code):
         print(f"  [{code}] 配当: {annual_div}円 (株価{cur_price} × 利回り{minkabu_yield}%)")
 
     # === 5. 株価をinfoに格納 ===
+    # "price" は /api/stock_info 互換用、"cur_price" は stocks.json 側のキーに揃えたもの。
     if cur_price > 0:
         info["price"] = cur_price
+        info["cur_price"] = cur_price
+        # 既存 yield が保存されている場合は、新しい株価で利回りを再計算して整合させる
+        if info.get("annual_div", 0) > 0 and "yield" not in info:
+            info["yield"] = round(info["annual_div"] / cur_price * 100, 2)
 
     # === 6. セクター: JPXデータ (all_stocks.json) ===
     sector = _get_sector(code)
@@ -299,6 +324,29 @@ def fetch_stock_info(code):
         calc_yield = info["annual_div"] / cur_price * 100
         if calc_yield > 10:
             print(f"  ⚠️ [{code}] 利回り{calc_yield:.1f}%が異常に高い。要確認。")
+
+    # === ETFフォールバック: 3サイトどれからも利回りが取れなかった場合に既知テーブルから補完 ===
+    # Vercel 側 (api/_lib/scrape.js) と挙動を揃える。1343/1489 等が対象。
+    try:
+        code_int = int(code)
+    except (TypeError, ValueError):
+        code_int = None
+    if code_int in KNOWN_ETF_DIVIDENDS:
+        etf = KNOWN_ETF_DIVIDENDS[code_int]
+        info["is_etf"] = True
+        if info.get("annual_div", 0) in (0, None):
+            info["annual_div"] = etf["per_share_div"]
+            info["mid_div"] = round(etf["per_share_div"] / max(1, len(etf["fiscal_months"])), 1)
+            info["_div_source"] = "known_etf_table"
+        if cur_price > 0 and info.get("annual_div", 0) > 0 and info.get("yield") in (0, None):
+            info["yield"] = round(info["annual_div"] / cur_price * 100, 2)
+        # 配当月ヒント: 末尾の決算月を期末、先頭を中間に
+        months = etf["fiscal_months"]
+        if months:
+            info["end_month"] = months[-1]
+            info["mid_month"] = months[0] if len(months) >= 2 else months[-1]
+            info["fiscal_year_end_month"] = months[-1]
+        print(f"  [{code}] 🅔 ETF 既知テーブル適用: {etf['note']} → 分配金{etf['per_share_div']}円, 決算月{months}")
 
     return info
 
