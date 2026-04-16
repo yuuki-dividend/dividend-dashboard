@@ -129,6 +129,7 @@ def fetch_stock_info(code):
     info = {}
     cur_price = 0
     yf_pbr = 0
+    html_yf = ""  # Yahoo が 500 エラー等で落ちても PER/PBR parse ブロックで UnboundLocalError を避ける
 
     # === 1. Yahoo Finance: 株価（最も安定） ===
     try:
