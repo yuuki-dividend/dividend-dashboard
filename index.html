@@ -372,6 +372,7 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
       <select id="portfolioSectorFilter" style="padding:8px 12px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:10px;font-size:.88em"><option value="">全セクター</option></select>
     </div>
     <div style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button id="btnAddStock" class="btn btn-primary" style="padding:7px 16px;font-size:.86em;font-weight:700">＋ 銘柄を追加</button>
       <button id="btnFetchAllEarnings" class="btn btn-outline" style="padding:6px 14px;font-size:.82em">📅 決算日を一括取得</button>
       <span id="earningsFetchStatus" style="font-size:.78em;color:var(--text-muted)"></span>
     </div>
@@ -669,6 +670,37 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
   <div class="detail-card" id="detailCard"></div>
 </div>
 
+<!-- Add / Edit Stock Modal -->
+<div class="detail-overlay" id="stockFormOverlay">
+  <div class="detail-card" id="stockFormCard" style="max-width:420px">
+    <h2 style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span id="stockFormTitle">銘柄を追加</span>
+      <button class="close-btn" onclick="closeStockForm()">&times;</button>
+    </h2>
+    <div id="stockFormBody">
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:.78em;color:var(--text-muted);margin-bottom:4px">証券コード（4桁）</label>
+        <input type="text" id="sfCode" maxlength="5" inputmode="numeric" pattern="[0-9]*" placeholder="例: 8591" style="width:100%;padding:10px 12px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;font-size:1em;font-variant-numeric:tabular-nums">
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:.78em;color:var(--text-muted);margin-bottom:4px">保有株数</label>
+        <input type="number" id="sfShares" min="0" step="1" placeholder="例: 100" style="width:100%;padding:10px 12px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;font-size:1em;font-variant-numeric:tabular-nums">
+        <div style="font-size:.7em;color:var(--text-muted);margin-top:4px">S株（単元未満株）の場合は小数入力可能</div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:.78em;color:var(--text-muted);margin-bottom:4px">平均取得単価（円）</label>
+        <input type="number" id="sfBuyPrice" min="0" step="0.01" placeholder="例: 2450" style="width:100%;padding:10px 12px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;font-size:1em;font-variant-numeric:tabular-nums">
+      </div>
+      <div id="sfHint" style="font-size:.75em;color:var(--text-muted);margin-bottom:10px;line-height:1.5"></div>
+      <div id="sfError" style="display:none;padding:8px 12px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:6px;font-size:.82em;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="closeStockForm()" style="flex:1;padding:10px 14px;background:var(--bg-primary);color:var(--text-secondary);border:1px solid var(--border);border-radius:10px;cursor:pointer;font-weight:600">キャンセル</button>
+        <button id="sfSaveBtn" onclick="submitStockForm()" style="flex:2;padding:10px 14px;background:linear-gradient(135deg,#3b82f6,#06b6d4);color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Mobile Bottom Bar -->
 <nav class="bottom-bar"><div class="bottom-bar-inner" id="bottomNav"></div></nav>
 
@@ -689,6 +721,198 @@ const TAX_RATE = 0.20315;
 /* ===== localStorage Portfolio Management (Static Mode) ===== */
 function savePortfolioToLocal() {
   localStorage.setItem('portfolio_stocks', JSON.stringify(stocks));
+}
+
+/* ===== 銘柄フォームモーダル（追加・編集共通） ===== */
+let _sfMode = 'add';       // 'add' | 'edit'
+let _sfEditCode = null;
+
+function refreshAllViews() {
+  /* 個別エラーで波及しないよう全レンダラーを try/catch 個別ラップ */
+  try { if (typeof renderPortfolio === 'function') renderPortfolio(); } catch(e){ console.warn(e); }
+  try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e){ console.warn(e); }
+  try { if (typeof renderCalendar === 'function') renderCalendar(); } catch(e){ console.warn(e); }
+  try { if (typeof renderSectors === 'function') renderSectors(); } catch(e){ console.warn(e); }
+  try { if (typeof renderChecklistTable === 'function') renderChecklistTable(); } catch(e){ console.warn(e); }
+}
+
+function openAddStock() {
+  _sfMode = 'add'; _sfEditCode = null;
+  document.getElementById('stockFormTitle').textContent = '＋ 銘柄を追加';
+  document.getElementById('sfCode').value = '';
+  document.getElementById('sfCode').disabled = false;
+  document.getElementById('sfCode').style.opacity = '1';
+  document.getElementById('sfShares').value = '';
+  document.getElementById('sfBuyPrice').value = '';
+  document.getElementById('sfHint').textContent = '保存すると、株価・配当などの情報を自動取得します（数秒かかります）';
+  document.getElementById('sfError').style.display = 'none';
+  document.getElementById('sfSaveBtn').disabled = false;
+  document.getElementById('sfSaveBtn').textContent = '保存';
+  document.getElementById('stockFormOverlay').classList.add('show');
+  setTimeout(() => document.getElementById('sfCode').focus(), 50);
+}
+
+function openEditStock(code) {
+  const s = stocks.find(st => String(st.code) === String(code));
+  if (!s) { alert('対象銘柄が見つかりません'); return; }
+  _sfMode = 'edit'; _sfEditCode = String(code);
+  document.getElementById('stockFormTitle').textContent = '✏️ ' + (s.name || ('銘柄' + s.code)) + ' を編集';
+  document.getElementById('sfCode').value = s.code;
+  document.getElementById('sfCode').disabled = true;
+  document.getElementById('sfCode').style.opacity = '.6';
+  document.getElementById('sfShares').value = s.shares || 0;
+  document.getElementById('sfBuyPrice').value = s.buy_price || 0;
+  document.getElementById('sfHint').innerHTML =
+    `現在値: <b>${fmtYen(s.cur_price||0)}</b> / 年間配当: <b>${fmtYen(s.annual_div||0)}</b>（変更しません）<br>` +
+    '※ 買い増し・一部売却後の最新の株数と平均取得単価を直接入力してください';
+  document.getElementById('sfError').style.display = 'none';
+  document.getElementById('sfSaveBtn').disabled = false;
+  document.getElementById('sfSaveBtn').textContent = '保存';
+  document.getElementById('stockFormOverlay').classList.add('show');
+  setTimeout(() => document.getElementById('sfShares').focus(), 50);
+}
+
+function closeStockForm() {
+  document.getElementById('stockFormOverlay').classList.remove('show');
+}
+
+function _sfShowError(msg) {
+  const el = document.getElementById('sfError');
+  el.textContent = msg;
+  el.style.display = '';
+}
+
+async function submitStockForm() {
+  const errEl = document.getElementById('sfError');
+  errEl.style.display = 'none';
+  const codeStr = String(document.getElementById('sfCode').value || '').replace(/[^\d]/g, '');
+  const sharesRaw = document.getElementById('sfShares').value;
+  const buyRaw = document.getElementById('sfBuyPrice').value;
+  const shares = parseFloat(sharesRaw);
+  const buyPrice = parseFloat(buyRaw);
+
+  /* バリデーション */
+  if (_sfMode === 'add') {
+    if (!/^\d{4}$/.test(codeStr)) { _sfShowError('証券コードは半角数字4桁で入力してください'); return; }
+    if (stocks.find(st => String(st.code) === codeStr)) {
+      _sfShowError(`コード ${codeStr} は既に登録されています。編集は一覧の ✏️ ボタンから行ってください`); return;
+    }
+  }
+  if (!(shares > 0)) { _sfShowError('保有株数は0より大きい数を入力してください'); return; }
+  if (!(buyPrice > 0)) { _sfShowError('平均取得単価は0より大きい数を入力してください'); return; }
+
+  const saveBtn = document.getElementById('sfSaveBtn');
+
+  if (_sfMode === 'edit') {
+    /* 編集: stocks の既存エントリを上書き */
+    const s = stocks.find(st => String(st.code) === _sfEditCode);
+    if (!s) { _sfShowError('対象銘柄が見つかりません'); return; }
+    s.shares = shares;
+    s.buy_price = buyPrice;
+    if (typeof savePortfolioToLocal === 'function') savePortfolioToLocal();
+    refreshAllViews();
+    closeStockForm();
+    return;
+  }
+
+  /* 追加: まず仮データで push → 自動取得 → マージ */
+  const code = parseInt(codeStr, 10);
+  const newStock = {
+    code, name: '取得中...', shares, buy_price: buyPrice,
+    cur_price: 0, annual_div: 0, mid_div: 0, mid_month: 12, end_month: 6,
+    nisa: '課税', sector: ''
+  };
+  stocks.push(newStock);
+  if (typeof savePortfolioToLocal === 'function') savePortfolioToLocal();
+  refreshAllViews();
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = '情報を取得中...';
+  document.getElementById('sfHint').innerHTML =
+    `コード <b>${code}</b> の株価・配当・セクターなどを自動取得中...（数秒かかります）`;
+
+  try {
+    if (typeof enrichStockClient === 'function') {
+      const info = await enrichStockClient(code);
+      if (info && Object.keys(info).length > 0) {
+        if (info.cur_price) newStock.cur_price = info.cur_price;
+        if (info.annual_div) newStock.annual_div = info.annual_div;
+        if (info.per) newStock.per = info.per;
+        if (info.pbr) newStock.pbr = info.pbr;
+        if (info.mix_coef) newStock.mix_coef = info.mix_coef;
+        if (info.payout_ratio) newStock.payout_ratio = info.payout_ratio;
+        if (info.earnings_date && !newStock.earnings_date_manual) newStock.earnings_date = info.earnings_date;
+        if (info.yield && !newStock.annual_div && newStock.cur_price) {
+          newStock.annual_div = Math.round(newStock.cur_price * info.yield / 100 * 10) / 10;
+        }
+      }
+      /* 銘柄名はYahoo HTMLから取得できないので、上場全銘柄マップから補完 */
+      if (typeof allListedStocks !== 'undefined' && Array.isArray(allListedStocks)) {
+        const match = allListedStocks.find(x => String(x.code) === String(code));
+        if (match) {
+          newStock.name = match.name || ('銘柄' + code);
+          if (!newStock.sector && match.sector) newStock.sector = match.sector;
+        } else {
+          newStock.name = '銘柄' + code;
+        }
+      } else {
+        newStock.name = newStock.name === '取得中...' ? ('銘柄' + code) : newStock.name;
+      }
+    } else {
+      newStock.name = '銘柄' + code;
+    }
+  } catch(e) {
+    console.warn('[追加] 自動取得エラー（銘柄自体は登録済み）:', e);
+    newStock.name = '銘柄' + code;
+  }
+
+  if (typeof savePortfolioToLocal === 'function') savePortfolioToLocal();
+  refreshAllViews();
+  closeStockForm();
+}
+
+/* 背景クリックで閉じる */
+document.getElementById('stockFormOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeStockForm();
+});
+
+/* 個別銘柄をポートフォリオから削除（確認ダイアログあり） */
+function deleteStock(code, fromDetail) {
+  try {
+    const s = stocks.find(st => String(st.code) === String(code));
+    if (!s) { console.warn('[削除] 該当銘柄が見つかりません:', code); return; }
+    const label = `「${s.name || s.code}」(${s.code})`;
+    const ok = window.confirm(`本当に削除しますか？\n\n${label}\n\n※ この操作は取り消せません。`);
+    if (!ok) return;
+
+    /* stocks State から除去 */
+    const idx = stocks.findIndex(st => String(st.code) === String(code));
+    if (idx < 0) return;
+    stocks.splice(idx, 1);
+
+    /* 永続化（静的モードはlocalStorage、サーバーモードはAPI経由） */
+    if (typeof savePortfolioToLocal === 'function') savePortfolioToLocal();
+    if (!IS_STATIC) {
+      try {
+        fetch('/api/stocks', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(stocks)
+        }).catch(()=>{});
+      } catch(e) {}
+    }
+
+    /* 詳細オーバーレイが開いていたら閉じる */
+    if (fromDetail && typeof closeDetail === 'function') closeDetail();
+
+    /* 合計金額・グラフ・セクター比率を瞬時に反映 */
+    refreshAllViews();
+
+    console.log(`[削除] ${label} を削除しました（残り${stocks.length}銘柄）`);
+  } catch (e) {
+    console.error('[削除] 予期せぬエラー:', e);
+    alert('削除中にエラーが発生しました: ' + (e && e.message));
+  }
 }
 function loadPortfolioFromLocal() {
   const saved = localStorage.getItem('portfolio_stocks');
@@ -2220,7 +2444,8 @@ function renderPortfolio() {
     {key:'mix_coef',label:'ミックス係数',get:s=>s.mix_coef||0},
     {key:'valuation',label:'割安度',get:s=>{const m=s.mix_coef||0;return m<=0?99:m}},
     {key:'sector',label:'セクター',get:s=>getSector(s)},
-    {key:'earnings',label:'次回決算日',get:s=>s.earnings_date||'',core:true}
+    {key:'earnings',label:'次回決算日',get:s=>s.earnings_date||'',core:true},
+    {key:'_action',label:'',get:s=>0,core:true,noSort:true}  /* 削除ボタン列（ソート対象外） */
   ];
   const visibleCols = showExtraCols ? cols : cols.filter(c => c.core);
 
@@ -2297,14 +2522,23 @@ function renderPortfolio() {
         if (days <= 7)  return `<span ${clickable}><span style="color:#ef4444;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums">⚠️ ${disp}<span style="font-size:.75em;margin-left:4px">(${days}日)</span></span>${mark}</span>`;
         if (days <= 14) return `<span ${clickable}><span style="color:#f59e0b;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums">⚠️ ${disp}<span style="font-size:.75em;margin-left:4px">(${days}日)</span></span>${mark}</span>`;
         return `<span ${clickable}><span style="color:var(--text-secondary);white-space:nowrap;font-variant-numeric:tabular-nums">${disp}</span>${mark}</span>`;
-      })()
+      })(),
+      /* 編集（✏️）・削除（🗑️）ボタン。行クリック伝播を止めてモーダル/確認ダイアログへ */
+      _action: `<span style="display:inline-flex;gap:4px;white-space:nowrap">
+        <button onclick="event.stopPropagation(); openEditStock('${s.code}')" title="株数・取得単価を編集" style="padding:4px 8px;background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.85em;line-height:1;transition:all .15s" onmouseover="this.style.color='var(--accent2)';this.style.borderColor='var(--accent2)';this.style.background='rgba(59,130,246,.08)'" onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)';this.style.background='transparent'">✏️</button>
+        <button onclick="event.stopPropagation(); deleteStock('${s.code}')" title="この銘柄をポートフォリオから削除" style="padding:4px 8px;background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.85em;line-height:1;transition:all .15s" onmouseover="this.style.color='#ef4444';this.style.borderColor='#ef4444';this.style.background='rgba(239,68,68,.08)'" onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)';this.style.background='transparent'">🗑️</button>
+      </span>`
     };
   };
 
   let html = '<table><thead><tr>';
   visibleCols.forEach(c => {
     const arrow = sortCol === c.key ? (sortAsc ? ' \u25B2' : ' \u25BC') : '';
-    html += `<th data-sort="${c.key}">${c.label}<span class="sort-arrow">${arrow}</span></th>`;
+    if (c.noSort) {
+      html += `<th>${c.label}</th>`;
+    } else {
+      html += `<th data-sort="${c.key}">${c.label}<span class="sort-arrow">${arrow}</span></th>`;
+    }
   });
 
   /* Totals row */
@@ -2319,7 +2553,7 @@ function renderPortfolio() {
     pl: `<span class="${tp>=0?'text-green':'text-red'}">${fmtYen(Math.round(tp))}</span>`,
     plr: `<span class="${tp>=0?'text-green':'text-red'}">${fmtPct(tpr)}</span>`,
     div_per: '-', book_yield: fmtPct(safeDiv(td,tc)*100), cur_yield: fmtPct(safeDiv(td,tm)*100),
-    per: '-', pbr: '-', mix_coef: '-', valuation: '-', sector: '-', earnings: ''
+    per: '-', pbr: '-', mix_coef: '-', valuation: '-', sector: '-', earnings: '', _action: ''
   };
   html += '</tr><tr class="totals-row">';
   visibleCols.forEach((c, i) => {
@@ -2364,6 +2598,13 @@ document.getElementById('btnToggleCols').addEventListener('click', () => {
 });
 const _btnFetchAllEarn = document.getElementById('btnFetchAllEarnings');
 if (_btnFetchAllEarn) _btnFetchAllEarn.addEventListener('click', () => fetchAllEarnings());
+const _btnAddStock = document.getElementById('btnAddStock');
+if (_btnAddStock) _btnAddStock.addEventListener('click', () => openAddStock());
+/* Enterキーで保存 */
+document.getElementById('stockFormOverlay').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); submitStockForm(); }
+  if (e.key === 'Escape') closeStockForm();
+});
 
 function showDetail(s) {
   if (!s) return;
@@ -2395,7 +2636,9 @@ function showDetail(s) {
     <button onclick="closeDetail();goToSimulator(${s.code})" style="flex:1;padding:10px 16px;border-radius:12px;border:1px solid var(--accent2);cursor:pointer;font-weight:700;font-size:.82rem;background:none;color:var(--accent2);transition:opacity .2s">⏰ 買い時判断</button>
     <a href="https://kabutan.jp/stock/news?code=${s.code}" target="_blank" rel="noopener" style="flex:1;padding:10px 16px;border-radius:12px;border:1px solid #e91e63;cursor:pointer;font-weight:700;font-size:.82rem;background:none;color:#e91e63;text-decoration:none;text-align:center;transition:opacity .2s">📰 ニュース</a>
   </div>`;
-  card.innerHTML = `<h2>${s.name||'詳細'}<button class="close-btn" onclick="closeDetail()">&times;</button></h2>` +
+  /* 削除ボタン（詳細カード右上・目立ちすぎない赤アウトライン） */
+  const deleteBtn = `<button onclick="deleteStock('${s.code}', true)" title="この銘柄をポートフォリオから削除" style="margin-left:auto;margin-right:8px;padding:5px 10px;background:transparent;color:#ef4444;border:1px solid rgba(239,68,68,.4);border-radius:8px;cursor:pointer;font-size:.72em;font-weight:600;line-height:1;transition:all .15s;display:inline-flex;align-items:center;gap:4px;white-space:nowrap" onmouseover="this.style.background='rgba(239,68,68,.1)';this.style.borderColor='#ef4444'" onmouseout="this.style.background='transparent';this.style.borderColor='rgba(239,68,68,.4)'">🗑️ 削除</button>`;
+  card.innerHTML = `<h2><span style="overflow:hidden;text-overflow:ellipsis">${s.name||'詳細'}</span>${deleteBtn}<button class="close-btn" onclick="closeDetail()">&times;</button></h2>` +
     rows.map(r => `<div class="detail-row"><span class="dl">${r[0]}</span><span>${r[1]}</span></div>`).join('') + actionBtns + nisaBtn + memoHtml;
   document.getElementById('detailOverlay').classList.add('show');
 }
@@ -3684,11 +3927,13 @@ function parsePortfolioCsv(text) {
   /* 数値クリーンアップ:
      ・null/undefined/非文字列を安全化
      ・ダブル/シングルクォート、全角/半角カンマ、円・株・口・%・％、各種空白(タブ・全角スペース・NBSP)を除去
-     ・前後トリム後に parseFloat。失敗したら 0 */
+     ・前後トリム後に parseFloat / Number。失敗したら 0
+     ・どの証券会社フォーマットでも「"1,000"」「1,000」「1000円」等を確実に数値化する */
   const cleanNum = s => {
     try {
       if (s == null) return 0;
       let n = zen2han(s);
+      /* カンマ・引用符・空白を最優先で剥がす（ユーザー仕様）*/
       n = n.replace(/["'`]/g, '')
            .replace(/[,，]/g, '')
            .replace(/[円株口%％]/g, '')
@@ -3696,8 +3941,30 @@ function parsePortfolioCsv(text) {
            .trim();
       if (!n) return 0;
       const v = parseFloat(n);
-      return isNaN(v) ? 0 : v;
+      if (isNaN(v)) {
+        const v2 = Number(n);
+        return isNaN(v2) ? 0 : v2;
+      }
+      return v;
     } catch (e) { return 0; }
+  };
+
+  /* セル値のテキストクリーニング（引用符・空白を除去）*/
+  const cleanCell = s => {
+    if (s == null) return '';
+    return zen2han(s).replace(/["'`]/g, '').replace(/[\s\u00A0\u3000\t]/g, '').trim();
+  };
+
+  /* 証券コード判定: 「最初の列または2番目の列」が半角数字4桁ちょうどかを確認（ユーザー仕様）*/
+  const CODE_RE = /^\d{4}$/;
+  const detectCodeFromRow = (cols) => {
+    /* ① まず 1列目 */
+    const c0 = cleanCell(cols[0] || '').replace(/[^\d]/g, '');
+    if (CODE_RE.test(c0)) return { idx: 0, code: parseInt(c0, 10) };
+    /* ② 次に 2列目 */
+    const c1 = cleanCell(cols[1] || '').replace(/[^\d]/g, '');
+    if (CODE_RE.test(c1)) return { idx: 1, code: parseInt(c1, 10) };
+    return null;
   };
 
   /* CSV正しくパース（引用符対応） — 不正入力でも例外を投げない */
@@ -3771,8 +4038,8 @@ function parsePortfolioCsv(text) {
     for (const line of lines.slice(0, 5)) {
       const cols = parseCsvLine(line, delim);
       for (let i = 0; i < cols.length; i++) {
-        const v = cols[i].replace(/[^\d]/g, '');
-        if (/^\d{4,5}$/.test(v)) { codeCol = i; break; }
+        const v = cleanCell(cols[i]).replace(/[^\d]/g, '');
+        if (/^\d{4}$/.test(v)) { codeCol = i; break; }
       }
       if (codeCol >= 0) break;
     }
@@ -3790,33 +4057,40 @@ function parsePortfolioCsv(text) {
   let skipped = 0, errored = 0;
 
   for (let li = startLine; li < lines.length; li++) {
+    const rawLine = lines[li];
     try {
-      /* ----- 冒頭で空行・明らかに不正な行をスキップ ----- */
-      const rawLine = lines[li];
+      /* ----- ① 明らかに不正な行を早期スキップ（例外を出さず静かに continue） ----- */
       if (rawLine == null) { skipped++; continue; }
       const trimmed = String(rawLine).trim();
       if (!trimmed) { skipped++; continue; }                       // 空行
-      if (/^[\s,、\t]+$/.test(trimmed)) { skipped++; continue; }   // 区切りだけの行
-      if (/^[#※＊*]/.test(trimmed)) { skipped++; continue; }       // コメント/注記行
+      if (/^[\s,、\t]+$/.test(trimmed)) { skipped++; continue; }   // 区切りだけ
+      if (/^[#※＊*]/.test(trimmed)) { skipped++; continue; }       // コメント/注記
 
       const cols = parseCsvLine(rawLine, delim);
       if (!cols || cols.length === 0) { skipped++; continue; }
 
-      /* ----- 証券コード列が空欄・非4桁数字なら無視 ----- */
-      const rawCodeCell = codeCol >= 0 && codeCol < cols.length ? cols[codeCol] : '';
-      const codeStr = String(rawCodeCell || '').replace(/[^\d]/g, '');
-      if (!codeStr) { skipped++; continue; }                                // 証券コード空欄
-      if (!/^\d{4,5}$/.test(codeStr)) { skipped++; continue; }              // 4〜5桁の数字のみ許可
-      const code = parseInt(codeStr, 10);
-      if (isNaN(code) || code < 1000 || code > 99999) { skipped++; continue; }
+      /* ----- ② 証券コード判定: 最強のスキップ判定
+         ヘッダー検出で codeCol が確定している場合は優先、そうでなければ
+         1列目 / 2列目を半角数字4桁 (/^\d{4}$/) で判定。マッチしなければ静かにスキップ。
+         これで投資信託名・ヘッダーの日本語・空白行・合計金額などを一網打尽に除外できる。 */
+      let code = NaN;
+      if (codeCol >= 0 && codeCol < cols.length) {
+        const codeStr = cleanCell(cols[codeCol]).replace(/[^\d]/g, '');
+        if (/^\d{4}$/.test(codeStr)) code = parseInt(codeStr, 10);
+      }
+      if (isNaN(code)) {
+        const det = detectCodeFromRow(cols);
+        if (det) code = det.code;
+      }
+      if (isNaN(code)) { skipped++; continue; }  // 4桁の証券コードが無ければ静かに無視
 
-      /* ----- 残りの列がない場合でも、コードだけは拾えるようにフォールバック ----- */
+      /* ----- ③ 残りの列を数値化（カンマ・引用符・空白を確実に除去してから Number/parseFloat） ----- */
       const name = String(cols[nameCol] || '').replace(/^["']|["']$/g, '').trim();
       const shares = Math.round(cleanNum(cols[sharesCol]));
       const buyPrice = cleanNum(cols[buyCol]);
       const curPrice = cleanNum(cols[curCol]);
 
-      /* 株数も価格も全く無いなら無効行として無視（ヘッダー的な行など） */
+      /* 株数も価格も全く取れないなら無効行として無視（ヘッダー的な行など） */
       if (shares === 0 && buyPrice === 0 && curPrice === 0) { skipped++; continue; }
 
       result.push({
@@ -3827,28 +4101,28 @@ function parsePortfolioCsv(text) {
         nisa: '課税', sector: ''
       });
     } catch (e) {
-      /* 1行の例外で全体を止めない。ログだけ残して次へ */
+      /* ----- ④ 1行の例外で全体を止めない。警告ログだけ残して次へ ----- */
       errored++;
-      console.warn(`[CSV Parse] ${li+1}行目の処理でエラー、スキップしました:`, e.message, lines[li]);
+      console.warn('[CSV Parse] スキップした行:', rawLine, '理由:', e && e.message);
       continue;
     }
   }
 
-  /* もし結果が0件なら、全列を走査して4-5桁数字を探すフォールバック */
+  /* もし結果が0件なら、全列を走査して4桁数字を探すフォールバック */
   if (result.length === 0 && lines.length > 0) {
     console.log('[CSV Parse] 標準パース失敗、フォールバック: 全列から銘柄コード検索');
     for (let li = 0; li < lines.length; li++) {
+      const raw = lines[li];
       try {
-        const raw = lines[li];
         if (!raw || !String(raw).trim()) continue;
         const cols = parseCsvLine(raw, delim);
         if (!cols || cols.length === 0) continue;
-        /* 各列をスキャンして4-5桁数字を探す */
+        /* 各列をスキャンして 4桁ちょうどの数字 を探す */
         for (let ci = 0; ci < cols.length; ci++) {
-          const v = String(cols[ci] || '').replace(/[^\d]/g, '');
-          if (!/^\d{4,5}$/.test(v)) continue;
+          const v = cleanCell(cols[ci]).replace(/[^\d]/g, '');
+          if (!/^\d{4}$/.test(v)) continue;
           const code = parseInt(v, 10);
-          if (isNaN(code) || code < 1000 || code > 99999) continue;
+          if (isNaN(code) || code < 1000 || code > 9999) continue;
           /* コード列の後ろから名前・数値を取得 */
           const remaining = cols.filter((_, j) => j !== ci);
           const nameCandidate = remaining.find(c => c && !/^[\d,.\-+%]+$/.test(String(c).replace(/[\s円株口]/g, '')));
@@ -3869,7 +4143,7 @@ function parsePortfolioCsv(text) {
         }
       } catch (e) {
         errored++;
-        console.warn(`[CSV Parse] フォールバック ${li+1}行目でエラー、スキップ:`, e.message);
+        console.warn('[CSV Parse] フォールバックでスキップした行:', raw, '理由:', e && e.message);
         continue;
       }
     }
