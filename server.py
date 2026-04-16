@@ -11,6 +11,7 @@ import threading
 import time
 import urllib.request
 import urllib.error
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 PORT = int(os.environ.get("PORT", 8080))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -133,7 +134,7 @@ def fetch_stock_info(code):
     try:
         url_yf = f"https://finance.yahoo.co.jp/quote/{code}.T"
         req_yf = urllib.request.Request(url_yf, headers={"User-Agent": UA})
-        with urllib.request.urlopen(req_yf, timeout=15) as resp_yf:
+        with urllib.request.urlopen(req_yf, timeout=8) as resp_yf:
             html_yf = resp_yf.read().decode("utf-8", errors="ignore")
 
         # JSON内の "price" フィールド（最も正確）
@@ -196,7 +197,7 @@ def fetch_stock_info(code):
     try:
         url_ir = f"https://irbank.net/{code}"
         req_ir = urllib.request.Request(url_ir, headers={"User-Agent": UA})
-        with urllib.request.urlopen(req_ir, timeout=15) as resp_ir:
+        with urllib.request.urlopen(req_ir, timeout=8) as resp_ir:
             html_ir = resp_ir.read().decode("utf-8", errors="ignore")
         text_ir = re.sub(r'<[^>]+>', ' ', html_ir)
         text_ir = re.sub(r'&[a-z]+;', ' ', text_ir)
@@ -250,7 +251,7 @@ def fetch_stock_info(code):
         try:
             url_mk = f"https://minkabu.jp/stock/{code}"
             req_mk = urllib.request.Request(url_mk, headers={"User-Agent": UA})
-            with urllib.request.urlopen(req_mk, timeout=15) as resp_mk:
+            with urllib.request.urlopen(req_mk, timeout=8) as resp_mk:
                 html_mk = resp_mk.read().decode("utf-8", errors="ignore")
             text_mk = re.sub(r'<[^>]+>', '|', html_mk)
             text_mk = re.sub(r'\s+', ' ', text_mk)
@@ -270,7 +271,7 @@ def fetch_stock_info(code):
     try:
         url_div = f"https://minkabu.jp/stock/{code}/dividend"
         req_div = urllib.request.Request(url_div, headers={"User-Agent": UA})
-        with urllib.request.urlopen(req_div, timeout=15) as resp_div:
+        with urllib.request.urlopen(req_div, timeout=8) as resp_div:
             html_div = resp_div.read().decode("utf-8", errors="ignore")
 
         text_div = re.sub(r'<[^>]+>', '|', html_div)
@@ -537,7 +538,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_error(404)
 
     def _handle_enrich(self, body):
-        """銘柄データ更新 - ストリーミングでプログレス返す"""
+        """銘柄データ更新 - ThreadPoolExecutor で並列スクレイピング + ストリーミング進捗返す。
+        update_all.py と同じ 5 並列構成。逐次(1銘柄1.5秒sleep)の旧実装より 5〜10 倍速い。"""
         try:
             req = json.loads(body.decode("utf-8"))
             only_missing = req.get("only_missing", False)
@@ -559,13 +561,29 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         updated = 0
         stock_map = {s["code"]: s for s in stocks}
+        total = len(targets)
+        client_alive = True
 
-        for i, target in enumerate(targets):
+        def _process_one(target):
+            """ワーカースレッドで1銘柄取得。例外は捕捉して返す。"""
             code = target["code"]
-            name = target["name"]
-            pct = int((i + 1) / len(targets) * 100)
             try:
                 info = fetch_stock_info(code)
+                return target, info, None
+            except Exception as e:
+                return target, None, str(e)
+
+        MAX_WORKERS = 5  # update_all.py と同値。ソース側への負荷を抑える上限。
+        completed = 0
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = [executor.submit(_process_one, t) for t in targets]
+            for future in as_completed(futures):
+                target, info, err = future.result()
+                code = target["code"]
+                name = target["name"]
+                completed += 1
+                pct = int(completed / max(1, total) * 100)
+
                 if info:
                     stock_map[code].update(info)
                     updated += 1
@@ -577,26 +595,34 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     if "per" in info:
                         parts.append(f"PER{info['per']}")
                     result = " / ".join(parts) if parts else "一部取得"
+                elif err:
+                    result = f"エラー: {err}"
                 else:
                     result = "取得失敗"
-            except Exception as e:
-                result = f"エラー: {e}"
 
-            line = json.dumps({
-                "type": "progress", "current": i + 1, "total": len(targets),
-                "pct": pct, "code": code, "name": name, "result": result
-            }, ensure_ascii=False) + "\n"
-            self._send_chunk(line)
-            time.sleep(1.5)  # Rate limit
+                # クライアントが切断していてもワーカーは完走させ、最後に save_stocks する
+                if client_alive:
+                    line = json.dumps({
+                        "type": "progress", "current": completed, "total": total,
+                        "pct": pct, "code": code, "name": name, "result": result
+                    }, ensure_ascii=False) + "\n"
+                    try:
+                        self._send_chunk(line)
+                    except Exception:
+                        client_alive = False  # 以降の send はスキップ
 
-        # Save updated stocks
+        # Save updated stocks (完走した結果を必ずディスクに反映)
         save_stocks(list(stock_map.values()))
 
-        done_line = json.dumps({
-            "type": "done", "updated": updated, "total": len(targets)
-        }, ensure_ascii=False) + "\n"
-        self._send_chunk(done_line)
-        self._send_chunk("")  # End chunked
+        if client_alive:
+            try:
+                done_line = json.dumps({
+                    "type": "done", "updated": updated, "total": total
+                }, ensure_ascii=False) + "\n"
+                self._send_chunk(done_line)
+                self._send_chunk("")  # End chunked
+            except Exception:
+                pass
 
     def _handle_screening(self):
         """リベ大流スクリーニングを実行（バックグラウンドで実行、ストリーミングで進捗返す）"""
