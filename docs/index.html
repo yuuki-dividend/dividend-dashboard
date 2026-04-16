@@ -5152,7 +5152,13 @@ async function enrichStocks(onlyMissing, forceRefresh) {
       const needFull = [];
       const hitCache = [];
       for (const s of targets) {
-        if (!force && isEnrichCacheFresh(s)) hitCache.push(s);
+        /* 決算月が未取得（デフォルト値 end_month=6/mid_month=12 で mid_div=0）の銘柄は、
+         * キャッシュに関係なく強制フル取得。サーバー API の fiscal_year_end_month を
+         * 反映させるため。手動設定されている場合は除外。 */
+        const needsFiscalMonth = !s.end_month_manual && !s.mid_month_manual
+          && s.end_month === 6 && s.mid_month === 12
+          && (!s.mid_div || s.mid_div === 0) && !s.fiscal_year_end_month;
+        if (!force && !needsFiscalMonth && isEnrichCacheFresh(s)) hitCache.push(s);
         else needFull.push(s);
       }
       detail.textContent = `対象 ${targets.length} 件: キャッシュ有効 ${hitCache.length} / 要フル取得 ${needFull.length}`;

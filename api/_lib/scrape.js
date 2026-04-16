@@ -148,15 +148,25 @@ async function scrapeIrBank(code) {
   if (m) { const v = toNum(m[1]); if (inRange(v, 0.01, 100)) out.pbr = v; }
   m = text.match(/自己資本比率[^%]{0,25}?(\d+(?:\.\d+)?)\s*%/);
   if (m) { const v = toNum(m[1]); if (inRange(v, 0, 100)) out.equity_ratio = v; }
-  // 決算月: 「決算月 3月」「決算期 2025/03」等
+  // 決算月: IR BANK は「2026年3月期」「2025年12月期」のように書く
+  //   マックス(6454) の例: "2026年3月期決算短信〔日本基準〕(連結)"
+  //   オカムラ(7994) の例: "2026年3月期..."
+  //   他: "決算月 3月" / "決算期 2025/03" 等
   const fmPats = [
+    /\d{4}\s*年\s*(\d{1,2})\s*月期/,               // "2026年3月期" ← IR BANK メイン
     /決算月[^0-9]{0,10}?(\d{1,2})\s*月/,
     /決算期[^0-9]{0,10}?\d{4}\s*[\/年\-]\s*(\d{1,2})/,
     /本決算[^0-9]{0,10}?(\d{1,2})\s*月/,
+    /通期\s*(\d{4})\/(\d{1,2})/,                    // "通期 2025/03"
   ];
   for (const p of fmPats) {
     const mm = text.match(p);
-    if (mm) { const v = parseInt(mm[1], 10); if (v >= 1 && v <= 12) { out.fiscal_month = v; break; } }
+    if (mm) {
+      // 最後のキャプチャグループを月として採用(どの regex でも末尾が月)
+      const monthStr = mm[mm.length - 1];
+      const v = parseInt(monthStr, 10);
+      if (v >= 1 && v <= 12) { out.fiscal_month = v; break; }
+    }
   }
   return out;
 }
