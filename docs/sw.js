@@ -1,6 +1,6 @@
 // Service Worker for 高配当株ダッシュボード PWA
-// v2: stale-while-revalidate for instant load + background update + new-version notification
-const CACHE_VERSION = 'v2';
+// v3: stale-while-revalidate (same-origin + CDN only) — CORS proxy calls bypass SW
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = 'dividend-dashboard-' + CACHE_VERSION;
 
 // Resources to pre-cache on install
@@ -49,7 +49,14 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch: Stale-While-Revalidate for static, Network First for API
+// Fetch: Stale-While-Revalidate for static, Network First for API.
+// IMPORTANT: We only intercept same-origin + whitelisted CDN. CORS proxy calls
+// (corsproxy.io / allorigins / codetabs / etc.) are NOT touched — they must go
+// direct to network so rate-limit / cache-bypass behavior stays correct.
+const SW_SAME_ORIGIN_OR_CDN = new Set([
+  self.location.origin,
+  'https://cdn.jsdelivr.net',
+]);
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
@@ -59,13 +66,17 @@ self.addEventListener('fetch', event => {
   // Skip non-http(s) requests (chrome-extension:, data:, etc.)
   if (!url.protocol.startsWith('http')) return;
 
+  // Do NOT intercept cross-origin fetches (CORS proxies, third-party APIs, etc.)
+  // These must reach the network directly every time.
+  if (!SW_SAME_ORIGIN_OR_CDN.has(url.origin)) return;
+
   // API requests: network first
   if (API_URLS.some(api => url.pathname === api)) {
     event.respondWith(networkFirstAPI(event.request));
     return;
   }
 
-  // Static resources (HTML, CSS, JS, images, icons, CDN): stale-while-revalidate
+  // Static resources (HTML, CSS, JS, images, icons, whitelisted CDN): stale-while-revalidate
   event.respondWith(staleWhileRevalidate(event.request, event));
 });
 

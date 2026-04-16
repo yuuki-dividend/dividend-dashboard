@@ -3976,60 +3976,85 @@ const PRICE_PATTERNS = [
   /現在値[^0-9]{0,30}([\d,]+\.?\d*)\s*円/
 ];
 
+/* プロキシ健全性の短期記憶（同一セッション内）
+   1 プロキシが連続失敗したら次の株ではスキップして quota を節約 */
+const PROXY_HEALTH = { corsproxy: {fail:0, skipUntil:0}, allorigins: {fail:0, skipUntil:0}, codetabs: {fail:0, skipUntil:0} };
+function proxyKey(name) { return name.split('.')[0]; }
+function proxyAvailable(name) {
+  const h = PROXY_HEALTH[proxyKey(name)];
+  return !h || Date.now() >= h.skipUntil;
+}
+function markProxyFail(name) {
+  const k = proxyKey(name);
+  const h = PROXY_HEALTH[k] = PROXY_HEALTH[k] || {fail:0, skipUntil:0};
+  h.fail += 1;
+  /* 連続3回失敗 → 30 秒スキップ（rate limit 対策）*/
+  if (h.fail >= 3) { h.skipUntil = Date.now() + 30000; h.fail = 0; }
+}
+function markProxyOk(name) {
+  const h = PROXY_HEALTH[proxyKey(name)];
+  if (h) { h.fail = 0; h.skipUntil = 0; }
+}
+
 async function fetchPriceClient(code, externalSignal) {
   if (externalSignal?.aborted) return null;
   const PER_TIMEOUT = 8000; /* 1 プロキシ試行の上限 8 秒 */
   const targetUrl = `https://finance.yahoo.co.jp/quote/${code}.T`;
 
-  /* 3 プロキシに並列投げ、最初に成功したものを採用 */
-  const buildAttempts = () => PRICE_CORS_PROXIES.map((prx) => (async () => {
+  /* プロキシを「順次」試行。1つ成功したら即返却、失敗したら次へ。
+     以前の並列 race は全プロキシの quota を一気に消費してしまい、
+     rate limit を誘発していた。順次なら成功時点で以降をスキップできる。 */
+  const tryProxy = async (prx) => {
     const label = `[${code}][${prx.name}]`;
+    if (!proxyAvailable(prx.name)) {
+      return { ok: false, skipped: true, msg: 'cooling-down' };
+    }
     const signals = [AbortSignal.timeout(PER_TIMEOUT)];
     if (externalSignal) signals.push(externalSignal);
     let resp;
     try {
       resp = await fetch(prx.make(targetUrl), { signal: AbortSignal.any(signals) });
     } catch (e) {
-      const msg = (e && e.name === 'TimeoutError') ? `timeout (${PER_TIMEOUT/1000}s)` : (e?.message || 'network error');
-      console.error(`[fetchPriceClient]${label} fetch 失敗: ${msg}`);
-      throw new Error(msg);
+      const msg = (e && e.name === 'TimeoutError') ? `timeout(${PER_TIMEOUT/1000}s)` : (e?.message || 'network error');
+      markProxyFail(prx.name);
+      return { ok: false, msg };
     }
     if (!resp.ok) {
-      console.error(`[fetchPriceClient]${label} HTTP ${resp.status} ${resp.statusText}`);
-      throw new Error(`HTTP ${resp.status}`);
+      markProxyFail(prx.name);
+      return { ok: false, msg: `HTTP ${resp.status}` };
     }
     let html;
-    try {
-      html = await resp.text();
-    } catch (e) {
-      console.error(`[fetchPriceClient]${label} response.text() 失敗:`, e?.message);
-      throw e;
-    }
+    try { html = await resp.text(); }
+    catch (e) { markProxyFail(prx.name); return { ok: false, msg: 'text() failed' }; }
     if (!html || html.length < 100) {
-      console.error(`[fetchPriceClient]${label} 空レスポンス (len=${html?.length||0})`);
-      throw new Error('empty response');
+      markProxyFail(prx.name);
+      return { ok: false, msg: `empty(${html?.length||0})` };
     }
     for (const pattern of PRICE_PATTERNS) {
       const m = html.match(pattern);
       if (m) {
         const p = validateNumber(m[1], 'price');
-        if (p != null) return p;
+        if (p != null) {
+          markProxyOk(prx.name);
+          return { ok: true, price: p };
+        }
       }
     }
-    console.error(`[fetchPriceClient]${label} 価格パターン不一致 (html.length=${html.length})`);
-    throw new Error('no price pattern matched');
-  })());
+    /* HTML は取れたが価格パターン不一致 — プロキシ自体は健全なので fail にはしない */
+    return { ok: false, msg: `pattern-miss(len=${html.length})` };
+  };
 
   const tryOnce = async () => {
     if (externalSignal?.aborted) return null;
-    try {
-      return await Promise.any(buildAttempts());
-    } catch (aggErr) {
-      const errs = aggErr?.errors || [];
-      console.error(`[fetchPriceClient][${code}] 全 ${errs.length} プロキシ失敗:`,
-        errs.map(e => e?.message).filter(Boolean).join(' / ') || '不明');
-      return null;
+    const reasons = [];
+    for (const prx of PRICE_CORS_PROXIES) {
+      const r = await tryProxy(prx);
+      if (r.ok) return r.price;
+      reasons.push(`${prx.name}:${r.msg}`);
+      if (externalSignal?.aborted) return null;
     }
+    console.error(`[fetchPriceClient][${code}] 全プロキシ失敗: ${reasons.join(' / ')}`);
+    return null;
   };
 
   /* 1 回目 */
@@ -4037,12 +4062,12 @@ async function fetchPriceClient(code, externalSignal) {
   if (p != null) return p;
   if (externalSignal?.aborted) return null;
 
-  /* 2 秒待って 1 度だけリトライ */
-  console.warn(`[fetchPriceClient][${code}] 1回目全滅、2秒後リトライ`);
-  await new Promise(r => setTimeout(r, 2000));
+  /* 3 秒待って 1 度だけリトライ */
+  console.warn(`[fetchPriceClient][${code}] 1回目全滅、3秒後リトライ`);
+  await new Promise(r => setTimeout(r, 3000));
   if (externalSignal?.aborted) return null;
   p = await tryOnce();
-  if (p == null) console.error(`[fetchPriceClient][${code}] リトライも失敗 — 全プロキシ取得不可`);
+  if (p == null) console.error(`[fetchPriceClient][${code}] リトライも失敗`);
   return p;
 }
 
@@ -4052,9 +4077,10 @@ async function updatePricesClient(statusEl, barEl, targetList) {
   let updated = 0, failed = 0, completed = 0;
   cancelFlag.update = false;
   window._updateAbort = new AbortController();
-  /* 株価は超軽量（3プロキシ並列・8秒タイムアウト）なので 8 並列に拡大。
-     1 銘柄 = 3 リクエスト、8 並列 = 24 同時リクエスト（ブラウザ上限 ≒ 6/domain × 3 domains = 18 で緩やかに待ち） */
-  const CHUNK_SIZE = 8;
+  /* 価格取得は順次プロキシ fallback 方式に変更したので、並列数を 4 に抑えて
+     プロキシ rate limit を回避。4 銘柄 × 最大 3 プロキシ = 12 requests が上限。
+     チャンク間に 200ms の小休止を入れ、CORS プロキシの連続リクエストを緩和。 */
+  const CHUNK_SIZE = 4;
   for (let i = 0; i < list.length; i += CHUNK_SIZE) {
     if (cancelFlag.update) {
       statusEl.textContent = `⏹ 中止: ${completed}/${list.length}処理済（成功${updated}/失敗${failed}）`;
@@ -4078,10 +4104,10 @@ async function updatePricesClient(statusEl, barEl, targetList) {
     }
     if (barEl) barEl.style.width = Math.round(completed/list.length*100) + '%';
     statusEl.textContent = `${completed}/${list.length}: 成功${updated}/失敗${failed}`;
-    /* チャンク間の休憩は 30ms のみ（中止応答用） */
+    /* チャンク間 200ms スリープ（プロキシへの連続ヒットを緩和） */
     if (i + CHUNK_SIZE < list.length) {
       if (cancelFlag.update) break;
-      await new Promise(r => setTimeout(r, 30));
+      await new Promise(r => setTimeout(r, 200));
     }
   }
   if (IS_STATIC) savePortfolioToLocal();
