@@ -455,11 +455,11 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
         </div>
       </div>
     </div>
-    <!-- 📊 配当・業績も含めて更新（スマートキャッシュ：24h以内はキャッシュから読込） -->
+    <!-- 📊 配当・業績も含めて更新（スマートキャッシュ：72h 以内はキャッシュから読込） -->
     <div class="card settings-section">
       <h3>📊 配当・業績も含めて更新</h3>
-      <p style="font-size:.82em;color:var(--text-muted);margin-bottom:6px">配当金・PER・PBR・配当性向・連続増配実績までまとめて取得します。<b>24時間以内に取得済みの銘柄はキャッシュから瞬時に読み込み、株価だけ最新化</b>します（大幅高速化）。24時間以上経過 or 新規銘柄だけフルスクレイピングします。</p>
-      <p style="font-size:.78em;color:var(--text-muted);margin-bottom:10px">💡 キャッシュ有効期限: <b>24時間</b> / 株価は常に毎回最新化 / 配当・PER/PBR・業績は24h以内ならスキップ</p>
+      <p style="font-size:.82em;color:var(--text-muted);margin-bottom:6px">配当金・PER・PBR・配当性向・連続増配実績までまとめて取得します。<b>72時間（3日間）以内に取得済みの銘柄はキャッシュから瞬時に読み込み、株価だけ最新化</b>します（大幅高速化）。72時間以上経過 or 新規銘柄だけフルスクレイピングします。</p>
+      <p style="font-size:.78em;color:var(--text-muted);margin-bottom:10px">💡 キャッシュ有効期限: <b>72時間（3日間）</b> / 株価は常に毎回最新化 / 配当・PER/PBR・業績は72h 以内ならスキップ（相手サーバー負荷・BANリスク軽減）</p>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-primary" id="btnEnrichAll" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)">📊 全部更新する</button>
         <label style="display:inline-flex;align-items:center;gap:6px;font-size:.82em;color:var(--text-muted);cursor:pointer">
@@ -4361,13 +4361,14 @@ document.getElementById('btnImportPaste').addEventListener('click', async () => 
    ・2ソースが20%超乖離したら needs_review フラグを立てる
 */
 /* ======== キャッシュ戦略 ========
- * 株価（cur_price）: 毎回必ずフェッチして最新化
- * 配当/PER/PBR/業績/セクター等: 24時間キャッシュ（変動が少ない）
- * 決算日: 24時間キャッシュ（ただし past date 化した瞬間に失効）
+ * 株価（cur_price）: 毎回必ずフェッチして最新化（軽量）
+ * 配当/PER/PBR/業績/セクター等: 72時間（3日間）キャッシュ（変動が少ない）
+ * 決算日: 72時間キャッシュ（ただし past date 化した瞬間に失効）
  * 手動入力値（earnings_date_manual）は永続（キャッシュ判定の外）
+ * ※相手サーバーへの負荷・BANリスクを避けつつ体感速度を劇的改善
  * ================================ */
-const ENRICH_CACHE_TTL_MS = 24 * 60 * 60 * 1000; /* 24 時間 */
-const EARNINGS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const ENRICH_CACHE_TTL_MS = 72 * 60 * 60 * 1000; /* 72 時間 = 3 日間 */
+const EARNINGS_CACHE_TTL_MS = 72 * 60 * 60 * 1000;
 
 /* enrich（配当/PER/PBR/業績）のキャッシュが有効かどうか */
 function isEnrichCacheFresh(s) {
