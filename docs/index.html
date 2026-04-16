@@ -1159,7 +1159,7 @@ async function refetchSingleEarnings(code, forceRefresh) {
   return ok;
 }
 
-/* 全銘柄の決算日を並列取得（5銘柄チャンク / 24hキャッシュ対応） */
+/* 全銘柄の決算日を直列取得（72hキャッシュ対応・1件ごと2.5秒スリープ） */
 async function fetchAllEarnings(forceRefresh) {
   const btn = document.getElementById('btnFetchAllEarnings');
   const st = document.getElementById('earningsFetchStatus');
@@ -1177,25 +1177,23 @@ async function fetchAllEarnings(forceRefresh) {
   let ok = hitCache.length, ng = 0, completed = hitCache.length;
   if (st) st.textContent = `対象 ${allTargets.length} 件: キャッシュ有効 ${hitCache.length} / 要取得 ${needFetch.length}`;
 
-  const CHUNK_SIZE = 5;
-  for (let i = 0; i < needFetch.length; i += CHUNK_SIZE) {
-    const chunk = needFetch.slice(i, i + CHUNK_SIZE);
-    if (st) st.textContent = `${completed+1}〜${Math.min(completed+chunk.length, allTargets.length)}/${allTargets.length}: ${chunk.map(s=>s.code).join(', ')} を並列取得中...`;
-    const results = await Promise.all(chunk.map(async (s) => {
-      try {
-        return await refetchSingleEarnings(s.code, force);
-      } catch (e) {
-        console.warn(`[${s.code}] 決算日取得失敗:`, e && e.message);
-        return false;
-      }
-    }));
-    for (const got of results) {
-      completed++;
-      if (got) ok++; else ng++;
+  const SLEEP_BETWEEN_MS = 2500; /* 1 件ごとに 2.5 秒待機で BAN 回避 */
+  for (let i = 0; i < needFetch.length; i++) {
+    const s = needFetch[i];
+    if (st) st.textContent = `${completed+1}/${allTargets.length}: ${s.code} ${s.name||''} を直列取得中...（成功${ok}/失敗${ng}）`;
+    let got = false;
+    try {
+      got = await refetchSingleEarnings(s.code, force);
+    } catch (e) {
+      console.warn(`[${s.code}] 決算日取得失敗:`, e && e.message);
+      got = false;
     }
+    completed++;
+    if (got) ok++; else ng++;
     if (st) st.textContent = `${completed}/${allTargets.length}: 成功${ok}件 / 失敗${ng}件`;
-    if (i + CHUNK_SIZE < needFetch.length) {
-      await new Promise(r => setTimeout(r, 150));
+    /* 1 件処理後に 2.5 秒待機 */
+    if (i < needFetch.length - 1) {
+      await new Promise(r => setTimeout(r, SLEEP_BETWEEN_MS));
     }
   }
   if (st) st.textContent = `✅ 完了: 成功${ok}件（うちキャッシュ${hitCache.length}件）/ 失敗${ng}件（失敗分はクリックで手動入力できます）`;
@@ -3747,34 +3745,43 @@ document.getElementById('thresholdInput').addEventListener('change', e => {
 const savedThreshold = localStorage.getItem('threshold');
 if (savedThreshold) document.getElementById('thresholdInput').value = savedThreshold;
 
-/* === クライアント側 株価取得（並列プロキシ + 5秒タイムアウト Fail Fast） === */
+/* === クライアント側 株価取得（15秒タイムアウト + 3秒待機後 1 回リトライ）=== */
 async function fetchPriceClient(code, externalSignal) {
-  if (externalSignal?.aborted) return null;
   const targetUrl = `https://finance.yahoo.co.jp/quote/${code}.T`;
   const PROXIES = [
     url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
     url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     url => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
   ];
-  const per = 5000;
-  const attempts = PROXIES.map(async (makeUrl) => {
-    const signals = [AbortSignal.timeout(per)];
-    if (externalSignal) signals.push(externalSignal);
-    const resp = await fetch(makeUrl(targetUrl), {signal: AbortSignal.any(signals)});
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const html = await resp.text();
-    if (html.length < 100) throw new Error('empty');
-    const m = html.match(/"price":\s*"?([\d,.]+)/);
-    if (!m) throw new Error('no price match');
-    const p = validateNumber(m[1], 'price');
-    if (p == null) throw new Error('invalid price');
-    return p;
-  });
-  try {
-    return await Promise.any(attempts);
-  } catch (e) {
-    return null;
-  }
+  const per = 15000; /* 15 秒で打ち切り */
+  const tryOnce = async () => {
+    if (externalSignal?.aborted) return null;
+    const attempts = PROXIES.map(async (makeUrl) => {
+      const signals = [AbortSignal.timeout(per)];
+      if (externalSignal) signals.push(externalSignal);
+      const resp = await fetch(makeUrl(targetUrl), {signal: AbortSignal.any(signals)});
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const html = await resp.text();
+      if (html.length < 100) throw new Error('empty');
+      const m = html.match(/"price":\s*"?([\d,.]+)/);
+      if (!m) throw new Error('no price match');
+      const p = validateNumber(m[1], 'price');
+      if (p == null) throw new Error('invalid price');
+      return p;
+    });
+    try { return await Promise.any(attempts); }
+    catch (e) { return null; }
+  };
+  let p = await tryOnce();
+  if (p != null) return p;
+  if (externalSignal?.aborted) return null;
+  /* 3 秒待って 1 度だけリトライ */
+  console.warn(`[fetchPriceClient] [${code}] 1回目失敗、3秒後リトライ`);
+  await new Promise(r => setTimeout(r, 3000));
+  if (externalSignal?.aborted) return null;
+  p = await tryOnce();
+  if (p == null) console.warn(`[fetchPriceClient] [${code}] リトライも失敗`);
+  return p;
 }
 
 async function updatePricesClient(statusEl, barEl, targetList) {
@@ -4399,26 +4406,36 @@ const CORS_PROXIES = [
   (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
   (u) => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u)
 ];
-/* Promise.any: 最初に resolve したもの採用 / 全部 reject で AggregateError → null
-   各プロキシは個別に per-ms のタイムアウト、全体は約 per-ms で打ち切り */
+/* fetchTextClient: 各プロキシを並列試行（最初に resolve で採用）
+   タイムアウトは緩めの 18 秒。1 回失敗したら 3 秒待って 1 度だけリトライ。
+   確実性を最優先。 */
 async function fetchTextClient(url, timeoutMs, externalSignal) {
-  const per = timeoutMs || 6000; /* デフォルト 6 秒で打ち切り */
+  const per = timeoutMs || 18000; /* デフォルト 18 秒で打ち切り（プロキシ遅延に寛容） */
+  const tryOnce = async () => {
+    if (externalSignal?.aborted) return null;
+    const attempts = CORS_PROXIES.map(async (mk) => {
+      const signals = [AbortSignal.timeout(per)];
+      if (externalSignal) signals.push(externalSignal);
+      const r = await fetch(mk(url), { signal: AbortSignal.any(signals) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const h = await r.text();
+      if (!h || h.length < 50) throw new Error('Empty response');
+      return { raw: h, text: h.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ') };
+    });
+    try { return await Promise.any(attempts); }
+    catch (e) { return null; /* AggregateError: 全プロキシ失敗 */ }
+  };
+  /* 1 回目 */
+  let result = await tryOnce();
+  if (result) return result;
   if (externalSignal?.aborted) return null;
-  const attempts = CORS_PROXIES.map(async (mk) => {
-    const signals = [AbortSignal.timeout(per)];
-    if (externalSignal) signals.push(externalSignal);
-    const r = await fetch(mk(url), { signal: AbortSignal.any(signals) });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const h = await r.text();
-    if (!h || h.length < 50) throw new Error('Empty response');
-    return { raw: h, text: h.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ') };
-  });
-  try {
-    return await Promise.any(attempts);
-  } catch (e) {
-    /* AggregateError: 全プロキシ失敗 or タイムアウト */
-    return null;
-  }
+  /* 失敗時: 3 秒待って 1 度だけ再挑戦 */
+  console.warn(`[fetchTextClient] 1回目失敗、3秒後リトライ: ${url}`);
+  await new Promise(r => setTimeout(r, 3000));
+  if (externalSignal?.aborted) return null;
+  result = await tryOnce();
+  if (!result) console.warn(`[fetchTextClient] リトライも失敗: ${url}`);
+  return result;
 }
 
 async function enrichStockClient(code, externalSignal) {
@@ -4668,55 +4685,58 @@ async function enrichStocks(onlyMissing, forceRefresh) {
         }
       }
 
-      /* ========= B. キャッシュ切れ・新規: フルスクレイピング（3銘柄並列） ========= */
-      const CHUNK_SIZE = 3;
-      for (let i = 0; i < needFull.length; i += CHUNK_SIZE) {
+      /* ========= B. キャッシュ切れ・新規: フルスクレイピング（直列 for...of）=========
+       * 確実性を最優先: 1 銘柄ずつ順番に取得し、完了後 2.5 秒スリープ。
+       * 相手サーバーへの負荷・BANリスクを最小化。 */
+      const SLEEP_BETWEEN_MS = 2500; /* 1 銘柄完了ごとに 2.5 秒待機 */
+      for (let i = 0; i < needFull.length; i++) {
         if (cancelFlag.enrich) {
           status.textContent = `⏹ 中止: ${completed}/${targets.length}処理済（成功${updated}件 / キャッシュ${cacheHits}件）`;
           status.style.color = 'var(--accent4)';
           savePortfolioToLocal();
           break;
         }
-        const chunk = needFull.slice(i, i + CHUNK_SIZE);
-        detail.textContent = `[フル取得] ${completed+1}〜${Math.min(completed+chunk.length, targets.length)}/${targets.length}: ${chunk.map(s=>s.code).join(', ')} 並列取得中...`;
-        const results = await Promise.all(chunk.map(async (s) => {
-          try {
-            const info = await enrichStockClient(s.code, window._enrichAbort.signal);
-            return { s, info, error: null };
-          } catch (e) {
-            console.warn(`[${s.code}] enrichStockClient 失敗:`, e && e.message);
-            return { s, info: {}, error: e };
+        const s = needFull[i];
+        detail.textContent = `[フル取得 直列] ${completed+1}/${targets.length}: ${s.code} ${s.name||''} 取得中...`;
+        let info = {};
+        try {
+          info = await enrichStockClient(s.code, window._enrichAbort.signal);
+        } catch (e) {
+          console.warn(`[${s.code}] enrichStockClient 失敗:`, e && e.message);
+          info = {};
+        }
+        completed++;
+        if (info && Object.keys(info).length > 0) {
+          if (info.cur_price) s.cur_price = info.cur_price;
+          if (info.annual_div) s.annual_div = info.annual_div;
+          if (info.per) s.per = info.per;
+          if (info.pbr) s.pbr = info.pbr;
+          if (info.mix_coef) s.mix_coef = info.mix_coef;
+          if (info.payout_ratio) s.payout_ratio = info.payout_ratio;
+          if (info.yield) s.yield = info.yield;
+          if (info.listed_years != null) s.listed_years = info.listed_years;
+          if (info.listing_date) s.listing_date = info.listing_date;
+          if (info.price_1m_change != null) s.price_1m_change = info.price_1m_change;
+          if (info.earnings_date && !s.earnings_date_manual) {
+            s.earnings_date = info.earnings_date;
+            s._earnings_fetched_at = Date.now();
           }
-        }));
-        for (const { s, info } of results) {
-          completed++;
-          if (info && Object.keys(info).length > 0) {
-            if (info.cur_price) s.cur_price = info.cur_price;
-            if (info.annual_div) s.annual_div = info.annual_div;
-            if (info.per) s.per = info.per;
-            if (info.pbr) s.pbr = info.pbr;
-            if (info.mix_coef) s.mix_coef = info.mix_coef;
-            if (info.payout_ratio) s.payout_ratio = info.payout_ratio;
-            if (info.yield) s.yield = info.yield;
-            if (info.listed_years != null) s.listed_years = info.listed_years;
-            if (info.listing_date) s.listing_date = info.listing_date;
-            if (info.price_1m_change != null) s.price_1m_change = info.price_1m_change;
-            if (info.earnings_date && !s.earnings_date_manual) {
-              s.earnings_date = info.earnings_date;
-              s._earnings_fetched_at = Date.now();
-            }
-            /* ★ キャッシュ有効期限の起点 */
-            s._enriched_at = Date.now();
-            updated++;
-          } else {
-            failed++;
-          }
+          /* ★ キャッシュ有効期限の起点 — 次回以降は72h以内ならスキップ */
+          s._enriched_at = Date.now();
+          updated++;
+          detail.textContent = `${completed}/${targets.length}: ${s.code} ${s.name||''} ✅（キャッシュ${cacheHits}/新規${updated - cacheHits}/失敗${failed}）`;
+        } else {
+          failed++;
+          detail.textContent = `${completed}/${targets.length}: ${s.code} ${s.name||''} ⚠ 取得失敗（キャッシュ${cacheHits}/新規${updated - cacheHits}/失敗${failed}）`;
         }
         const pct = Math.round(completed/targets.length*100);
         bar.style.width = pct + '%';
-        detail.textContent = `${completed}/${targets.length} 完了（キャッシュ${cacheHits}/新規${updated - cacheHits}/失敗${failed}）`;
-        if (i + CHUNK_SIZE < needFull.length) {
-          for (let w = 0; w < 2; w++) {
+        /* 失敗時は途中保存（ユーザーが中断しても進捗を守る） */
+        if (i % 3 === 2) savePortfolioToLocal();
+        /* 1 銘柄処理後に 2.5 秒スリープ（中止監視つき、50ms刻みで速やかに抜けられる） */
+        if (i < needFull.length - 1) {
+          const steps = Math.floor(SLEEP_BETWEEN_MS / 50);
+          for (let w = 0; w < steps; w++) {
             if (cancelFlag.enrich) break;
             await new Promise(r => setTimeout(r, 50));
           }
