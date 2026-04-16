@@ -199,7 +199,7 @@ async function scrapeKabutan(code) {
 
 // ---------- みんかぶ（配当ページ） ----------
 async function scrapeMinkabuDividend(code) {
-  const out = { yield: null, payout_ratio: null, div_trend: null };
+  const out = { yield: null, payout_ratio: null, div_trend: null, per_share_div: null, kenri_month: null };
   let html;
   try {
     html = await fetchText(`https://minkabu.jp/stock/${code}/dividend`);
@@ -227,6 +227,24 @@ async function scrapeMinkabuDividend(code) {
   }
   let m = pipe.match(/配当性向\|[^%]*?(\d+\.?\d*)%/);
   if (m) { const v = toNum(m[1]); if (inRange(v, 0, 500)) out.payout_ratio = v; }
+  // 「株を100株買うと、年間 X,XXX円」から 1株配当を逆算（より直接的）
+  {
+    const textAll = stripHtml(html);
+    const mm = textAll.match(/株を\s*(\d+)\s*株買うと[^0-9]{0,30}?年間[^0-9]{0,10}?([\d,]+)\s*円/);
+    if (mm) {
+      const nShares = parseInt(mm[1], 10);
+      const totalYen = toNum(mm[2]);
+      if (nShares > 0 && totalYen != null) {
+        const perShare = totalYen / nShares;
+        if (inRange(perShare, 0, 100000)) out.per_share_div = Math.round(perShare * 10) / 10;
+      }
+    }
+  }
+  // 配当権利確定月: 「配当権利確定月 3月」= 期末配当の権利確定月 → 支払は約3ヶ月後
+  {
+    const mm = pipe.match(/配当権利確定月\s*\|?\s*\|?\s*(\d{1,2})\s*月/);
+    if (mm) { const v = parseInt(mm[1], 10); if (v >= 1 && v <= 12) out.kenri_month = v; }
+  }
   // 増配・非減配実績
   let inc = html.match(/(\d+)\s*(?:期|年)\s*連続\s*増配/);
   if (inc) {
@@ -338,22 +356,38 @@ async function enrichStock(code) {
   if (irbank.equity_ratio != null) info.equity_ratio = irbank.equity_ratio;
 
   // 決算月(カレンダー反映用)
-  // fiscal_year_end_month が分かれば、期末配当月=決算月+3、中間配当月=期末+6(mod12)
-  // 例: 3月決算 → 期末配当 6月、中間配当 12月
-  //     12月決算 → 期末配当 3月、中間配当 9月
-  //     9月決算 → 期末配当 12月、中間配当 6月
-  if (irbank.fiscal_month != null) {
+  // 優先順: ① minkabu の配当権利確定月(実績ベース) → ② IR BANK の決算月から計算
+  //   配当権利確定月 = 期末権利確定月 → 支払は約3ヶ月後 = end_month
+  //   中間配当 = 期末の6ヶ月後
+  //   例: 権利確定3月 → end_month=6, mid_month=12
+  //       権利確定12月 → end_month=3, mid_month=9
+  let endMonthHint = null, midMonthHint = null;
+  if (minkabu.kenri_month != null) {
+    // 権利確定月 + 3 = 支払月(期末)
+    endMonthHint = ((minkabu.kenri_month + 3 - 1) % 12) + 1;
+    midMonthHint = ((endMonthHint + 6 - 1) % 12) + 1;
+    info.fiscal_year_end_month = minkabu.kenri_month; // 権利確定月=決算月が普通
+    debug.month_source = 'minkabu_kenri';
+  } else if (irbank.fiscal_month != null) {
     info.fiscal_year_end_month = irbank.fiscal_month;
-    const end_m = ((irbank.fiscal_month + 3 - 1) % 12) + 1; // 決算月+3 (1-12)
-    const mid_m = ((end_m + 6 - 1) % 12) + 1;
-    info.end_month_hint = end_m;
-    info.mid_month_hint = mid_m;
+    endMonthHint = ((irbank.fiscal_month + 3 - 1) % 12) + 1;
+    midMonthHint = ((endMonthHint + 6 - 1) % 12) + 1;
+    debug.month_source = 'irbank_fiscal';
   }
+  if (endMonthHint) info.end_month_hint = endMonthHint;
+  if (midMonthHint) info.mid_month_hint = midMonthHint;
 
-  // 配当額算出: 株価 × 利回り（server.py と同じ）
-  if (price && finalYield) {
+  // 配当額算出:
+  //   ① minkabu の 1株配当（直接取得）
+  //   ② 株価 × 利回り（server.py と同じ計算）
+  if (minkabu.per_share_div != null && minkabu.per_share_div > 0) {
+    info.annual_div = minkabu.per_share_div;
+    info.mid_div = Math.round(minkabu.per_share_div / 2 * 10) / 10;
+    debug.div_source = 'minkabu_direct';
+  } else if (price && finalYield) {
     info.annual_div = Math.round(price * finalYield / 100 * 10) / 10;
     info.mid_div = Math.round(info.annual_div / 2 * 10) / 10;
+    debug.div_source = 'yield_price';
   }
 
   info._debug = debug;

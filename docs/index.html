@@ -5152,13 +5152,19 @@ async function enrichStocks(onlyMissing, forceRefresh) {
       const needFull = [];
       const hitCache = [];
       for (const s of targets) {
-        /* 決算月が未取得（デフォルト値 end_month=6/mid_month=12 で mid_div=0）の銘柄は、
-         * キャッシュに関係なく強制フル取得。サーバー API の fiscal_year_end_month を
-         * 反映させるため。手動設定されている場合は除外。 */
+        /* 以下のいずれかに該当する銘柄はキャッシュに関わらず強制フル取得:
+         *   (A) 決算月が未取得でデフォルト値のまま → fiscal_year_end_month 反映
+         *   (B) 年間配当が 0 or 未取得 → 利回り/株価/配当の再取得
+         *   (C) ETF/REIT 以外で利回りが 0 or null → 取得失敗の可能性 */
         const needsFiscalMonth = !s.end_month_manual && !s.mid_month_manual
           && s.end_month === 6 && s.mid_month === 12
           && (!s.mid_div || s.mid_div === 0) && !s.fiscal_year_end_month;
-        if (!force && !needsFiscalMonth && isEnrichCacheFresh(s)) hitCache.push(s);
+        const needsDividend = !s.annual_div_manual && (!s.annual_div || s.annual_div === 0);
+        const codeNum = parseInt(String(s.code).replace(/\D/g, ''), 10);
+        const isEtfReit = (codeNum >= 1300 && codeNum <= 2899) || (codeNum >= 8900 && codeNum <= 8999);
+        const needsYield = !s.yield_manual && !isEtfReit && (!s.yield || s.yield === 0);
+        const mustRefresh = needsFiscalMonth || needsDividend || needsYield;
+        if (!force && !mustRefresh && isEnrichCacheFresh(s)) hitCache.push(s);
         else needFull.push(s);
       }
       detail.textContent = `対象 ${targets.length} 件: キャッシュ有効 ${hitCache.length} / 要フル取得 ${needFull.length}`;
@@ -5243,8 +5249,11 @@ async function enrichStocks(onlyMissing, forceRefresh) {
           s.mid_month = info.mid_month_hint;
         }
         /* mid_div 自動算出 (annual_div の半額) — ユーザーが手動設定していない場合のみ。
+         * サーバー側で info.mid_div が既に計算されていれば優先。
          * 既に mid_div が設定されていて合計と矛盾する場合は上書きしない。 */
-        if (info.annual_div && !s.annual_div_manual && !s.mid_div_manual) {
+        if (info.mid_div != null && !s.mid_div_manual) {
+          s.mid_div = info.mid_div;
+        } else if (info.annual_div && !s.annual_div_manual && !s.mid_div_manual) {
           if (!s.mid_div || Math.abs(s.mid_div * 2 - info.annual_div) > info.annual_div * 0.1) {
             s.mid_div = Math.round(info.annual_div / 2 * 10) / 10;
           }
