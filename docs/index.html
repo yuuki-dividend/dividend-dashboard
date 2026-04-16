@@ -5212,6 +5212,34 @@ async function enrichStocks(onlyMissing, forceRefresh) {
        * Promise.any で最速の 1 つが勝つので実質 9 並列程度。 */
       const FULL_CHUNK = 3;
       const FULL_CHUNK_SLEEP_MS = 500;
+
+      /* ETF フォールバック（クライアント側の安全網）:
+       * サーバー側 scrape.js にも同じテーブルがあるが、Vercel 未デプロイ期間や
+       * CORS フォールバック経路では ETF 利回りが一切取れない問題が起きうるため、
+       * クライアント側にもう一段持たせる。 */
+      const CLIENT_KNOWN_ETF = {
+        '1343': 93,  // NEXT FUNDS 東証REIT指数
+        '1489': 100, // NEXT FUNDS 日経平均高配当株50
+        '1478': 80,  // iシェアーズ MSCIジャパン高配当利回り
+        '1577': 110, // NEXT FUNDS 野村日本株高配当70
+        '1698': 75,  // ダイワ上場投信-東証配当フォーカス100
+        '2564': 130, // グローバルX MSCIスーパーディビィデンド-日本株式
+      };
+      const applyEtfClientFallback = (s) => {
+        const perShare = CLIENT_KNOWN_ETF[String(s.code)];
+        if (!perShare) return false;
+        let changed = false;
+        if (!s.annual_div_manual && (!s.annual_div || s.annual_div === 0)) {
+          s.annual_div = perShare;
+          changed = true;
+        }
+        if (!s.yield_manual && (!s.yield || s.yield === 0) && s.cur_price > 0) {
+          s.yield = Math.round((perShare / s.cur_price) * 10000) / 100;
+          changed = true;
+        }
+        return changed;
+      };
+
       const applyInfoToStock = (s, info) => {
         if (!info || Object.keys(info).length === 0) return false;
         if (info.cur_price) s.cur_price = info.cur_price;
@@ -5296,6 +5324,8 @@ async function enrichStocks(onlyMissing, forceRefresh) {
             const info = byCode[s.code];
             if (info && !info.error && (info.cur_price != null || info.yield != null || info.per != null)) {
               if (applyInfoToStock(s, info)) updated++;
+              /* ETF の最終安全網: サーバー側テーブルが未デプロイでも利回りが 0 なら補完 */
+              if ((!s.yield || s.yield === 0) && !s.yield_manual) applyEtfClientFallback(s);
               completed++;
             } else {
               /* 取得失敗 or 値が乏しい → CORS フォールバックで再試行 */
@@ -5331,6 +5361,8 @@ async function enrichStocks(onlyMissing, forceRefresh) {
           completed++;
           if (applyInfoToStock(s, info)) updated++;
           else failed++;
+          /* ETF の最終安全網 */
+          if ((!s.yield || s.yield === 0) && !s.yield_manual) applyEtfClientFallback(s);
         }
         const pct = Math.round(completed/targets.length*100);
         bar.style.width = pct + '%';
@@ -5347,9 +5379,19 @@ async function enrichStocks(onlyMissing, forceRefresh) {
         }
       }
 
+      /* 最終パス: ETF 利回り 0 のものを既知テーブルで補完（1343/1489 等） */
+      let etfFixed = 0;
+      for (const s of stocks) {
+        if (CLIENT_KNOWN_ETF[String(s.code)] && (!s.yield || s.yield === 0) && !s.yield_manual) {
+          if (applyEtfClientFallback(s)) etfFixed++;
+        }
+      }
+      if (etfFixed > 0) savePortfolioToLocal();
+
       savePortfolioToLocal();
       bar.style.width = '100%';
-      status.textContent = `✅ ${updated}/${targets.length}銘柄を更新完了（キャッシュ${cacheHits}件 / 新規${updated - cacheHits}件 / 失敗${failed}件）`;
+      const etfMsg = etfFixed > 0 ? ` / ETF補完${etfFixed}件` : '';
+      status.textContent = `✅ ${updated}/${targets.length}銘柄を更新完了（キャッシュ${cacheHits}件 / 新規${updated - cacheHits}件 / 失敗${failed}件${etfMsg}）`;
       status.style.color = 'var(--green)';
       localStorage.setItem('lastPriceUpdate', new Date().toLocaleString('ja-JP'));
       const activeTab = document.querySelector('.nav-btn.active');
