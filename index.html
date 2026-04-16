@@ -5221,16 +5221,39 @@ async function enrichStocks(onlyMissing, forceRefresh) {
           s.earnings_date = info.earnings_date;
           s._earnings_fetched_at = Date.now();
         }
+        /* === 決算月 → 配当カレンダー反映 ===
+         * サーバー側が fiscal_year_end_month を返した場合、
+         * end_month_hint / mid_month_hint を使って 期末・中間の月を自動設定。
+         * ただし、ユーザーが手動設定している (mid_month_manual / end_month_manual) 場合は尊重。
+         * また、既に月が設定済みでデフォルト値 (end:6/mid:12) と異なる場合も尊重。 */
+        if (info.fiscal_year_end_month != null) {
+          s.fiscal_year_end_month = info.fiscal_year_end_month;
+        }
+        const isDefaultMonths = (s.end_month === 6 && s.mid_month === 12) || (!s.end_month && !s.mid_month);
+        if (info.end_month_hint && !s.end_month_manual && isDefaultMonths) {
+          s.end_month = info.end_month_hint;
+        }
+        if (info.mid_month_hint && !s.mid_month_manual && isDefaultMonths) {
+          s.mid_month = info.mid_month_hint;
+        }
+        /* mid_div 自動算出 (annual_div の半額) — ユーザーが手動設定していない場合のみ。
+         * 既に mid_div が設定されていて合計と矛盾する場合は上書きしない。 */
+        if (info.annual_div && !s.annual_div_manual && !s.mid_div_manual) {
+          if (!s.mid_div || Math.abs(s.mid_div * 2 - info.annual_div) > info.annual_div * 0.1) {
+            s.mid_div = Math.round(info.annual_div / 2 * 10) / 10;
+          }
+        }
         s._enriched_at = Date.now();
         return true;
       };
 
-      /* ===== B-0. サーバー側 /api/enrich_batch で一括取得（30銘柄ずつ）=====
+      /* ===== B-0. サーバー側 /api/enrich_batch で一括取得（20銘柄ずつ）=====
        * CORSプロキシ完全バイパス。ローカル python 並の品質・速度。
+       * サーバー側の MAX_CODES=20 / CONCURRENCY=8 / fetchText timeout=10s に合わせる。
        * 失敗 or 取得値が乏しい銘柄だけ、この後の個別フォールバック（B-1）に残す */
       let stillNeedFull = needFull;
       if (needFull.length && await hasServerApi()) {
-        const BATCH = 30;
+        const BATCH = 20;
         const pendingAfterBatch = [];
         for (let i = 0; i < needFull.length; i += BATCH) {
           if (cancelFlag.enrich) break;

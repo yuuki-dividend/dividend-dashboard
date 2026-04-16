@@ -4,8 +4,8 @@
 
 const { enrichStock } = require('./_lib/scrape');
 
-const MAX_CODES = 30;          // enrich is heavier (3 sources per code) — cap lower
-const CONCURRENCY = 6;         // 6 codes × 3 sources = 18 concurrent upstream fetches
+const MAX_CODES = 20;          // fail-fast 10s/source × 3-4 sources → keep batch ≤ 20 to fit 60s budget
+const CONCURRENCY = 8;         // 8 codes × 3-4 sources = 24-32 concurrent upstream fetches
 
 async function runWithConcurrency(items, worker, concurrency) {
   const results = new Array(items.length);

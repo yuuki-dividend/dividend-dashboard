@@ -13,7 +13,10 @@
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
 // ---------- HTTP ----------
-async function fetchText(url, timeoutMs = 15000, retries = 1) {
+// NOTE: Vercel Serverless には 60s の maxDuration 上限がある。
+// 1 銘柄を 30s で諦めれば、concurrency=8 で batch=20 の場合、
+// 最悪 (20/8) * 30s = 75s だが、各 chunk 内は 10s + 10s + 10s = 30s が上限なので OK。
+async function fetchText(url, timeoutMs = 10000, retries = 0) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -43,7 +46,7 @@ async function fetchText(url, timeoutMs = 15000, retries = 1) {
     } catch (e) {
       clearTimeout(t);
       if (attempt < retries) {
-        await new Promise(r => setTimeout(r, 800));
+        await new Promise(r => setTimeout(r, 500));
         continue;
       }
       throw e;
@@ -128,7 +131,7 @@ async function scrapeYahoo(code) {
 
 // ---------- IR BANK ----------
 async function scrapeIrBank(code) {
-  const out = { per_forecast: null, per_actual: null, pbr: null, equity_ratio: null };
+  const out = { per_forecast: null, per_actual: null, pbr: null, equity_ratio: null, fiscal_month: null };
   let html;
   try {
     html = await fetchText(`https://irbank.net/${code}`);
@@ -145,6 +148,42 @@ async function scrapeIrBank(code) {
   if (m) { const v = toNum(m[1]); if (inRange(v, 0.01, 100)) out.pbr = v; }
   m = text.match(/自己資本比率[^%]{0,25}?(\d+(?:\.\d+)?)\s*%/);
   if (m) { const v = toNum(m[1]); if (inRange(v, 0, 100)) out.equity_ratio = v; }
+  // 決算月: 「決算月 3月」「決算期 2025/03」等
+  const fmPats = [
+    /決算月[^0-9]{0,10}?(\d{1,2})\s*月/,
+    /決算期[^0-9]{0,10}?\d{4}\s*[\/年\-]\s*(\d{1,2})/,
+    /本決算[^0-9]{0,10}?(\d{1,2})\s*月/,
+  ];
+  for (const p of fmPats) {
+    const mm = text.match(p);
+    if (mm) { const v = parseInt(mm[1], 10); if (v >= 1 && v <= 12) { out.fiscal_month = v; break; } }
+  }
+  return out;
+}
+
+// ---------- Kabutan（配当利回り 4th フォールバック） ----------
+async function scrapeKabutan(code) {
+  const out = { yield: null, price: null };
+  let html;
+  try {
+    html = await fetchText(`https://kabutan.jp/stock/?code=${code}`);
+  } catch (e) {
+    out._error = `kabutan: ${e.message}`;
+    return out;
+  }
+  const text = stripHtml(html);
+  // 「配当利回り X.XX %」
+  const yPats = [
+    /配当利回り\s*[（(]予[）)][^%]{0,30}?([\d.]+)\s*%/,
+    /配当利回り[^%]{0,30}?([\d.]+)\s*%/,
+  ];
+  for (const p of yPats) {
+    const mm = text.match(p);
+    if (mm) { const v = toNum(mm[1]); if (inRange(v, 0, 20)) { out.yield = v; break; } }
+  }
+  // 株価フォールバック
+  const pm = text.match(/株価[^0-9]{0,30}?([\d,]+(?:\.\d+)?)\s*円/);
+  if (pm) { const v = toNum(pm[1]); if (inRange(v, 1, 500000)) out.price = v; }
   return out;
 }
 
@@ -159,9 +198,24 @@ async function scrapeMinkabuDividend(code) {
     return out;
   }
   const pipe = stripToPipe(html);
-  let m = pipe.match(/配当利回り\|[^|]*?\|?\s*([\d.]+)\s*%/);
-  if (m) { const v = toNum(m[1]); if (inRange(v, 0, 20)) out.yield = v; }
-  m = pipe.match(/配当性向\|[^%]*?(\d+\.?\d*)%/);
+  // 複数のパターンを試す(みんかぶHTMLは銘柄によって微妙に違う)
+  const mkYieldPats = [
+    /配当利回り\s*[（(]会社予想[）)]\|[^|]*?\|?\s*([\d.]+)\s*%/,
+    /予想配当利回り\|[^|]*?\|?\s*([\d.]+)\s*%/,
+    /配当利回り\|[^|]*?\|?\s*([\d.]+)\s*%/,
+    /配当利回り[^0-9]{0,40}?([\d.]+)\s*%/,
+  ];
+  for (const p of mkYieldPats) {
+    const mm = pipe.match(p);
+    if (mm) { const v = toNum(mm[1]); if (inRange(v, 0, 20)) { out.yield = v; break; } }
+  }
+  // text 版からも試す(パイプ化でマッチ崩れた場合のフォールバック)
+  if (out.yield == null) {
+    const text = stripHtml(html);
+    const mm = text.match(/配当利回り[^0-9]{0,40}?([\d.]+)\s*%/);
+    if (mm) { const v = toNum(mm[1]); if (inRange(v, 0, 20)) out.yield = v; }
+  }
+  let m = pipe.match(/配当性向\|[^%]*?(\d+\.?\d*)%/);
   if (m) { const v = toNum(m[1]); if (inRange(v, 0, 500)) out.payout_ratio = v; }
   // 増配・非減配実績
   let inc = html.match(/(\d+)\s*(?:期|年)\s*連続\s*増配/);
@@ -247,9 +301,22 @@ async function enrichStock(code) {
 
   if (info.per && info.pbr) info.mix_coef = Math.round(info.per * info.pbr * 100) / 100;
 
-  // 配当利回り: みんかぶ優先、Yahoo フォールバック
-  const finalYield = minkabu.yield ?? yahoo.yield ?? null;
+  // 配当利回り: みんかぶ優先 → Yahoo → Kabutan(4th fallback)
+  let finalYield = minkabu.yield ?? yahoo.yield ?? null;
+  let yieldSource = minkabu.yield != null ? 'minkabu' : (yahoo.yield != null ? 'yahoo' : null);
+  if (finalYield == null && !isEtf) {
+    // みんかぶ/Yahoo の両方で利回り取れず → Kabutan を試す
+    try {
+      const kabutan = await scrapeKabutan(code);
+      debug.kabutan = kabutan._error || 'ok';
+      if (kabutan.yield != null) { finalYield = kabutan.yield; yieldSource = 'kabutan'; }
+      if (!price && kabutan.price) { price = kabutan.price; info.cur_price = price; }
+    } catch (e) {
+      debug.kabutan = `err:${e.message}`;
+    }
+  }
   if (finalYield != null) info.yield = finalYield;
+  if (yieldSource) debug.yield_source = yieldSource;
 
   // 配当性向
   if (minkabu.payout_ratio != null) info.payout_ratio = minkabu.payout_ratio;
@@ -259,6 +326,19 @@ async function enrichStock(code) {
 
   // 自己資本比率
   if (irbank.equity_ratio != null) info.equity_ratio = irbank.equity_ratio;
+
+  // 決算月(カレンダー反映用)
+  // fiscal_year_end_month が分かれば、期末配当月=決算月+3、中間配当月=期末+6(mod12)
+  // 例: 3月決算 → 期末配当 6月、中間配当 12月
+  //     12月決算 → 期末配当 3月、中間配当 9月
+  //     9月決算 → 期末配当 12月、中間配当 6月
+  if (irbank.fiscal_month != null) {
+    info.fiscal_year_end_month = irbank.fiscal_month;
+    const end_m = ((irbank.fiscal_month + 3 - 1) % 12) + 1; // 決算月+3 (1-12)
+    const mid_m = ((end_m + 6 - 1) % 12) + 1;
+    info.end_month_hint = end_m;
+    info.mid_month_hint = mid_m;
+  }
 
   // 配当額算出: 株価 × 利回り（server.py と同じ）
   if (price && finalYield) {
@@ -282,4 +362,9 @@ module.exports = {
   enrichStock,
   fetchPriceOnly,
   isEtfOrReit,
+  // テスト/診断用
+  scrapeYahoo,
+  scrapeIrBank,
+  scrapeMinkabuDividend,
+  scrapeKabutan,
 };
