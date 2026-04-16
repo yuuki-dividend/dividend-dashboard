@@ -194,6 +194,7 @@ def fetch_stock_info(code):
     ir_per_forecast = None
     ir_per_actual = None
     ir_pbr = None
+    ir_fiscal_month = None  # IR BANK から取れる決算月 ("2026年3月期" の 3)
     try:
         url_ir = f"https://irbank.net/{code}"
         req_ir = urllib.request.Request(url_ir, headers={"User-Agent": UA})
@@ -211,6 +212,23 @@ def fetch_stock_info(code):
         m = re.search(r'PBR\s*[（(]連[）)]\s*(\d+(?:\.\d+)?)\s*倍', text_ir)
         if m:
             ir_pbr = float(m.group(1))
+        # 決算月 (scrape.js と同じパターンを順に試す)
+        fm_pats = [
+            r'\d{4}\s*年\s*(\d{1,2})\s*月期',           # "2026年3月期" ← メイン
+            r'決算月[^0-9]{0,10}?(\d{1,2})\s*月',
+            r'本決算[^0-9]{0,10}?(\d{1,2})\s*月',
+            r'通期\s*\d{4}\s*/\s*(\d{1,2})',             # "通期 2025/03"
+        ]
+        for p in fm_pats:
+            mm = re.search(p, text_ir)
+            if mm:
+                try:
+                    v = int(mm.group(1))
+                except (ValueError, IndexError):
+                    continue
+                if 1 <= v <= 12:
+                    ir_fiscal_month = v
+                    break
     except Exception as e:
         print(f"  [{code}] IRバンク error: {e}")
 
@@ -266,8 +284,9 @@ def fetch_stock_info(code):
         except Exception as e:
             print(f"  [{code}] minkabu fallback error: {e}")
 
-    # === 3. minkabu 配当ページ: 利回り・配当性向・増配実績 ===
+    # === 3. minkabu 配当ページ: 利回り・配当性向・増配実績・配当権利確定月 ===
     minkabu_yield = 0
+    minkabu_kenri_month = None  # 配当権利確定月 (例: 3月決算 → kenri_month=3)
     try:
         url_div = f"https://minkabu.jp/stock/{code}/dividend"
         req_div = urllib.request.Request(url_div, headers={"User-Agent": UA})
@@ -287,6 +306,16 @@ def fetch_stock_info(code):
         if m_payout:
             info["payout_ratio"] = float(m_payout.group(1))
 
+        # 配当権利確定月: scrape.js と同じパターン
+        m_kenri = re.search(r'配当権利確定月\s*\|?\s*\|?\s*(\d{1,2})\s*月', text_div)
+        if m_kenri:
+            try:
+                v = int(m_kenri.group(1))
+                if 1 <= v <= 12:
+                    minkabu_kenri_month = v
+            except ValueError:
+                pass
+
         # 増配実績
         inc = re.search(r'(\d+)\s*(?:期|年)\s*連続\s*増配', html_div)
         if inc:
@@ -298,6 +327,27 @@ def fetch_stock_info(code):
 
     except Exception as e:
         print(f"  [{code}] minkabu dividend error: {e}")
+
+    # === 3.5 決算月から配当月(期末/中間)を算出 ===
+    # 優先順: ① minkabu 配当権利確定月 → ② IR BANK 決算月
+    # 権利確定月 + 3 = 支払月(期末)、中間 = 期末 + 6 ヶ月
+    # 例: 3月決算 → end_month=6, mid_month=12
+    end_month_hint = None
+    mid_month_hint = None
+    if minkabu_kenri_month is not None:
+        end_month_hint = ((minkabu_kenri_month + 3 - 1) % 12) + 1
+        mid_month_hint = ((end_month_hint + 6 - 1) % 12) + 1
+        info["fiscal_year_end_month"] = minkabu_kenri_month
+        info["_month_source"] = "minkabu_kenri"
+    elif ir_fiscal_month is not None:
+        info["fiscal_year_end_month"] = ir_fiscal_month
+        end_month_hint = ((ir_fiscal_month + 3 - 1) % 12) + 1
+        mid_month_hint = ((end_month_hint + 6 - 1) % 12) + 1
+        info["_month_source"] = "irbank_fiscal"
+    if end_month_hint is not None:
+        info["end_month_hint"] = end_month_hint
+    if mid_month_hint is not None:
+        info["mid_month_hint"] = mid_month_hint
 
     # === 4. 配当額の算出: 株価 × 利回り（最も信頼性が高い方法） ===
     if cur_price > 0 and minkabu_yield > 0:
@@ -341,11 +391,11 @@ def fetch_stock_info(code):
             info["_div_source"] = "known_etf_table"
         if cur_price > 0 and info.get("annual_div", 0) > 0 and info.get("yield") in (0, None):
             info["yield"] = round(info["annual_div"] / cur_price * 100, 2)
-        # 配当月ヒント: 末尾の決算月を期末、先頭を中間に
+        # 配当月ヒント: 末尾の決算月を期末、先頭を中間に(手動設定は _handle_enrich 側で尊重)
         months = etf["fiscal_months"]
         if months:
-            info["end_month"] = months[-1]
-            info["mid_month"] = months[0] if len(months) >= 2 else months[-1]
+            info["end_month_hint"] = months[-1]
+            info["mid_month_hint"] = months[0] if len(months) >= 2 else months[-1]
             info["fiscal_year_end_month"] = months[-1]
         print(f"  [{code}] 🅔 ETF 既知テーブル適用: {etf['note']} → 分配金{etf['per_share_div']}円, 決算月{months}")
 
@@ -585,11 +635,25 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 pct = int(completed / max(1, total) * 100)
 
                 if info:
-                    stock_map[code].update(info)
+                    stock = stock_map[code]
+                    # === 決算月ヒント → end_month/mid_month 反映（manual flag と default 値を尊重） ===
+                    # client-side applyInfoToStock と同じロジック
+                    is_default_months = (
+                        (stock.get("end_month") == 6 and stock.get("mid_month") == 12)
+                        or (not stock.get("end_month") and not stock.get("mid_month"))
+                    )
+                    if "end_month_hint" in info and not stock.get("end_month_manual") and is_default_months:
+                        stock["end_month"] = info["end_month_hint"]
+                    if "mid_month_hint" in info and not stock.get("mid_month_manual") and is_default_months:
+                        stock["mid_month"] = info["mid_month_hint"]
+                    # update() 時にヒントキーは残したまま(デバッグ用途に有用)、stock に反映
+                    stock.update(info)
                     updated += 1
                     parts = []
                     if "annual_div" in info:
                         parts.append(f"配当{info['annual_div']}円")
+                    if "end_month_hint" in info:
+                        parts.append(f"配当月{info.get('mid_month_hint')}/{info['end_month_hint']}")
                     if "sector" in info:
                         parts.append(info["sector"])
                     if "per" in info:
