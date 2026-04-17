@@ -285,9 +285,10 @@ def fetch_stock_info(code):
         except Exception as e:
             print(f"  [{code}] minkabu fallback error: {e}")
 
-    # === 3. minkabu 配当ページ: 利回り・配当性向・増配実績・配当権利確定月 ===
+    # === 3. minkabu 配当ページ: 利回り・配当性向・増配実績・配当権利確定月・1株配当 ===
     minkabu_yield = 0
-    minkabu_kenri_month = None  # 配当権利確定月 (例: 3月決算 → kenri_month=3)
+    minkabu_per_share_div = None  # 「○株買うと年間X円」から逆算した1株配当
+    minkabu_kenri_month = None    # 配当権利確定月 (例: 3月決算 → kenri_month=3)
     try:
         url_div = f"https://minkabu.jp/stock/{code}/dividend"
         req_div = urllib.request.Request(url_div, headers={"User-Agent": UA})
@@ -306,6 +307,22 @@ def fetch_stock_info(code):
         m_payout = re.search(r'配当性向\|[^%]*?(\d+\.?\d+)%', text_div)
         if m_payout:
             info["payout_ratio"] = float(m_payout.group(1))
+
+        # 1株配当: 「株を100株買うと、年間 X,XXX円」から逆算 (scrape.js と同じパターン)
+        # → 利回り x 株価 の逆算より精度が高い (minkabu が小数第1位の利回りしか表示しないため)
+        text_raw = re.sub(r'<[^>]+>', ' ', html_div)
+        text_raw = re.sub(r'\s+', ' ', text_raw)
+        m_per_share = re.search(r'株を\s*(\d+)\s*株買うと[^0-9]{0,30}?年間[^0-9]{0,10}?([\d,]+)\s*円', text_raw)
+        if m_per_share:
+            try:
+                n_shares = int(m_per_share.group(1))
+                total_yen = float(m_per_share.group(2).replace(',', ''))
+                if n_shares > 0:
+                    per_share = total_yen / n_shares
+                    if 0 <= per_share <= 100000:
+                        minkabu_per_share_div = round(per_share * 10) / 10
+            except (ValueError, ZeroDivisionError):
+                pass
 
         # 配当権利確定月: scrape.js と同じパターン
         m_kenri = re.search(r'配当権利確定月\s*\|?\s*\|?\s*(\d{1,2})\s*月', text_div)
@@ -350,12 +367,19 @@ def fetch_stock_info(code):
     if mid_month_hint is not None:
         info["mid_month_hint"] = mid_month_hint
 
-    # === 4. 配当額の算出: 株価 × 利回り（最も信頼性が高い方法） ===
-    if cur_price > 0 and minkabu_yield > 0:
+    # === 4. 配当額の算出 ===
+    # 優先順: ① minkabu 「X株買うと年間Y円」由来の per_share_div (scrape.js/Vercel と同じ)
+    #          ② minkabu 利回り × 株価 (逆算) — per_share_div が取れなかった場合のみ
+    # ①が精度高い(minkabu の利回り表示は小数1桁丸めのため、逆算すると丸め誤差が出る)
+    if minkabu_per_share_div is not None and minkabu_per_share_div > 0:
+        info["annual_div"] = minkabu_per_share_div
+        info["mid_div"] = round(minkabu_per_share_div / 2, 1)
+        print(f"  [{code}] 配当: {minkabu_per_share_div}円 (minkabu 1株配当, 直接値)")
+    elif cur_price > 0 and minkabu_yield > 0:
         annual_div = round(cur_price * minkabu_yield / 100, 1)
         info["annual_div"] = annual_div
         info["mid_div"] = round(annual_div / 2, 1)
-        print(f"  [{code}] 配当: {annual_div}円 (株価{cur_price} × 利回り{minkabu_yield}%)")
+        print(f"  [{code}] 配当: {annual_div}円 (株価{cur_price} × 利回り{minkabu_yield}% 逆算)")
 
     # === 5. 株価をinfoに格納 ===
     # "price" は /api/stock_info 互換用、"cur_price" は stocks.json 側のキーに揃えたもの。
