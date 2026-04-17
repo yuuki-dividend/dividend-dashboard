@@ -291,12 +291,12 @@ function isEtfOrReit(code) {
 // 配当月は 決算月(fiscal_months の末尾) 〜 決算月+2ヶ月で支払われる想定。
 // 値は年1回ごとの最新値を参考にした概算。必要に応じて年1回メンテ。
 const KNOWN_ETF_DIVIDENDS = {
-  '1343': { per_share_div: 93,  fiscal_months: [1, 7],  note: 'NEXT FUNDS 東証REIT指数' },
-  '1489': { per_share_div: 100, fiscal_months: [7],     note: 'NEXT FUNDS 日経平均高配当株50' },
-  '1478': { per_share_div: 80,  fiscal_months: [2, 8],  note: 'iシェアーズ MSCIジャパン高配当利回り' },
-  '1577': { per_share_div: 110, fiscal_months: [1, 4, 7, 10], note: 'NEXT FUNDS 野村日本株高配当70' },
-  '1698': { per_share_div: 75,  fiscal_months: [1, 7],  note: 'ダイワ上場投信-東証配当フォーカス100' },
-  '2564': { per_share_div: 130, fiscal_months: [1, 4, 7, 10], note: 'グローバルX MSCIスーパーディビィデンド-日本株式' },
+  '1343': { per_share_div: 93,  fiscal_months: [2, 5, 8, 11], note: 'NEXT FUNDS 東証REIT指数 (Yahoo確認: 決算頻度4回)' },
+  '1489': { per_share_div: 100, fiscal_months: [1, 4, 7, 10], note: 'NEXT FUNDS 日経平均高配当株50 (Yahoo確認: 決算頻度4回)' },
+  '1478': { per_share_div: 80,  fiscal_months: [2, 8],        note: 'iシェアーズ MSCIジャパン高配当利回り (Yahoo確認: 決算頻度2回)' },
+  '1577': { per_share_div: 110, fiscal_months: [1, 4, 7, 10], note: 'NEXT FUNDS 野村日本株高配当70 (Yahoo確認: 決算頻度4回)' },
+  '1698': { per_share_div: 75,  fiscal_months: [1, 4, 7, 10], note: 'ダイワ上場投信-東証配当フォーカス100 (Yahoo確認: 決算頻度4回)' },
+  '2564': { per_share_div: 130, fiscal_months: [1, 4, 7, 10], note: 'グローバルX MSCIスーパーディビィデンド-日本株式 (Yahoo確認: 決算頻度4回)' },
 };
 
 // ---------- メイン enrich 関数 ----------

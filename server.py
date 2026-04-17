@@ -108,12 +108,12 @@ def _is_etf_or_reit(code):
 # みんかぶ/Yahoo から利回りが取れない ETF 向けの静的フォールバック。
 # api/_lib/scrape.js の KNOWN_ETF_DIVIDENDS と同じ値を保持する。
 KNOWN_ETF_DIVIDENDS = {
-    1343: {"per_share_div": 93,  "fiscal_months": [1, 7],           "note": "NEXT FUNDS 東証REIT指数"},
-    1489: {"per_share_div": 100, "fiscal_months": [7],              "note": "NEXT FUNDS 日経平均高配当株50"},
-    1478: {"per_share_div": 80,  "fiscal_months": [2, 8],           "note": "iシェアーズ MSCIジャパン高配当利回り"},
-    1577: {"per_share_div": 110, "fiscal_months": [1, 4, 7, 10],    "note": "NEXT FUNDS 野村日本株高配当70"},
-    1698: {"per_share_div": 75,  "fiscal_months": [1, 7],           "note": "ダイワ上場投信-東証配当フォーカス100"},
-    2564: {"per_share_div": 130, "fiscal_months": [1, 4, 7, 10],    "note": "グローバルX MSCIスーパーディビィデンド-日本株式"},
+    1343: {"per_share_div": 93,  "fiscal_months": [2, 5, 8, 11],    "note": "NEXT FUNDS 東証REIT指数 (Yahoo確認: 決算頻度4回)"},
+    1489: {"per_share_div": 100, "fiscal_months": [1, 4, 7, 10],    "note": "NEXT FUNDS 日経平均高配当株50 (Yahoo確認: 決算頻度4回)"},
+    1478: {"per_share_div": 80,  "fiscal_months": [2, 8],           "note": "iシェアーズ MSCIジャパン高配当利回り (Yahoo確認: 決算頻度2回)"},
+    1577: {"per_share_div": 110, "fiscal_months": [1, 4, 7, 10],    "note": "NEXT FUNDS 野村日本株高配当70 (Yahoo確認: 決算頻度4回)"},
+    1698: {"per_share_div": 75,  "fiscal_months": [1, 4, 7, 10],    "note": "ダイワ上場投信-東証配当フォーカス100 (Yahoo確認: 決算頻度4回)"},
+    2564: {"per_share_div": 130, "fiscal_months": [1, 4, 7, 10],    "note": "グローバルX MSCIスーパーディビィデンド-日本株式 (Yahoo確認: 決算頻度4回)"},
 }
 
 
