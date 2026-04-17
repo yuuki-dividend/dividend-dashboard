@@ -2947,7 +2947,7 @@ function renderPortfolio() {
     pl: `<span class="${tp>=0?'text-green':'text-red'}">${fmtYen(Math.round(tp))}</span>`,
     plr: `<span class="${tp>=0?'text-green':'text-red'}">${fmtPct(tpr)}</span>`,
     div_per: '-', book_yield: fmtPct(safeDiv(td,tc)*100), cur_yield: fmtPct(safeDiv(td,tm)*100),
-    per: '-', pbr: '-', mix_coef: '-', valuation: '-', sector: '-', earnings: '', _action: ''
+    per: '-', pbr: '-', mix_coef: '-', valuation: '-', sector: '-', nextRight: '', _action: ''
   };
   html += '</tr><tr class="totals-row">';
   visibleCols.forEach((c, i) => {
@@ -3837,12 +3837,23 @@ function renderChecklistTable() {
       </div>
       `}
       ${renderAdviceBlock(item.advice)}
+      ${(() => {
+        /* 次回権利確定日 — ポートフォリオ列と同ロジックで自動算出(手動編集なし)。
+         * end_month / mid_month から「権利確定月 = 支払月 - 3」で逆算し、直近の月末日を表示。 */
+        const r = computeNextRightDate(item);
+        if (!r) return '';
+        const disp = r.iso.replace(/-/g, '/');
+        let col = 'var(--text-secondary)', icon = '📅';
+        if (r.days <= 7)       { col = '#ef4444'; icon = '🔥'; }
+        else if (r.days <= 30) { col = '#f59e0b'; icon = '⚠'; }
+        return `
       <div style="display:flex;align-items:center;gap:8px;margin:8px 0;padding:6px 10px;background:var(--bg-primary);border:1px dashed var(--border);border-radius:8px">
-        <span style="font-size:.78em;color:var(--text-muted);white-space:nowrap">📅 次回決算日:</span>
-        <input type="date" value="${item.earnings_date || ''}" onchange="setEarningsDate('${item.code}', this.value)" style="font-size:.8em;padding:3px 6px;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;color:var(--text-primary)">
-        <span>${earningsBadgeHtml(item.earnings_date)}</span>
-        <span style="font-size:.7em;color:var(--text-muted);margin-left:auto">※1ヶ月以内で⚠️表示</span>
-      </div>
+        <span style="font-size:.78em;color:var(--text-muted);white-space:nowrap">${icon} 次回権利確定日:</span>
+        <span style="font-size:.9em;color:${col};font-weight:600;font-variant-numeric:tabular-nums" title="月末日で近似(営業日補正なし)。権利落ち日は翌営業日です。">${disp}</span>
+        <span style="font-size:.78em;color:var(--text-muted)">(あと${r.days}日)</span>
+        <span style="font-size:.7em;color:var(--text-muted);margin-left:auto">支払月-3から算出</span>
+      </div>`;
+      })()}
       <div class="cl-links">
         <button class="cl-compare" onclick="openCompareModal('${item.code}', '${(item.name||'').replace(/'/g,"\\'")}')">🔍 4サイト比較</button>
         <a class="cl-main" href="https://irbank.net/${item.code}" target="_blank" rel="noopener" style="background:#1565C0">IR BANK</a>
