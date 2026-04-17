@@ -536,6 +536,16 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
       </div>
       <p style="font-size:.75em;color:var(--text-muted);margin-top:8px">※ 復元時は現在のデータが上書きされます（実行前に確認ダイアログあり）</p>
     </div>
+    <div class="card settings-section" style="border-left:4px solid #ef4444">
+      <h3 style="color:#ef4444">⚠ 危険ゾーン</h3>
+      <p style="font-size:.85em;color:var(--text-muted);margin:4px 0 12px">
+        ポートフォリオに登録されている <b>全銘柄を一括削除</b> します。<br>
+        ※ 実行前に自動バックアップを取りますが、念のため事前に「バックアップをダウンロード」も推奨。
+      </p>
+      <div class="settings-row">
+        <button class="btn" id="btnDeleteAllStocks" style="background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;border:none;padding:8px 16px;font-weight:700">🗑 銘柄全削除</button>
+      </div>
+    </div>
     <div class="card settings-section">
       <h3>このアプリについて</h3>
       <p class="about-text">高配当株ポートフォリオトラッカーは、日本の高配当株の管理・分析を行うシングルページアプリケーションです。配当金の月別推移、セクター構成、買い増しシミュレーションなど、投資判断に役立つ機能を提供します。</p>
@@ -1114,6 +1124,50 @@ function deleteStock(code, fromDetail) {
     alert('削除中にエラーが発生しました: ' + (e && e.message));
   }
 }
+
+/* 銘柄全削除 — 2段階確認 + バックアップ */
+async function deleteAllStocks() {
+  try {
+    const n = stocks.length;
+    if (n === 0) { alert('既に銘柄は登録されていません。'); return; }
+    const first = window.confirm(`⚠ 本当に全銘柄を削除しますか？\n\n現在 ${n} 銘柄が登録されています。\nこの操作は取り消せません (ただしバックアップは自動保存されます)。\n\n続行する場合は OK を押してください。`);
+    if (!first) return;
+    const phrase = '全削除';
+    const answer = window.prompt(`最終確認です。\n\n「${phrase}」と正確に入力してください:`, '');
+    if (answer !== phrase) { alert(`キャンセルしました (入力が一致しません: "${answer}")`); return; }
+
+    /* バックアップ — 静的モードは localStorage に stocks_backup_* として、サーバーモードは API 経由で */
+    const ts = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+    try {
+      localStorage.setItem(`stocks_backup_${ts}`, JSON.stringify(stocks));
+      // 古いバックアップは 3 世代まで保持
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('stocks_backup_')).sort();
+      while (keys.length > 3) localStorage.removeItem(keys.shift());
+    } catch (e) { console.warn('[全削除] localStorage バックアップ失敗:', e); }
+
+    /* サーバーモード: サーバー側でも stocks.backup.json を保存 */
+    if (!IS_STATIC) {
+      try {
+        const resp = await fetch('/api/stocks/delete_all', { method: 'POST' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        console.log('[全削除] サーバー側バックアップ & クリア完了');
+      } catch (e) {
+        console.error('[全削除] サーバー側削除失敗:', e);
+        alert('サーバー側の削除に失敗しました: ' + (e && e.message) + '\nローカルのみクリアされます。');
+      }
+    }
+
+    /* state & localStorage クリア */
+    stocks.length = 0;
+    if (typeof savePortfolioToLocal === 'function') savePortfolioToLocal();
+    refreshAllViews();
+    alert(`✅ 全 ${n} 銘柄を削除しました。\n\nバックアップは localStorage (stocks_backup_${ts}) に保存されています。${IS_STATIC ? '' : '\nサーバー側は stocks.backup.json に保存されています。'}`);
+  } catch (e) {
+    console.error('[全削除] 予期せぬエラー:', e);
+    alert('全削除中にエラーが発生しました: ' + (e && e.message));
+  }
+}
+
 function loadPortfolioFromLocal() {
   const saved = localStorage.getItem('portfolio_stocks');
   if (saved) {
@@ -1254,6 +1308,58 @@ function earningsDaysUntil(dateStr) {
   if (isNaN(d.getTime())) return null;
   const today = new Date(); today.setHours(0,0,0,0);
   return Math.round((d - today) / 86400000);
+}
+
+/* ===== 次回権利確定日 =====
+   stock の end_month / mid_month から「権利確定月 = 支払月 - 3」の関係で算出し、
+   今日以降で直近の月末日を返す。
+   四半期分配ETFは既知テーブルで4ヶ月分を考慮。
+   戻り値: { iso: 'YYYY-MM-DD', days: N } または null (算出不可) */
+const CLIENT_ETF_FISCAL_MONTHS = {
+  '1343': [2, 5, 8, 11],
+  '1489': [1, 4, 7, 10],
+  '1478': [2, 8],
+  '1577': [1, 4, 7, 10],
+  '1698': [1, 4, 7, 10],
+  '2564': [1, 4, 7, 10],
+};
+function computeNextRightDate(s) {
+  if (!s) return null;
+  const kenriMonths = [];
+  // ① 四半期ETF は既知テーブル優先(end_month/mid_month では 2 of 4 しか拾えないため)
+  const ef = CLIENT_ETF_FISCAL_MONTHS[String(s.code)];
+  if (ef && ef.length) {
+    for (const m of ef) kenriMonths.push(((m - 3 - 1 + 12) % 12) + 1);
+  } else {
+    // ② 通常銘柄: end_month (期末) / mid_month (中間) から逆算
+    if (typeof s.end_month === 'number' && s.end_month >= 1 && s.end_month <= 12) {
+      kenriMonths.push(((s.end_month - 3 - 1 + 12) % 12) + 1);
+    }
+    if (typeof s.mid_month === 'number' && s.mid_month >= 1 && s.mid_month <= 12) {
+      kenriMonths.push(((s.mid_month - 3 - 1 + 12) % 12) + 1);
+    }
+  }
+  if (!kenriMonths.length) return null;
+  const uniq = [...new Set(kenriMonths)];
+
+  // 今日以降で直近の月末を探す
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  let best = null;
+  for (const km of uniq) {
+    for (let yo = 0; yo < 2; yo++) {
+      const y = today.getFullYear() + yo;
+      const lastDay = new Date(y, km, 0).getDate(); // km月の最終日
+      const d = new Date(y, km - 1, lastDay);
+      if (d >= today) {
+        if (!best || d < best.d) best = { y, km, lastDay, d };
+        break;
+      }
+    }
+  }
+  if (!best) return null;
+  const iso = `${best.y}-${String(best.km).padStart(2, '0')}-${String(best.lastDay).padStart(2, '0')}`;
+  const days = Math.round((best.d - today) / 86400000);
+  return { iso, days };
 }
 function setEarningsDate(code, value, manual) {
   const s = stocks.find(st => String(st.code) === String(code));
@@ -2678,7 +2784,7 @@ function renderPortfolio() {
     {key:'mix_coef',label:'ミックス係数',get:s=>s.mix_coef||0},
     {key:'valuation',label:'割安度',get:s=>{const m=s.mix_coef||0;return m<=0?99:m}},
     {key:'sector',label:'セクター',get:s=>getSector(s)},
-    {key:'earnings',label:'次回決算日',get:s=>s.earnings_date||'',core:true},
+    {key:'nextRight',label:'次回権利確定日',get:s=>{const r=computeNextRightDate(s);return r?r.iso:'zzzz';},core:true},
     {key:'_action',label:'',get:s=>0,core:true,noSort:true}  /* 削除ボタン列（ソート対象外） */
   ];
   const visibleCols = showExtraCols ? cols : cols.filter(c => c.core);
@@ -2742,22 +2848,20 @@ function renderPortfolio() {
       mix_coef: (s.mix_coef ? s.mix_coef.toFixed(2) : '-') + mIcon(s.per_manual || s.pbr_manual),
       valuation: `<span style="${getValuationColor(s.mix_coef)};padding:4px 8px;border-radius:4px;font-weight:600;font-size:.78rem">${getValuationLabel(s.mix_coef)}</span>`,
       sector: getSector(s) + mIcon(s.sector_manual),
-      earnings: (() => {
-        const d = s.earnings_date || '';
-        const manual = !!s.earnings_date_manual;
-        const loading = (window.fetchingEarnings && window.fetchingEarnings.has(String(s.code)));
-        // セル全体をクリッカブルに（クリックで <input type="date"> にインライン切替）
-        const click = `onclick="event.stopPropagation(); editEarningsDateCell('${s.code}', this)"`;
-        const clickable = `data-earnings-code="${s.code}" style="cursor:pointer;display:inline-block;padding:2px 6px;border-radius:4px" title="クリックで手動入力／上書き" ${click}`;
-        const mark = manual ? '<span style="font-size:.65em;color:var(--text-muted);margin-left:4px" title="手動入力">✏</span>' : '';
-        if (loading) return `<span data-earnings-code="${s.code}" style="display:inline-block;padding:2px 6px;color:var(--accent2)"><span class="spin" style="display:inline-block;animation:spin 1s linear infinite">⏳</span> 取得中...</span>`;
-        if (!d) return `<span ${clickable}><span style="color:var(--text-muted)">-（クリックで入力）</span></span>`;
-        const days = earningsDaysUntil(d);
-        const disp = d.replace(/-/g, '/');
-        if (days == null || days < 0) return `<span ${clickable}><span style="color:var(--text-muted);font-variant-numeric:tabular-nums">${disp}</span>${mark}</span>`;
-        if (days <= 7)  return `<span ${clickable}><span style="color:#ef4444;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums">⚠️ ${disp}<span style="font-size:.75em;margin-left:4px">(${days}日)</span></span>${mark}</span>`;
-        if (days <= 14) return `<span ${clickable}><span style="color:#f59e0b;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums">⚠️ ${disp}<span style="font-size:.75em;margin-left:4px">(${days}日)</span></span>${mark}</span>`;
-        return `<span ${clickable}><span style="color:var(--text-secondary);white-space:nowrap;font-variant-numeric:tabular-nums">${disp}</span>${mark}</span>`;
+      nextRight: (() => {
+        /* 次回権利確定日 — 配当の権利を得るために保有が必要な最終日(= kenri 月末)。
+         * end_month / mid_month から自動算出(手動編集なし)。四半期ETFは既知テーブル優先。 */
+        const r = computeNextRightDate(s);
+        if (!r) {
+          return `<span title="end_month / mid_month が未設定" style="color:var(--text-muted)">-</span>`;
+        }
+        const disp = r.iso.replace(/-/g, '/');
+        const title = `権利確定日: ${disp}（あと${r.days}日）\n※ 月末日で近似(営業日補正なし)。権利落ち日は翌営業日です。`;
+        const base = `style="white-space:nowrap;font-variant-numeric:tabular-nums" title="${title}"`;
+        if (r.days <= 7)  return `<span ${base}><span style="color:#ef4444;font-weight:700">🔥 ${disp}<span style="font-size:.75em;margin-left:4px">(${r.days}日)</span></span></span>`;
+        if (r.days <= 30) return `<span ${base}><span style="color:#f59e0b;font-weight:700">⚠️ ${disp}<span style="font-size:.75em;margin-left:4px">(${r.days}日)</span></span></span>`;
+        if (r.days <= 90) return `<span ${base}><span style="color:var(--text-secondary)">${disp}<span style="font-size:.75em;margin-left:4px;color:var(--text-muted)">(${r.days}日)</span></span></span>`;
+        return `<span ${base}><span style="color:var(--text-muted)">${disp}<span style="font-size:.75em;margin-left:4px">(${r.days}日)</span></span></span>`;
       })(),
       /* 編集（✏️）・外部リンク（📊 IR BANK / 📝 株探）・削除（🗑️）ボタン。行クリック伝播を止めてモーダル/確認ダイアログへ */
       _action: `<span style="display:inline-flex;gap:4px;white-space:nowrap">
@@ -3863,6 +3967,10 @@ document.getElementById('btnExportCSV').addEventListener('click', () => {
   a.click();
   URL.revokeObjectURL(a.href);
 });
+
+/* === 銘柄全削除ボタン配線 === */
+const _btnDeleteAllStocks = document.getElementById('btnDeleteAllStocks');
+if (_btnDeleteAllStocks) _btnDeleteAllStocks.addEventListener('click', () => deleteAllStocks());
 
 /* === Export: Tax Data CSV === */
 document.getElementById('btnExportTax').addEventListener('click', () => {

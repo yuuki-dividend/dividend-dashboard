@@ -516,6 +516,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
             except Exception as e:
                 self._json_response({"error": str(e)}, 400)
 
+        elif self.path == "/api/stocks/delete_all":
+            # 銘柄全削除 — 現在の stocks.json を stocks.backup.json にコピーしてから空配列で上書き
+            try:
+                import shutil
+                backup_path = os.path.join(BASE_DIR, "stocks.backup.json")
+                if os.path.exists(STOCKS_FILE):
+                    shutil.copy2(STOCKS_FILE, backup_path)
+                    print(f"[削除] バックアップ作成: {backup_path}")
+                save_stocks([])
+                print("[削除] stocks.json を空配列にクリア")
+                self._json_response({"ok": True, "backup": "stocks.backup.json"})
+            except Exception as e:
+                print(f"[削除] エラー: {e}")
+                self._json_response({"error": str(e)}, 500)
+
         elif self.path == "/api/simulate":
             try:
                 req = json.loads(body.decode("utf-8"))
