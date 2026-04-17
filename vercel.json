@@ -6,7 +6,8 @@
     "api/enrich.js":       { "maxDuration": 30 },
     "api/enrich_batch.js": { "maxDuration": 60 },
     "api/prices.js":       { "maxDuration": 30 },
-    "api/price.js":        { "maxDuration": 15 }
+    "api/price.js":        { "maxDuration": 15 },
+    "api/compare.js":      { "maxDuration": 15 }
   },
   "headers": [
     {

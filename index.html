@@ -5942,16 +5942,32 @@ function safeExtract(text, regex, type, lookback) {
    銘柄データ 4サイト比較モーダル
    ============================================================ */
 async function fetchCompareFromSite(name, url, parsers) {
+  /* 4サイト比較のHTML取得.
+   * 外部CORSプロキシ (corsproxy.io 等) は 403 を返すようになったため、
+   * 自前の /api/compare?url=<encoded> 経由で取得する。
+   * Vercel(/api/compare.js) と Python server(/api/compare?...) で
+   * 同じインタフェースを実装している。
+   * フォールバック: /api/compare が失敗した場合は corsproxy.io を試す。 */
   const out = { site: name, url, values: {}, error: null };
-  try {
-    const r = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(url), { signal: AbortSignal.timeout(12000) });
-    if (!r.ok) { out.error = 'HTTP ' + r.status; return out; }
-    const raw = await r.text();
-    const text = raw.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ');
-    for (const [key, fn] of Object.entries(parsers)) {
-      try { out.values[key] = fn(text, raw); } catch(e) { out.values[key] = null; }
-    }
-  } catch (e) { out.error = e.message; }
+  const endpoints = [
+    '/api/compare?url=' + encodeURIComponent(url),
+    'https://corsproxy.io/?url=' + encodeURIComponent(url),
+  ];
+  let raw = null, lastErr = null;
+  for (const ep of endpoints) {
+    try {
+      const r = await fetch(ep, { signal: AbortSignal.timeout(12000) });
+      if (!r.ok) { lastErr = 'HTTP ' + r.status; continue; }
+      raw = await r.text();
+      lastErr = null;
+      break;
+    } catch (e) { lastErr = e.message; }
+  }
+  if (raw == null) { out.error = lastErr || '取得失敗'; return out; }
+  const text = raw.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ');
+  for (const [key, fn] of Object.entries(parsers)) {
+    try { out.values[key] = fn(text, raw); } catch(e) { out.values[key] = null; }
+  }
   return out;
 }
 

@@ -480,6 +480,38 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 info["yield"] = _round_js(annual_div / price * 100, 2)
             print(f"[API] stock_info: {code} → price={info.get('price',0)}, yield={info.get('yield',0)}%, sector={info.get('sector','')}")
             self._json_response(info)
+        elif self.path.startswith("/api/compare?"):
+            # 4サイト比較モーダル用の HTML プロキシ。
+            # corsproxy.io (外部) が 403 を返すため、自前で取得して返す。
+            # api/compare.js (Vercel側) と同じインタフェース。
+            import urllib.parse as up
+            params = up.parse_qs(up.urlparse(self.path).query)
+            target = params.get("url", [""])[0]
+            if not target:
+                self._json_response({"error": "url required"}, 400)
+                return
+            allowed_hosts = ("finance.yahoo.co.jp", "irbank.net", "minkabu.jp", "kabutan.jp")
+            try:
+                pu = up.urlparse(target)
+                host = pu.hostname or ""
+                if not any(host == d or host.endswith("." + d) for d in allowed_hosts):
+                    self._json_response({"error": "domain not allowed", "host": host}, 403)
+                    return
+                req = urllib.request.Request(target, headers={
+                    "User-Agent": UA,
+                    "Accept-Language": "ja,en;q=0.8",
+                })
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    data = resp.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Cache-Control", "public, max-age=60")
+                self.send_header("Content-Length", len(data))
+                self.end_headers()
+                self.wfile.write(data)
+            except Exception as e:
+                self._json_response({"error": str(e)}, 502)
         elif self.path == "/" or self.path == "/index.html":
             self._serve_file(INDEX_FILE, "text/html")
         elif self.path == "/manifest.json":
