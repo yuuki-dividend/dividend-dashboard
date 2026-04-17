@@ -12,3 +12,4 @@ backups/
 stocks.json
 docs/stocks.json
 portfolio_report.pptx
+save-token.sh
