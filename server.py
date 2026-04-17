@@ -637,15 +637,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
                 if info:
                     stock = stock_map[code]
-                    # === 決算月ヒント → end_month/mid_month 反映（manual flag と default 値を尊重） ===
-                    # client-side applyInfoToStock と同じロジック
-                    is_default_months = (
-                        (stock.get("end_month") == 6 and stock.get("mid_month") == 12)
-                        or (not stock.get("end_month") and not stock.get("mid_month"))
-                    )
-                    if "end_month_hint" in info and not stock.get("end_month_manual") and is_default_months:
+                    # === 決算月ヒント → end_month/mid_month 反映 ===
+                    # end_month_manual/mid_month_manual が True でない限り、信頼できる
+                    # minkabu 権利確定月・IR BANK 決算月由来の hint で上書きする
+                    # (以前は "default 6/12 のみ上書き" と保守的だったが、手動フラグなしの
+                    #  不整合値が残り続けるため、manual フラグのみをガードにする)
+                    if "end_month_hint" in info and not stock.get("end_month_manual"):
                         stock["end_month"] = info["end_month_hint"]
-                    if "mid_month_hint" in info and not stock.get("mid_month_manual") and is_default_months:
+                    if "mid_month_hint" in info and not stock.get("mid_month_manual"):
                         stock["mid_month"] = info["mid_month_hint"]
                     # update() 時にヒントキーは残したまま(デバッグ用途に有用)、stock に反映
                     stock.update(info)
