@@ -1,0 +1,57 @@
+name: リベ大流スクリーニング (週次自動更新)
+
+# 毎週日曜 JST 21:47 に run_screening.py を実行し、
+# screening_data.json / docs/screening_data.json を自動コミット & push。
+# → Vercel / GitHub Pages 上の友達向けサイトも自動で最新化される。
+#
+# 時刻選定の意図:
+#   - 21:47 という端数分にすることでスクレイプ先 (minkabu 等) への
+#     ピーク時間帯との重なりを避け、データ取得の安定性を上げる。
+#   - GitHub Actions の cron は best-effort で 15〜30 分遅延しうるが、
+#     端数分スタートなら遅延しても比較的「静かな時間帯」に収まる。
+#
+# 手動実行も可能 (Actions タブ → "Run workflow"):
+#   → 日曜以外でもすぐスクリーニングを回したい時に使う。
+
+on:
+  schedule:
+    # cron は UTC — JST 21:47 = UTC 12:47
+    - cron: '47 12 * * 0'
+  workflow_dispatch:  # Actions 画面からの手動実行
+
+jobs:
+  run-screening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write  # screening_data.json を commit & push するため
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run screening (約10〜15分)
+        run: python run_screening.py
+
+      - name: docs/ へ同期 (GitHub Pages 用)
+        run: |
+          if [ -f screening_data.json ]; then
+            cp screening_data.json docs/screening_data.json
+          fi
+
+      - name: Commit & push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add screening_data.json docs/screening_data.json 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "変更なし — スキップ"
+          else
+            git commit -m "auto: スクリーニング週次更新 $(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M JST')"
+            git push
+          fi
