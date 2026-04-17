@@ -44,6 +44,23 @@ def _clean_num(s):
         return 0.0
 
 
+def _round_js(x, ndigits=0):
+    """JavaScript Math.round() 互換 (round half up).
+
+    Python の組み込み round() は銀行家丸め (round half to even) のため
+    0.5 の境界で JS と結果が異なる (例: round(23.25, 1) → Py: 23.2 / JS: 23.3)。
+    配当カレンダーで mid_div と端数が Vercel(JS) とズレないよう、
+    金額系は全てこちらの関数で丸める。
+    """
+    if x is None:
+        return None
+    factor = 10 ** ndigits
+    # Math.floor(x * factor + 0.5) / factor と等価
+    # (負数は Math.round の仕様と異なるが、配当額は常に正なので問題なし)
+    import math
+    return math.floor(x * factor + 0.5) / factor
+
+
 def parse_mf_text(text):
     """Parse MoneyForward ME data (CSV, TSV, or pasted table) into stocks list"""
     stocks = []
@@ -320,7 +337,7 @@ def fetch_stock_info(code):
                 if n_shares > 0:
                     per_share = total_yen / n_shares
                     if 0 <= per_share <= 100000:
-                        minkabu_per_share_div = round(per_share * 10) / 10
+                        minkabu_per_share_div = _round_js(per_share, 1)
             except (ValueError, ZeroDivisionError):
                 pass
 
@@ -373,12 +390,12 @@ def fetch_stock_info(code):
     # ①が精度高い(minkabu の利回り表示は小数1桁丸めのため、逆算すると丸め誤差が出る)
     if minkabu_per_share_div is not None and minkabu_per_share_div > 0:
         info["annual_div"] = minkabu_per_share_div
-        info["mid_div"] = round(minkabu_per_share_div / 2, 1)
+        info["mid_div"] = _round_js(minkabu_per_share_div / 2, 1)
         print(f"  [{code}] 配当: {minkabu_per_share_div}円 (minkabu 1株配当, 直接値)")
     elif cur_price > 0 and minkabu_yield > 0:
-        annual_div = round(cur_price * minkabu_yield / 100, 1)
+        annual_div = _round_js(cur_price * minkabu_yield / 100, 1)
         info["annual_div"] = annual_div
-        info["mid_div"] = round(annual_div / 2, 1)
+        info["mid_div"] = _round_js(annual_div / 2, 1)
         print(f"  [{code}] 配当: {annual_div}円 (株価{cur_price} × 利回り{minkabu_yield}% 逆算)")
 
     # === 5. 株価をinfoに格納 ===
@@ -388,7 +405,7 @@ def fetch_stock_info(code):
         info["cur_price"] = cur_price
         # 既存 yield が保存されている場合は、新しい株価で利回りを再計算して整合させる
         if info.get("annual_div", 0) > 0 and "yield" not in info:
-            info["yield"] = round(info["annual_div"] / cur_price * 100, 2)
+            info["yield"] = _round_js(info["annual_div"] / cur_price * 100, 2)
 
     # === 6. セクター: JPXデータ (all_stocks.json) ===
     sector = _get_sector(code)
@@ -412,10 +429,10 @@ def fetch_stock_info(code):
         info["is_etf"] = True
         if info.get("annual_div", 0) in (0, None):
             info["annual_div"] = etf["per_share_div"]
-            info["mid_div"] = round(etf["per_share_div"] / max(1, len(etf["fiscal_months"])), 1)
+            info["mid_div"] = _round_js(etf["per_share_div"] / max(1, len(etf["fiscal_months"])), 1)
             info["_div_source"] = "known_etf_table"
         if cur_price > 0 and info.get("annual_div", 0) > 0 and info.get("yield") in (0, None):
-            info["yield"] = round(info["annual_div"] / cur_price * 100, 2)
+            info["yield"] = _round_js(info["annual_div"] / cur_price * 100, 2)
         # 配当月ヒント: 末尾の決算月を期末、先頭を中間に(手動設定は _handle_enrich 側で尊重)
         months = etf["fiscal_months"]
         if months:
@@ -460,7 +477,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             price = info.get("price", 0)
             annual_div = info.get("annual_div", 0)
             if price > 0 and annual_div > 0:
-                info["yield"] = round(annual_div / price * 100, 2)
+                info["yield"] = _round_js(annual_div / price * 100, 2)
             print(f"[API] stock_info: {code} → price={info.get('price',0)}, yield={info.get('yield',0)}%, sector={info.get('sector','')}")
             self._json_response(info)
         elif self.path == "/" or self.path == "/index.html":
