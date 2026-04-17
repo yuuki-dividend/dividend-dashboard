@@ -5263,16 +5263,18 @@ async function enrichStocks(onlyMissing, forceRefresh) {
         /* === 決算月 → 配当カレンダー反映 ===
          * サーバー側が fiscal_year_end_month を返した場合、
          * end_month_hint / mid_month_hint を使って 期末・中間の月を自動設定。
-         * ただし、ユーザーが手動設定している (mid_month_manual / end_month_manual) 場合は尊重。
-         * また、既に月が設定済みでデフォルト値 (end:6/mid:12) と異なる場合も尊重。 */
+         * _manual フラグが立っていない限り、信頼できる minkabu 権利確定月・
+         * IR BANK 決算月・KNOWN_ETF_DIVIDENDS 由来の hint で上書きする。
+         * (以前は default 6/12 のみ上書きしていたが、1343/1489/1698 等
+         *  既に不整合値が localStorage に残っている銘柄が修正されないため
+         *  手動フラグのみをガードにする — server.py と同じ方針) */
         if (info.fiscal_year_end_month != null) {
           s.fiscal_year_end_month = info.fiscal_year_end_month;
         }
-        const isDefaultMonths = (s.end_month === 6 && s.mid_month === 12) || (!s.end_month && !s.mid_month);
-        if (info.end_month_hint && !s.end_month_manual && isDefaultMonths) {
+        if (info.end_month_hint && !s.end_month_manual) {
           s.end_month = info.end_month_hint;
         }
-        if (info.mid_month_hint && !s.mid_month_manual && isDefaultMonths) {
+        if (info.mid_month_hint && !s.mid_month_manual) {
           s.mid_month = info.mid_month_hint;
         }
         /* mid_div 自動算出 (annual_div の半額) — ユーザーが手動設定していない場合のみ。
