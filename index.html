@@ -384,8 +384,6 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
     </div>
     <div style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button id="btnAddStock" class="btn btn-primary" style="padding:7px 16px;font-size:.86em;font-weight:700">＋ 銘柄を追加</button>
-      <button id="btnFetchAllEarnings" class="btn btn-outline" style="padding:6px 14px;font-size:.82em">📅 決算日を一括取得</button>
-      <span id="earningsFetchStatus" style="font-size:.78em;color:var(--text-muted)"></span>
     </div>
     <div class="card table-wrap" id="portfolioTableWrap"></div>
     <button id="btnToggleCols" class="btn btn-outline" style="position:fixed;bottom:20px;right:24px;z-index:50;padding:8px 18px;font-size:.84em;backdrop-filter:blur(8px);box-shadow:0 2px 12px rgba(0,0,0,.4)">詳細列を表示</button>
@@ -599,7 +597,7 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
       <div class="card" style="border-left:4px solid #8b5cf6">
         <div style="font-size:0.8em;color:#8b5cf6;font-weight:700;margin-bottom:6px">STEP 2</div>
         <h4 style="margin:0 0 8px 0;font-size:1.05em">🔄 株価・配当を更新</h4>
-        <p style="font-size:0.88em;color:var(--text-secondary);line-height:1.6;margin:0 0 10px 0"><b>設定</b>タブの「🔄 更新する」で現在株価を取得、「📊 全部更新する」で配当業績・PER/PBR等も更新。時間がかかる場合は「⏹ 中止」で即停止できます。</p>
+        <p style="font-size:0.88em;color:var(--text-secondary);line-height:1.6;margin:0 0 10px 0"><b>設定</b>タブの「🔄 更新する」で現在株価を取得、「📊 全部更新する」で配当業績・PER/PBR等も更新。ローカル版は<b>平日 19:13 / 火金 20:27</b>に自動更新もされます (詳細は下の「🤖 自動更新」参照)。</p>
         <button class="btn" onclick="switchTab('settings')" style="padding:6px 14px;font-size:0.85em;background:#8b5cf6;color:#fff;border:none;border-radius:8px;cursor:pointer">設定タブへ</button>
       </div>
       <div class="card" style="border-left:4px solid #10b981">
@@ -608,6 +606,45 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
         <p style="font-size:0.88em;color:var(--text-secondary);line-height:1.6;margin:0 0 10px 0"><b>ダッシュボード</b>で損益・配当・セクター構成を一目で確認。あとは<b>配当カレンダー</b>や<b>買い時判断</b>など、知りたいタブを覗いてみてください。</p>
         <button class="btn" onclick="switchTab('dashboard')" style="padding:6px 14px;font-size:0.85em;background:#10b981;color:#fff;border:none;border-radius:8px;cursor:pointer">ダッシュボードへ</button>
       </div>
+    </div>
+
+    <!-- 自動更新の説明 -->
+    <h3 style="margin:28px 0 12px 0;font-size:1.15em">🤖 自動更新</h3>
+    <div class="card">
+      <p style="font-size:.9em;color:var(--text-secondary);line-height:1.7;margin:0 0 14px 0">
+        ローカル版は macOS の <code>launchd</code>、友達向けサイト (Vercel / GitHub Pages) は <code>GitHub Actions</code> が
+        以下のスケジュールで**自動で最新化**します。<b>毎時ちょうどを避けた端数分</b>にしてスクレイプ先への負荷と bot 集中帯を回避。
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">
+        <div style="padding:12px;background:var(--bg-primary);border-radius:8px;border-left:3px solid #3b82f6">
+          <div style="font-weight:700;font-size:.92em;margin-bottom:4px">📈 株価更新 (軽・約30秒)</div>
+          <div style="font-size:.82em;color:var(--text-secondary);line-height:1.6">
+            <b>平日 19:13 JST</b> (月〜金 毎日)<br>
+            <code>update_prices.py</code> · ローカル launchd<br>
+            <span style="color:var(--text-muted);font-size:.88em">土日は取引所が動かないためスキップ</span>
+          </div>
+        </div>
+        <div style="padding:12px;background:var(--bg-primary);border-radius:8px;border-left:3px solid #8b5cf6">
+          <div style="font-weight:700;font-size:.92em;margin-bottom:4px">🔄 全体更新 (重・5〜10分)</div>
+          <div style="font-size:.82em;color:var(--text-secondary);line-height:1.6">
+            <b>火・金 20:27 JST</b> (週2回)<br>
+            <code>update_all.py</code> · ローカル launchd<br>
+            <span style="color:var(--text-muted);font-size:.88em">配当・PER/PBR・利回り・権利確定月を再取得</span>
+          </div>
+        </div>
+        <div style="padding:12px;background:var(--bg-primary);border-radius:8px;border-left:3px solid #f59e0b">
+          <div style="font-weight:700;font-size:.92em;margin-bottom:4px">🔍 スクリーニング (週1)</div>
+          <div style="font-size:.82em;color:var(--text-secondary);line-height:1.6">
+            <b>日曜 21:47 JST</b> (週1回)<br>
+            <code>run_screening.py</code> · GitHub Actions (クラウド)<br>
+            <span style="color:var(--text-muted);font-size:.88em">Mac off でも実行。友達サイトも自動最新化</span>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:.78em;color:var(--text-muted);margin-top:12px;line-height:1.5">
+        💡 Mac がスリープ中に時刻が来た場合、launchd は次回起床時に遅延実行します。
+        手動で即実行したい時はターミナルで <code>launchctl start com.dividend.updateprices</code> 等。
+      </p>
     </div>
 
     <!-- 各タブの役割 -->
@@ -646,7 +683,22 @@ tr.totals-row th{font-weight:700;background:var(--bg-card) !important;border-top
       <details style="margin-bottom:10px;padding:10px;border:1px solid var(--border);border-radius:8px">
         <summary style="cursor:pointer;font-weight:600">Q. 「スクリーニング」は何をしている？</summary>
         <div style="margin-top:10px;font-size:0.9em;color:var(--text-secondary);line-height:1.6">
-          設定タブの「リベ大流スクリーニング」を実行すると、東証全銘柄を対象にリベ大の優良高配当株の基準（配当利回り4%以上、配当性向30〜60%、自己資本比率40%以上、EPS成長など）でフィルタし、「注目銘柄」タブに結果を反映します。時間がかかります（10〜20分）。
+          minkabu高配当ランキングを起点に、リベ大の優良高配当株基準（配当利回り3.75%以上、配当性向70%以下、連続増配/非減配、EPS成長、自己資本比率40%以上など）でフィルタし、「注目銘柄」タブに結果を反映します。所要 10〜15分。<br>
+          <b>週1回 (日曜 21:47 JST) に GitHub Actions で自動実行</b>されるため、手動実行は通常不要。ボタンはローカル版でのみ有効で、友達共有版では最新の自動結果が表示されます。
+        </div>
+      </details>
+      <details style="margin-bottom:10px;padding:10px;border:1px solid var(--border);border-radius:8px">
+        <summary style="cursor:pointer;font-weight:600">Q. ポートフォリオの「次回権利確定日」ってどこから来ているの？</summary>
+        <div style="margin-top:10px;font-size:0.9em;color:var(--text-secondary);line-height:1.6">
+          登録されている <b>配当支払月 (期末/中間)</b> から「権利確定月 = 支払月 - 3」で逆算した<b>月末日</b>を表示しています。配当を受け取るために保有していなければならない最終日(の目安)です。<br>
+          <b>色の意味</b>: 🔥赤=7日以内 / ⚠橙=30日以内 / 通常=90日以内 / グレー=それ以降。<br>
+          <span style="color:var(--text-muted)">※ 月末日近似 (営業日補正なし)。権利落ち日は翌営業日。四半期分配ETF (1343/1489 等) は 4 ヶ月分考慮。</span>
+        </div>
+      </details>
+      <details style="margin-bottom:10px;padding:10px;border:1px solid var(--border);border-radius:8px">
+        <summary style="cursor:pointer;font-weight:600">Q. 友達にURLを送ったら全銘柄を削除したい時は？</summary>
+        <div style="margin-top:10px;font-size:0.9em;color:var(--text-secondary);line-height:1.6">
+          設定タブ末尾の <b>「⚠ 危険ゾーン」→「🗑 銘柄全削除」</b>ボタン。2段階確認 (「全削除」と正確入力) が必要で、実行時に自動バックアップも取られます (localStorage + <code>stocks.backup.json</code>)。
         </div>
       </details>
     </div>
@@ -2938,8 +2990,6 @@ document.getElementById('btnToggleCols').addEventListener('click', () => {
   document.getElementById('btnToggleCols').textContent = showExtraCols ? '詳細列を隠す' : '詳細列を表示';
   renderPortfolio();
 });
-const _btnFetchAllEarn = document.getElementById('btnFetchAllEarnings');
-if (_btnFetchAllEarn) _btnFetchAllEarn.addEventListener('click', () => fetchAllEarnings());
 const _btnAddStock = document.getElementById('btnAddStock');
 if (_btnAddStock) _btnAddStock.addEventListener('click', () => openAddStock());
 /* Enterキーで保存 */
